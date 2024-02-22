@@ -1,0 +1,191 @@
+#include "MyServer.h"
+
+bool MyServer::send_play(TcpConnection * connection, uint32_t scene_index, uint16_t result)
+{
+    packet_header header{};
+    header.cmd = command_type::play;
+    header.size = sizeof(packet_play_from_server);
+
+    packet_play_from_server out_packet{};
+    out_packet.header = header;
+    out_packet.result = packet_result(result);
+    out_packet.scene_index = scene_index;
+
+    std::shared_ptr<Packet> play_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    *play_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(play_packet);
+
+    return true;
+}
+
+bool MyServer::send_pause(TcpConnection * connection, uint32_t scene_index, uint16_t result)
+{
+    packet_header header{};
+    header.cmd = command_type::pause;
+    header.size = sizeof(packet_pause_from_server);
+
+    packet_pause_from_server out_packet{};
+    out_packet.header = header;
+    out_packet.result = result ? packet_result::ok : packet_result::fail;
+    out_packet.scene_index = scene_index;
+
+    std::shared_ptr<Packet> pause_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    *pause_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(pause_packet);
+
+    return true;
+}
+
+bool MyServer::send_stop(TcpConnection * connection, uint32_t scene_index, uint16_t result)
+{
+    packet_header header{};
+    header.cmd = command_type::stop;
+    header.size = sizeof(packet_stop_from_server);
+
+    packet_stop_from_server out_packet{};
+    out_packet.header = header;
+    out_packet.result = result ? packet_result::ok : packet_result::fail;
+    out_packet.scene_index = scene_index;
+
+    std::shared_ptr<Packet> stop_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    *stop_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(stop_packet);
+
+    return true;
+}
+
+bool MyServer::send_move(TcpConnection * connection, uint32_t scene_index, uint16_t result)
+{
+    packet_header header{};
+    header.cmd = command_type::move;
+    header.size = sizeof(packet_move_from_server);
+
+    packet_move_from_server out_packet{};
+    out_packet.header = header;
+    out_packet.result = result ? packet_result::ok : packet_result::fail;
+    out_packet.scene_index = scene_index;
+
+    std::shared_ptr<Packet> move_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    *move_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(move_packet);
+
+    return true;
+}
+
+void MyServer::OnConnect(TcpConnection& newConnection)
+{
+	std::cout << newConnection.ToString() << " - New connection accepted." << std::endl;
+
+	std::shared_ptr<Packet> welcomeMessagePacket = std::make_shared<Packet>(PacketType::ChatMessage);
+	*welcomeMessagePacket << std::string("Welcome!");
+	newConnection.m_pmOutgoing.Append(welcomeMessagePacket);
+
+	std::shared_ptr<Packet> newUserMessagePacket = std::make_shared<Packet>(PacketType::ChatMessage);
+	*newUserMessagePacket << std::string("New user connected!");
+	for (auto& connection : m_connections)
+	{
+		if (&connection == &newConnection)
+		{
+			continue;
+		}
+
+		connection.m_pmOutgoing.Append(newUserMessagePacket);
+	}
+}
+
+void MyServer::OnDisconnect(TcpConnection& lostConnection, std::string reason)
+{
+	std::cout << "[" << reason << "] Connection lost: " << lostConnection.ToString() << "." << std::endl;
+
+	std::shared_ptr<Packet> connectionLostPacket = std::make_shared<Packet>(PacketType::ChatMessage);
+	*connectionLostPacket << std::string("A user disconnected!");
+	for (auto& connection : m_connections)
+	{
+		if (&connection == &lostConnection)
+		{
+			continue;
+		}
+
+		connection.m_pmOutgoing.Append(connectionLostPacket);
+	}
+}
+
+bool MyServer::ProcessPacket(std::shared_ptr<Packet> packet)
+{
+	switch (packet->GetPacketType())
+	{
+	case PacketType::ChatMessage:
+	{
+		std::string chatMessage;
+		*packet >> chatMessage;
+		std::cout << "Chat Message: " << chatMessage << std::endl;
+		break;
+	}
+	case PacketType::IntegerArray:
+	{
+		uint32_t arraySize = 0;
+		*packet >> arraySize;
+		std::cout << "Array Size: " << arraySize << std::endl;
+		for (uint32_t i = 0; i < arraySize; i++)
+		{
+			uint32_t element = 0;
+			*packet >> element;
+			std::cout << "Element[" << i << "] - " << element << std::endl;
+		}
+		break;
+	}
+	default:
+		std::cout << "Unrecognized packet type: " << (int)packet->GetPacketType() << std::endl;
+		return false;
+	}
+
+	return true;
+}
+
+bool MyServer::ProcessPacket(std::shared_ptr<Packet> packet, TcpConnection* connection)
+{
+    switch (packet->GetPacketType())
+    {
+    case PacketType::ChatMessage:
+    {
+        std::string chatMessage;
+        *packet >> chatMessage;
+        std::cout << "Chat Message: " << chatMessage << std::endl;
+        break;
+    }
+    case PacketType::IntegerArray:
+    {
+        uint32_t arraySize = 0;
+        *packet >> arraySize;
+        std::cout << "Array Size: " << arraySize << std::endl;
+        for (uint32_t i = 0; i < arraySize; i++)
+        {
+            uint32_t element = 0;
+            *packet >> element;
+            std::cout << "Element[" << i << "] - " << element << std::endl;
+        }
+        break;
+    }
+    case PacketType::structured_data_from_client:
+    {
+        void* data = nullptr;
+        *packet >> data;
+
+        if (callback_data_connection)
+        {
+            callback_data_connection(data, connection);
+        }
+
+        if (data)
+        {
+            free(data);
+        }
+    }
+    break;
+    default:
+        std::cout << "Unrecognized packet type: " << (int)packet->GetPacketType() << std::endl;
+        return false;
+    }
+
+    return true;
+}
