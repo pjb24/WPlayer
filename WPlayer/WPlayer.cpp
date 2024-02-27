@@ -17,6 +17,12 @@
 constexpr u32 frame_buffer_count = 3;
 constexpr u32 texture_resource_count = 3;
 
+struct RemoveScene
+{
+    s32 scene_index = -1;
+    bool all_panel_removed_flag = false;
+};
+
 struct NormalizedRect
 {
     float left;
@@ -28,10 +34,10 @@ struct NormalizedRect
 struct Panel
 {
     u32 adapter_index;
-    u32 vertex_index;
-    u32 texture_index;
-    u32 output_index;
-    s32 output_frame_index;
+    s32 vertex_index;
+    s32 texture_index;
+    s32 output_index;   // panel이 그려질 output의 index
+    s32 output_frame_index; // FFmpeg의 AVFrame 패킷 Index
     RECT rect;
     NormalizedRect normalized_rect;
     NormalizedRect normalized_uv;
@@ -39,10 +45,10 @@ struct Panel
 
 struct Scene
 {
-    u32 scene_index;
+    s32 scene_index;
     char* url;
     std::vector<Panel*> panel_list;
-    int64_t pts;
+    int64_t pts = 0;
     RECT rect;
 };
 
@@ -58,7 +64,7 @@ struct output_data
     DXGI_OUTPUT_DESC output_desc{};
     HWND handle = nullptr;
     IDXGISwapChain3* swap_chain = nullptr;
-    u32 frame_index = 0;
+    u32 frame_index = 0;    // Current Back Buffer Index
 
     D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle{};
     std::vector<ID3D12Resource*> rtv_view_list;
@@ -70,7 +76,28 @@ struct output_data
     D3D12_VIEWPORT viewport;
     D3D12_RECT scissor_rect;
 
-    u32 output_index = 0;
+    s32 output_index = -1;
+};
+
+enum class deferred_type : s32
+{
+    none = -1,
+    vertex_buffer = 0,
+    vertex_upload_buffer = 1,
+    texture_y = 2,
+    texture_u = 3,
+    texture_v = 4,
+    upload_texture_y = 5,
+    upload_texture_u = 6,
+    upload_texture_v = 7,
+};
+
+struct deferred_free_object
+{
+    ID3D12Resource* resource;
+    s32 index;
+    deferred_type type;
+    bool free_flag = false;
 };
 
 struct graphics_data
@@ -78,7 +105,7 @@ struct graphics_data
     IDXGIAdapter1* adapter = nullptr;
     ID3D12Device* device = nullptr;
     ID3D12CommandQueue* cmd_queue = nullptr;
-    std::vector<output_data*> output_list;
+    std::vector<output_data*> output_list;  // Adapter에 연결된 Output List
 
     u32 rtv_descriptor_size = 0;
     ID3D12DescriptorHeap* rtv_heaps = nullptr;
@@ -94,9 +121,9 @@ struct graphics_data
     ID3D12GraphicsCommandList* cmd_list = nullptr;
 
     // vertex_index, object
-    std::map<u32, ID3D12Resource*> vertex_buffer_map;
-    std::map<u32, ID3D12Resource*> vertex_upload_buffer_map;
-    std::map<u32, D3D12_VERTEX_BUFFER_VIEW> vertex_buffer_view_map;
+    std::map<s32, ID3D12Resource*> vertex_buffer_map;
+    std::map<s32, ID3D12Resource*> vertex_upload_buffer_map;
+    std::map<s32, D3D12_VERTEX_BUFFER_VIEW> vertex_buffer_view_map;
 
     ID3D12Resource* index_buffer = nullptr;
     ID3D12Resource* index_upload_buffer = nullptr;
@@ -104,22 +131,25 @@ struct graphics_data
     u32 index_count = 0;
 
     // texture_index, object
-    std::map<u32, ID3D12Resource*> texture_map_y[frame_buffer_count];
-    std::map<u32, ID3D12Resource*> texture_map_u[frame_buffer_count];
-    std::map<u32, ID3D12Resource*> texture_map_v[frame_buffer_count];
-    std::map<u32, ID3D12Resource*> upload_texture_map_y[frame_buffer_count];
-    std::map<u32, ID3D12Resource*> upload_texture_map_u[frame_buffer_count];
-    std::map<u32, ID3D12Resource*> upload_texture_map_v[frame_buffer_count];
+    std::map<s32, ID3D12Resource*> texture_map_y[frame_buffer_count];
+    std::map<s32, ID3D12Resource*> texture_map_u[frame_buffer_count];
+    std::map<s32, ID3D12Resource*> texture_map_v[frame_buffer_count];
+    std::map<s32, ID3D12Resource*> upload_texture_map_y[frame_buffer_count];
+    std::map<s32, ID3D12Resource*> upload_texture_map_u[frame_buffer_count];
+    std::map<s32, ID3D12Resource*> upload_texture_map_v[frame_buffer_count];
 
     bool create_index_buffer_flag = true;
 
     u32 adapter_index = 0;
 
-    std::deque<u32> free_vertex_queue;  // vertex_index
-    u32 next_vertex_index = 0;
+    std::deque<s32> free_vertex_queue;  // vertex_index
+    s32 next_vertex_index = 0;
 
-    std::deque<u32> free_texture_queue; // texture_index
-    u32 next_texture_index = 0;
+    std::deque<s32> free_texture_queue; // texture_index
+    s32 next_texture_index = 0;
+
+    bool deferred_free_flag[frame_buffer_count];
+    std::vector<deferred_free_object> deferred_free_object_list[frame_buffer_count];
 };
 
 #pragma region Graphics
@@ -130,7 +160,8 @@ constexpr u32 srv_descriptor_count = 4096;
 IDXGIFactory4*  _factory = nullptr;
 
 std::vector<Scene*> _graphics_insert_list;
-std::deque<u32> _graphics_remove_queue; // scene_index
+std::deque<RemoveScene> _graphics_remove_queue; // scene_index, all_panel_removed_flag
+std::mutex _graphics_remove_mutex;
 
 bool ready = false;
 std::wstring _asset_path;
@@ -138,9 +169,8 @@ const float _clear_color[] = { 0.0f, 0.2f, 0.4f, 1.0f };
 
 std::vector<Scene*> _graphics_scene_list;
 
-std::deque<u32> _free_scene_queue;  // scene_index
-u32 _next_scene_index = 0;
-
+std::deque<s32> _free_scene_queue;  // scene_index
+s32 _next_scene_index = 0;
 
 void get_asset_path(wchar_t * path, u32 path_size);
 std::wstring get_asset_full_path(LPCWSTR asset_name);
@@ -169,9 +199,9 @@ u32 create_command_lists();
 u32 delete_command_lists();
 u32 create_index_buffer(graphics_data* data);
 u32 delete_index_buffer();
-u32 create_vertex_buffer(graphics_data* data, u32 vertex_index, NormalizedRect normalized_rect, NormalizedRect normalized_uv);
+u32 create_vertex_buffer(graphics_data* data, s32 vertex_index, NormalizedRect normalized_rect, NormalizedRect normalized_uv);
 u32 delete_vertex_buffer_list();
-u32 create_texture(graphics_data* data, u32 width, u32 height, u32 texture_index);
+u32 create_texture(graphics_data* data, u32 width, u32 height, s32 texture_index);
 u32 delete_textures();
 u32 create_fences();
 u32 delete_fences();
@@ -182,14 +212,16 @@ u32 move_to_next_frame(ID3D12CommandQueue* cmd_queue, output_data* data);
 u32 populate_command_list(graphics_data* data);
 u32 render();
 u32 create_scene_data(RECT rect, char * url);
-u32 delete_scene_data(u32 scene_index);
-u32 upload_texture(graphics_data* data, AVFrame* frame, u32 target_texture_index, s32 output_frame_index);
+u32 delete_scene_data(s32 scene_index);
+u32 upload_texture(graphics_data* data, AVFrame* frame, s32 target_texture_index, s32 output_frame_index);
 float normalize_min_max(int min, int max, int target, int normalized_min, int normalized_max);
 u32 normalize_rect(RECT base_rect, RECT target_rect, NormalizedRect& normalized_rect);
 u32 normalize_uv(RECT base_rect, RECT target_rect, NormalizedRect& normalized_uv);
+u32 deferred_free_processing(u32 back_buffer_index);
 #pragma endregion
 
 #pragma region TCP Server
+void* _server = nullptr;
 std::thread _tcp_thread;
 bool _tcp_server_flag = true;
 
@@ -199,24 +231,105 @@ void server_thread();
 #pragma region Packet Processing
 // first : packet_data, second : connection
 std::deque<std::pair<void*, void*>> _tcp_processing_command_queue;
-
 constexpr u32 _sleep_time_tcp_processing = 10;
-
 std::thread _tcp_processing_thread;
 bool _tcp_processing_flag = true;
 std::mutex _tcp_processing_mutex;
-
 void tcp_processing_thread();
 void callback_data_connection_server(void* data, void* connection);
 #pragma endregion
 
 
 #pragma region FFmpegWrapper
-void callback_ffmpeg_wrapper_uint32(u32 index);
+struct FFmpegProcessingCommand
+{
+    s32 scene_index;
+    u16 command;
+    void* connection;
+    u16 result;
+};
 
-std::map<u32, void*> _ffmpeg_data_map;  // ffmpeg_instance
+std::deque<FFmpegProcessingCommand> _ffmpeg_processing_command_queue;
+
+constexpr u32 _sleep_time_ffmpeg_processing = 10;
+
+std::map<s32, void*> _ffmpeg_data_map;  // scene_index, ffmpeg_instance
+
+std::thread _ffmpeg_processing_thread;
+bool _ffmpeg_processing_flag = true;
+std::mutex _ffmpeg_data_mutex;
+
+void ffmpeg_processing_thread();
+void callback_ffmpeg_wrapper_int32_uint16_ptr_uint16(s32 scene_index, u16 command, void* connection, u16 result);
 #pragma endregion
 
+void ffmpeg_processing_thread()
+{
+    while (_ffmpeg_processing_flag)
+    {
+        if (_ffmpeg_processing_command_queue.empty())
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time_ffmpeg_processing));
+            continue;
+        }
+
+        // scene_index, command, connection
+        FFmpegProcessingCommand data_command;
+        {
+            std::lock_guard<std::mutex> lk(_ffmpeg_data_mutex);
+            data_command = _ffmpeg_processing_command_queue.front();
+            _ffmpeg_processing_command_queue.pop_front();
+        }
+
+        switch ((command_type)data_command.command)
+        {
+        case command_type::play:
+        {
+            for (auto it = _graphics_insert_list.begin(); it != _graphics_insert_list.end();)
+            {
+                if ((*it)->scene_index == data_command.scene_index)
+                {
+                    _graphics_scene_list.push_back(*it);
+                    _graphics_insert_list.erase(it);
+                    break;
+                }
+
+                it++;
+            }
+
+            cppsocket_server_send_play(_server, data_command.connection, data_command.scene_index, data_command.result);
+        }
+        break;
+        case command_type::pause:
+        {
+            cppsocket_server_send_pause(_server, data_command.connection, data_command.scene_index, data_command.result);
+        }
+        break;
+        case command_type::stop:
+        {
+            void* ffmpeg_instance = nullptr;
+            {
+                std::lock_guard<std::mutex> lock(_ffmpeg_data_mutex);
+                ffmpeg_instance = _ffmpeg_data_map.find(data_command.scene_index)->second;
+                cpp_ffmpeg_wrapper_shutdown(ffmpeg_instance);
+                cpp_ffmpeg_wrapper_delete(ffmpeg_instance);
+                _ffmpeg_data_map.erase(data_command.scene_index);
+            }
+            delete_scene_data(data_command.scene_index);
+
+            cppsocket_server_send_stop(_server, data_command.connection, data_command.scene_index, data_command.result);
+        }
+        break;
+        case command_type::move:
+        {
+
+        }
+        break;
+        default:
+            break;
+        }
+    }
+}
 
 void tcp_processing_thread()
 {
@@ -229,7 +342,6 @@ void tcp_processing_thread()
         }
 
         std::pair<void*, void*> data_pair;
-        void* data = nullptr;
         {
             std::lock_guard<std::mutex> lk(_tcp_processing_mutex);
             data_pair = _tcp_processing_command_queue.front();
@@ -238,64 +350,50 @@ void tcp_processing_thread()
 
         packet_header* header = (packet_header*)data_pair.first;
 
+        void* ffmpeg_instance = nullptr;
+
         switch (header->cmd)
         {
         case command_type::play:
         {
             packet_play_from_client* packet = (packet_play_from_client*)data_pair.first;
-            u32 scene_index = create_scene_data(packet->rect, packet->url);
-            void* ffmpeg_instance = cpp_ffmpeg_wrapper_create();
+            s32 scene_index = create_scene_data(packet->rect, packet->url);
+            ffmpeg_instance = cpp_ffmpeg_wrapper_create();
 
             _ffmpeg_data_map.insert({ scene_index, ffmpeg_instance });
 
-            cpp_ffmpeg_wrapper_initialize(ffmpeg_instance, callback_ffmpeg_wrapper_uint32, scene_index);
+            cpp_ffmpeg_wrapper_initialize(ffmpeg_instance, callback_ffmpeg_wrapper_int32_uint16_ptr_uint16, scene_index);
             cpp_ffmpeg_wrapper_set_file_path(ffmpeg_instance, packet->url);
             if (cpp_ffmpeg_wrapper_open_file(ffmpeg_instance) != 0)
             {
                 // TODO: open_file 실패
             }
-            cpp_ffmpeg_wrapper_play_start(ffmpeg_instance);
-        }
-        break;
-        case command_type::stop:
-        {
-            packet_stop_from_client* packet = (packet_stop_from_client*)data_pair.first;
-            delete_scene_data(packet->scene_index);
-
-            for (auto scene : _graphics_scene_list)
-            {
-                if (scene->scene_index == packet->scene_index)
-                {
-                    for (auto panel : scene->panel_list)
-                    {
-                        for (auto data : _graphics_data_list)
-                        {
-                            if (data->adapter_index == panel->adapter_index)
-                            {
-                                data->free_vertex_queue.push_back(panel->vertex_index);
-                                data->free_texture_queue.push_back(panel->texture_index);
-                                break;
-                            }
-                        }
-                    }
-
-                    scene->panel_list.clear();
-
-                    _free_scene_queue.push_back(scene->scene_index);
-
-                    break;
-                }
-            }
+            cpp_ffmpeg_wrapper_play_start(ffmpeg_instance, data_pair.second);
         }
         break;
         case command_type::pause:
         {
             packet_pause_from_client* packet = (packet_pause_from_client*)data_pair.first;
+
+            ffmpeg_instance = _ffmpeg_data_map.find(packet->scene_index)->second;
+
+            cpp_ffmpeg_wrapper_play_pause(ffmpeg_instance, data_pair.second);
+        }
+        break;
+        case command_type::stop:
+        {
+            packet_stop_from_client* packet = (packet_stop_from_client*)data_pair.first;
+
+            ffmpeg_instance = _ffmpeg_data_map.find(packet->scene_index)->second;
+
+            cpp_ffmpeg_wrapper_play_stop(ffmpeg_instance, data_pair.second);
         }
         break;
         case command_type::move:
         {
             packet_move_from_client* packet = (packet_move_from_client*)data_pair.first;
+
+            ffmpeg_instance = _ffmpeg_data_map.find(packet->scene_index)->second;
         }
         break;
         default:
@@ -400,7 +498,7 @@ u32 enum_output_list()
 
     IDXGIOutput* output = nullptr;
 
-    u32 output_index = 0;
+    s32 output_index = 0;
 
     for (auto data : _graphics_data_list)
     {
@@ -1099,7 +1197,7 @@ u32 delete_index_buffer()
 // Target Adapter
 // Coordinate
 // 
-u32 create_vertex_buffer(graphics_data* data, u32 vertex_index, NormalizedRect normalized_rect, NormalizedRect normalized_uv)
+u32 create_vertex_buffer(graphics_data* data, s32 vertex_index, NormalizedRect normalized_rect, NormalizedRect normalized_uv)
 {
     if (_graphics_data_list.empty())
     {
@@ -1203,7 +1301,7 @@ u32 delete_vertex_buffer_list()
 // Target Adapter
 // Size
 //
-u32 create_texture(graphics_data* data, u32 width, u32 height, u32 texture_index)
+u32 create_texture(graphics_data* data, u32 width, u32 height, s32 texture_index)
 {
     if (_graphics_data_list.empty())
     {
@@ -1452,6 +1550,12 @@ u32 create_fences()
         for (auto output : data->output_list)
         {
             hr = data->device->CreateFence(output->fence_values[output->frame_index], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&output->fence));
+
+            output->fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+            if (output->fence_event == nullptr)
+            {
+                hr = HRESULT_FROM_WIN32(GetLastError());
+            }
         }
     }
 
@@ -1469,6 +1573,8 @@ u32 delete_fences()
     {
         for (auto output : data->output_list)
         {
+            CloseHandle(output->fence_event);
+
             output->fence->Release();
             output->fence = nullptr;
         }
@@ -1547,56 +1653,71 @@ u32 populate_command_list(graphics_data* data)
 {
     HRESULT hr = S_OK;
 
-    u32 index = ((output_data*)*data->output_list.begin())->frame_index;
+    u32 current_back_buffer_index = ((output_data*)*data->output_list.begin())->frame_index;
 
-    hr = data->cmd_allocator_list[index]->Reset();
+    hr = data->cmd_allocator_list[current_back_buffer_index]->Reset();
 
-    data->cmd_list->Reset(data->cmd_allocator_list[index], data->pso);
+    data->cmd_list->Reset(data->cmd_allocator_list[current_back_buffer_index], data->pso);
+
+    if (data->deferred_free_flag[current_back_buffer_index] == true)
+    {
+        data->deferred_free_flag[current_back_buffer_index] = false;
+
+        deferred_free_processing(current_back_buffer_index);
+    }
 
     AVFrame* frame = av_frame_alloc();
     // get texture
     for (auto scene : _graphics_scene_list)
     {
-        auto it = _ffmpeg_data_map.find(scene->scene_index);
-        if (it != _ffmpeg_data_map.end())
+        int32_t output_frame_index = -1;
+
         {
-            int32_t output_frame_index = cpp_ffmpeg_wrapper_get_frame(it->second, frame, scene->pts);
+            std::lock_guard<std::mutex> lock(_ffmpeg_data_mutex);
+            auto it = _ffmpeg_data_map.find(scene->scene_index);
+            if (it != _ffmpeg_data_map.end())
+            {
+                output_frame_index = cpp_ffmpeg_wrapper_get_frame(it->second, frame);
+            }
+        }
             
-            if (output_frame_index == -1)
+        if (output_frame_index == -1)
+        {
+            continue;
+        }
+
+        scene->pts = frame->pts;
+
+        for (auto panel : scene->panel_list)
+        {
+            if (data->adapter_index != panel->adapter_index)
             {
                 continue;
             }
 
-            for (auto panel : scene->panel_list)
+            if (data->texture_map_y[0].find(panel->texture_index) == data->texture_map_y[0].end())
             {
-                if (data->adapter_index != panel->adapter_index)
+                create_texture(data, frame->width, frame->height, panel->texture_index);
+            }
+                
+            for (auto output : data->output_list)
+            {
+                if (output->output_index != panel->output_index)
                 {
                     continue;
                 }
 
-                if (data->texture_map_y[0].find(panel->texture_index) == data->texture_map_y[0].end())
-                {
-                    create_texture(data, frame->width, frame->height, panel->texture_index);
-                }
-                
-                for (auto output : data->output_list)
-                {
-                    if (output->output_index != panel->output_index)
-                    {
-                        continue;
-                    }
+                normalize_uv(scene->rect, panel->rect, panel->normalized_uv);
+            }
 
-                    normalize_uv(scene->rect, panel->rect, panel->normalized_uv);
-                }
-
-                if (output_frame_index != -1)
-                {
-                    upload_texture(data, frame, panel->texture_index, output_frame_index);
-                    panel->output_frame_index = output_frame_index;
-                }
+            if (output_frame_index != -1)
+            {
+                upload_texture(data, frame, panel->texture_index, output_frame_index);
+                panel->output_frame_index = output_frame_index;
             }
         }
     }
+    av_frame_unref(frame);
     av_frame_free(&frame);
 
     // create vertex
@@ -1622,12 +1743,171 @@ u32 populate_command_list(graphics_data* data)
         create_index_buffer(data);
     }
 
+    // remove data input to deferred_free_maps
+    {
+        std::lock_guard<std::mutex> lock(_graphics_remove_mutex);
+        for (auto it_remove_scene = _graphics_remove_queue.begin(); it_remove_scene != _graphics_remove_queue.end();)
+        {
+            RemoveScene remove_scene = *it_remove_scene;
+
+            for (auto it_scene = _graphics_scene_list.begin(); it_scene != _graphics_scene_list.end();)
+            {
+                Scene* scene = *it_scene;
+
+                if (scene->scene_index != remove_scene.scene_index)
+                {
+                    it_scene++;
+                    continue;
+                }
+
+                for (auto it_panel = scene->panel_list.begin(); it_panel != scene->panel_list.end();)
+                {
+                    Panel* panel = *it_panel;
+
+                    if (data->adapter_index != panel->adapter_index)
+                    {
+                        it_panel++;
+                        continue;
+                    }
+                    
+                    // remove vertex
+                    {
+                        auto it_vertex = data->vertex_buffer_map.find(panel->vertex_index);
+                        if (it_vertex != data->vertex_buffer_map.end())
+                        {
+                            deferred_free_object object;
+                            object.resource = (*it_vertex).second;
+                            object.index = (*it_vertex).first;
+                            object.type = deferred_type::vertex_buffer;
+                            data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+                            
+                            data->vertex_buffer_map.erase(panel->vertex_index);
+                        }
+
+                        auto it_vertex_upload = data->vertex_upload_buffer_map.find(panel->vertex_index);
+                        if (it_vertex_upload != data->vertex_upload_buffer_map.end())
+                        {
+                            deferred_free_object object;
+                            object.resource = (*it_vertex_upload).second;
+                            object.index = (*it_vertex_upload).first;
+                            object.type = deferred_type::vertex_upload_buffer;
+                            data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+
+                            data->vertex_upload_buffer_map.erase(panel->vertex_index);
+                        }
+
+                        auto it_vertex_view = data->vertex_buffer_view_map.find(panel->vertex_index);
+                        if (it_vertex_view != data->vertex_buffer_view_map.end())
+                        {
+                            data->vertex_buffer_view_map.erase(panel->vertex_index);
+                        }
+                    }
+
+                    // remove texture
+                    if (data->texture_map_y[0].find(panel->texture_index) != data->texture_map_y[0].end())
+                    {
+                        for (u32 i = 0; i < frame_buffer_count; i++)
+                        {
+                            auto it_texture_y = data->texture_map_y[i].find(panel->texture_index);
+                            if (it_texture_y != data->texture_map_y[i].end())
+                            {
+                                deferred_free_object object;
+                                object.resource = (*it_texture_y).second;
+                                object.index = (*it_texture_y).first;
+                                object.type = deferred_type::texture_y;
+                                data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+
+                                data->texture_map_y[i].erase(panel->texture_index);
+                            }
+
+                            auto it_texture_u = data->texture_map_u[i].find(panel->texture_index);
+                            if (it_texture_u != data->texture_map_u[i].end())
+                            {
+                                deferred_free_object object;
+                                object.resource = (*it_texture_u).second;
+                                object.index = (*it_texture_u).first;
+                                object.type = deferred_type::texture_u;
+                                data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+
+                                data->texture_map_u[i].erase(panel->texture_index);
+                            }
+
+                            auto it_texture_v = data->texture_map_v[i].find(panel->texture_index);
+                            if (it_texture_v != data->texture_map_v[i].end())
+                            {
+                                deferred_free_object object;
+                                object.resource = (*it_texture_v).second;
+                                object.index = (*it_texture_v).first;
+                                object.type = deferred_type::texture_v;
+                                data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+
+                                data->texture_map_v[i].erase(panel->texture_index);
+                            }
+
+                            auto it_upload_texture_y = data->upload_texture_map_y[i].find(panel->texture_index);
+                            if (it_upload_texture_y != data->upload_texture_map_y[i].end())
+                            {
+                                deferred_free_object object;
+                                object.resource = (*it_upload_texture_y).second;
+                                object.index = (*it_upload_texture_y).first;
+                                object.type = deferred_type::upload_texture_y;
+                                data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+
+                                data->upload_texture_map_y[i].erase(panel->texture_index);
+                            }
+
+                            auto it_upload_texture_u = data->upload_texture_map_u[i].find(panel->texture_index);
+                            if (it_upload_texture_u != data->upload_texture_map_u[i].end())
+                            {
+                                deferred_free_object object;
+                                object.resource = (*it_upload_texture_u).second;
+                                object.index = (*it_upload_texture_u).first;
+                                object.type = deferred_type::upload_texture_u;
+                                data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+
+                                data->upload_texture_map_u[i].erase(panel->texture_index);
+                            }
+
+                            auto it_upload_texture_v = data->upload_texture_map_v[i].find(panel->texture_index);
+                            if (it_upload_texture_v != data->upload_texture_map_v[i].end())
+                            {
+                                deferred_free_object object;
+                                object.resource = (*it_upload_texture_v).second;
+                                object.index = (*it_upload_texture_v).first;
+                                object.type = deferred_type::upload_texture_v;
+                                if (i == frame_buffer_count - 1)
+                                {
+                                    object.free_flag = true;
+                                }
+
+                                data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+
+                                data->upload_texture_map_v[i].erase(panel->texture_index);
+                            }
+                        }
+                    }
+
+                    data->deferred_free_flag[current_back_buffer_index] = true;
+
+                    delete panel;
+                    it_panel = scene->panel_list.erase(it_panel);
+                }
+
+                scene->scene_index;
+                _free_scene_queue.push_back(scene->scene_index);
+
+                delete scene;
+                it_scene = _graphics_scene_list.erase(it_scene);
+            }
+
+            it_remove_scene = _graphics_remove_queue.erase(it_remove_scene);
+        }
+    }
+
     data->cmd_list->SetGraphicsRootSignature(data->root_sig);
 
     ID3D12DescriptorHeap* pp_heaps[] = { data->srv_heaps };
     data->cmd_list->SetDescriptorHeaps(_countof(pp_heaps), pp_heaps);
-
-    u32 i = 0;
 
     for (auto output : data->output_list)
     {
@@ -1638,7 +1918,7 @@ u32 populate_command_list(graphics_data* data)
         data->cmd_list->ResourceBarrier(1, &transition_barrier_before);
 
         D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = data->rtv_heaps->GetCPUDescriptorHandleForHeapStart();
-        rtv_handle.ptr = SIZE_T(INT64(rtv_handle.ptr) + INT64(data->rtv_descriptor_size * output->frame_index) + INT64(data->rtv_descriptor_size * frame_buffer_count * i));
+        rtv_handle.ptr = SIZE_T(INT64(rtv_handle.ptr) + INT64(data->rtv_descriptor_size * output->frame_index) + INT64(data->rtv_descriptor_size * frame_buffer_count * output->output_index));
         data->cmd_list->OMSetRenderTargets(1, &rtv_handle, FALSE, nullptr);
 
         data->cmd_list->ClearRenderTargetView(rtv_handle, _clear_color, 0, nullptr);
@@ -1665,7 +1945,7 @@ u32 populate_command_list(graphics_data* data)
 
                 D3D12_GPU_DESCRIPTOR_HANDLE srv_handle = data->srv_heaps->GetGPUDescriptorHandleForHeapStart();
                 srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size * (frame_buffer_count * texture_resource_count * panel->texture_index)));
-                srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size * texture_resource_count * panel->output_frame_index));
+                srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size * (texture_resource_count * panel->output_frame_index)));
 
                 data->cmd_list->SetGraphicsRootDescriptorTable(0, srv_handle);
                 srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size));
@@ -1681,8 +1961,6 @@ u32 populate_command_list(graphics_data* data)
 
         CD3DX12_RESOURCE_BARRIER transition_barrier_after = CD3DX12_RESOURCE_BARRIER::Transition(output->rtv_view_list[output->frame_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
         data->cmd_list->ResourceBarrier(1, &transition_barrier_after);
-
-        i++;
     }
 
     hr = data->cmd_list->Close();
@@ -1762,7 +2040,7 @@ u32 create_scene_data(RECT rect, char * url)
 
     for (auto data : _graphics_data_list)
     {
-        bool texture_selected = false;
+        s32 texture_selected_index = -1;
 
         for (auto output : data->output_list)
         {
@@ -1796,10 +2074,8 @@ u32 create_scene_data(RECT rect, char * url)
                 data->free_vertex_queue.pop_front();
             }
 
-            if (texture_selected == false)
+            if (texture_selected_index == -1)
             {
-                texture_selected = true;
-
                 if (data->free_texture_queue.empty())
                 {
                     panel->texture_index = data->next_texture_index;
@@ -1810,6 +2086,12 @@ u32 create_scene_data(RECT rect, char * url)
                     panel->texture_index = data->free_texture_queue.front();
                     data->free_texture_queue.pop_front();
                 }
+
+                texture_selected_index = panel->texture_index;
+            }
+            else
+            {
+                panel->texture_index = texture_selected_index;
             }
 
             panel->output_index = output->output_index;
@@ -1904,9 +2186,11 @@ u32 normalize_uv(RECT base_rect, RECT target_rect, NormalizedRect& normalized_uv
     return u32();
 }
 
-u32 delete_scene_data(u32 scene_index)
+u32 delete_scene_data(s32 scene_index)
 {
-    _graphics_remove_queue.push_back(scene_index);
+    std::lock_guard<std::mutex> lock(_graphics_remove_mutex);
+
+    _graphics_remove_queue.push_back({ scene_index, false });
 
     return u32();
 }
@@ -1928,19 +2212,19 @@ void server_thread()
 {
     cppsocket_network_initialize();
 
-    void* server = cppsocket_server_create();
+    _server = cppsocket_server_create();
 
-    cppsocket_server_set_callback_data_connection(server, callback_data_connection_server);
+    cppsocket_server_set_callback_data_connection(_server, callback_data_connection_server);
 
-    if (cppsocket_server_initialize(server, "127.0.0.1", 53333))
+    if (cppsocket_server_initialize(_server, "127.0.0.1", 53333))
     {
         while (_tcp_server_flag)
         {
-            cppsocket_server_frame(server);
+            cppsocket_server_frame(_server);
         }
     }
 
-    cppsocket_server_delete(server);
+    cppsocket_server_delete(_server);
 
     cppsocket_network_shutdown();
 }
@@ -1949,22 +2233,12 @@ void server_thread()
 /// 
 /// </summary>
 /// <param name="index"> scene index </param>
-void callback_ffmpeg_wrapper_uint32(u32 index)
+void callback_ffmpeg_wrapper_int32_uint16_ptr_uint16(s32 scene_index, u16 command, void* connection, u16 result)
 {
-    for (auto it = _graphics_insert_list.begin(); it != _graphics_insert_list.end();)
-    {
-        if ((*it)->scene_index == index)
-        {
-            _graphics_scene_list.push_back(*it);
-            _graphics_insert_list.erase(it);
-            break;
-        }
-
-        it++;
-    }
+    _ffmpeg_processing_command_queue.push_back({ scene_index, command, connection, result });
 }
 
-u32 upload_texture(graphics_data* data, AVFrame* frame, u32 target_texture_index, s32 output_frame_index)
+u32 upload_texture(graphics_data* data, AVFrame* frame, s32 target_texture_index, s32 output_frame_index)
 {
     D3D12_SUBRESOURCE_DATA texture_data_y{};
     texture_data_y.pData = frame->data[0];
@@ -2002,6 +2276,42 @@ u32 upload_texture(graphics_data* data, AVFrame* frame, u32 target_texture_index
     return u32();
 }
 
+u32 deferred_free_processing(u32 back_buffer_index)
+{
+    for (auto data : _graphics_data_list)
+    {
+        for (auto it = data->deferred_free_object_list[back_buffer_index].begin(); it != data->deferred_free_object_list[back_buffer_index].end();)
+        {
+            deferred_free_object object = (*it);
+
+            object.resource->Release();
+
+            switch (object.type)
+            {
+            case deferred_type::vertex_upload_buffer:
+            {
+                data->free_vertex_queue.push_back(object.index);
+            }
+            break;
+            case deferred_type::upload_texture_v:
+            {
+                if (object.free_flag)
+                {
+                    data->free_texture_queue.push_back(object.index);
+                }
+            }
+            break;
+            default:
+                break;
+            }
+
+            it = data->deferred_free_object_list[back_buffer_index].erase(it);
+        }
+    }
+
+    return u32();
+}
+
 #define MAX_LOADSTRING 100
 
 // 전역 변수:
@@ -2034,6 +2344,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     _tcp_processing_thread = std::thread(tcp_processing_thread);
     _tcp_thread = std::thread(server_thread);
+    _ffmpeg_processing_thread = std::thread(ffmpeg_processing_thread);
 
     wchar_t asset_path[512];
     get_asset_path(asset_path, _countof(asset_path));
@@ -2091,6 +2402,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     wait_for_gpus();
 
+    delete_textures();
     delete_vertex_buffer_list();
     delete_index_buffer();
 
@@ -2119,6 +2431,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     {
         _tcp_processing_flag = false;
         _tcp_processing_thread.join();
+    }
+
+    if (_ffmpeg_processing_thread.joinable())
+    {
+        _ffmpeg_processing_flag = false;
+        _ffmpeg_processing_thread.join();
     }
 
     return (int)msg.wParam;

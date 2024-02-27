@@ -26,7 +26,7 @@ bool MyServer::send_pause(TcpConnection * connection, uint32_t scene_index, uint
 
     packet_pause_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = result ? packet_result::ok : packet_result::fail;
+    out_packet.result = (packet_result)result;
     out_packet.scene_index = scene_index;
 
     std::shared_ptr<Packet> pause_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
@@ -44,7 +44,7 @@ bool MyServer::send_stop(TcpConnection * connection, uint32_t scene_index, uint1
 
     packet_stop_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = result ? packet_result::ok : packet_result::fail;
+    out_packet.result = (packet_result)result;
     out_packet.scene_index = scene_index;
 
     std::shared_ptr<Packet> stop_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
@@ -62,7 +62,7 @@ bool MyServer::send_move(TcpConnection * connection, uint32_t scene_index, uint1
 
     packet_move_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = result ? packet_result::ok : packet_result::fail;
+    out_packet.result = (packet_result)result;
     out_packet.scene_index = scene_index;
 
     std::shared_ptr<Packet> move_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);

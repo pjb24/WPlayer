@@ -12,14 +12,16 @@ extern "C"
 #include "libavutil/frame.h"
 }
 
+#pragma comment(lib, "avutil.lib")
+
 // CallbackType
-typedef void(*CALLBACK_UINT32)(uint32_t);
+typedef void(*CALLBACK_INT32_UINT16_PTR_UINT16)(int32_t, uint16_t, void*, uint16_t);
 
 EXPORT void* cpp_ffmpeg_wrapper_create();
 
 EXPORT void cpp_ffmpeg_wrapper_delete(void* instance);
 
-EXPORT bool cpp_ffmpeg_wrapper_initialize(void* instance, CALLBACK_UINT32 cb, uint32_t scene_index);
+EXPORT bool cpp_ffmpeg_wrapper_initialize(void* instance, CALLBACK_INT32_UINT16_PTR_UINT16 cb, uint32_t scene_index);
 
 EXPORT void cpp_ffmpeg_wrapper_shutdown(void* instance);
 
@@ -27,10 +29,10 @@ EXPORT void cpp_ffmpeg_wrapper_set_file_path(void* instance, char* url);
 
 EXPORT int cpp_ffmpeg_wrapper_open_file(void* instance);
 
-EXPORT void cpp_ffmpeg_wrapper_play_start(void* instance);
+EXPORT void cpp_ffmpeg_wrapper_play_start(void* instance, void* connection);
 
-EXPORT void cpp_ffmpeg_wrapper_play_pause(void* instance);
+EXPORT void cpp_ffmpeg_wrapper_play_pause(void* instance, void* connection);
 
-EXPORT void cpp_ffmpeg_wrapper_play_stop(void* instance);
+EXPORT void cpp_ffmpeg_wrapper_play_stop(void* instance, void* connection);
 
-EXPORT int32_t cpp_ffmpeg_wrapper_get_frame(void* instance, AVFrame*& frame, int64_t pts);
+EXPORT int32_t cpp_ffmpeg_wrapper_get_frame(void* instance, AVFrame*& frame);

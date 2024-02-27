@@ -15,6 +15,8 @@ enum class packet_result : uint16_t
 {
     ok,     // 0
     fail,   // 1
+	pause,  // 2
+    resume, // 3
 };
 
 enum class command_type : uint16_t

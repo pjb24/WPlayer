@@ -70,6 +70,9 @@
       <Command>xcopy /Y /D $(ProjectDir)*.hlsl $(OutDir)
 xcopy /y /d $(SolutionDir)Lib\*.* $(OutDir)</Command>
     </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>xcopy /y /d $(SolutionDir)Lib\FFmpeg\*.dll $(OutDir)</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -92,6 +95,9 @@ xcopy /y /d $(SolutionDir)Lib\*.* $(OutDir)</Command>
       <Command>xcopy /Y /D $(ProjectDir)*.hlsl $(OutDir)
 xcopy /y /d $(SolutionDir)Lib\*.* $(OutDir)</Command>
     </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>xcopy /y /d $(SolutionDir)Lib\FFmpeg\*.dll $(OutDir)</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="CommonHeaders.h" />

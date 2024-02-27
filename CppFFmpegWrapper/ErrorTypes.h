@@ -15,4 +15,5 @@ enum error_type
     queue_is_empty = 10,
     read_audio_packet = 11,
     codec_not_opened = 12,
+    use_previous_frame = 13,
 };

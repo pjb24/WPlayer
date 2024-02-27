@@ -2,7 +2,7 @@
 
 #include "FFmpegCore.h"
 
-bool FFmpegCore::initialize(CALLBACK_UINT32 cb, u32 scene_index)
+bool FFmpegCore::initialize(CALLBACK_INT32_UINT16_PTR_UINT16 cb, u32 scene_index)
 {
     u32 packet_index = 0;
     u32 frame_index = 0;
@@ -34,7 +34,7 @@ bool FFmpegCore::initialize(CALLBACK_UINT32 cb, u32 scene_index)
 
     _first_decode = true;
 
-    _callback_notify_first_frame_decoded = cb;
+    _callback_ffmpeg = cb;
     _scene_index = scene_index;
 
     return true;
@@ -92,13 +92,14 @@ int FFmpegCore::open_file()
     _stream_index = av_find_best_stream(_format_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
 
     _time_base = _format_ctx->streams[_stream_index]->time_base;
+    _time_base_d = av_q2d(_time_base);
     _duration = _format_ctx->streams[_stream_index]->duration;
     _start_time = _format_ctx->streams[_stream_index]->start_time;
 
     return (int)error_type::ok;
 }
 
-void FFmpegCore::play_start()
+void FFmpegCore::play_start(void* connection)
 {
     std::lock_guard<std::mutex> play_lock(_play_mutex);
 
@@ -111,23 +112,31 @@ void FFmpegCore::play_start()
         _pause_flag = false;
     }
 
+    _connection_play_start = connection;
+
     _read_thread = std::thread(&FFmpegCore::read, this);
     _decode_thread = std::thread(&FFmpegCore::decode, this);
 }
 
-void FFmpegCore::play_pause()
+void FFmpegCore::play_pause(void* connection)
 {
+    packet_result result = packet_result::ok;
+
     if (_pause_flag)
     {
         play_continue();
+        result = packet_result::resume;
     }
     else
     {
         pause();
+        result = packet_result::pause;
     }
+
+    _callback_ffmpeg(_scene_index, (uint16_t)command_type::pause, connection, (uint16_t)result);
 }
 
-void FFmpegCore::play_stop()
+void FFmpegCore::play_stop(void* connection)
 {
     if (!(_read_thread.joinable() && _decode_thread.joinable()))
     {
@@ -152,6 +161,8 @@ void FFmpegCore::play_stop()
     {
         _decode_thread.join();
     }
+
+    _callback_ffmpeg(_scene_index, (uint16_t)command_type::stop, connection, (uint16_t)packet_result::ok);
 }
 
 s32 FFmpegCore::get_frame(AVFrame *& frame)
@@ -353,7 +364,7 @@ void FFmpegCore::decode()
                 if (_first_decode)
                 {
                     _first_decode = false;
-                    _callback_notify_first_frame_decoded(_scene_index);
+                    _callback_ffmpeg(_scene_index, (uint16_t)command_type::play, _connection_play_start, (uint16_t)packet_result::ok);
                 }
 
                 while (true)
@@ -542,7 +553,25 @@ error_type FFmpegCore::output_frame(AVFrame *& frame, s32 & index)
 
     if (is_empty_frame_queue())
     {
+        if (_pause_flag)
+        {
+            _time_started = 0.0f;
+        }
         return error_type::queue_is_empty;
+    }
+
+    double time_now = av_gettime_relative() / 1'000.0;  // millisecond
+    double next_frame_pts = _frame_queue[_output_frame_index]->pts * _time_base_d * 1'000.0;
+    double next_frame_present_time = _time_started + (next_frame_pts);
+
+    if (time_now < next_frame_present_time)
+    {
+        return error_type::use_previous_frame;
+    }
+
+    if (_time_started == 0.0f)
+    {
+        _time_started = time_now - next_frame_pts;
     }
 
     av_frame_move_ref(frame, _frame_queue[_output_frame_index]);

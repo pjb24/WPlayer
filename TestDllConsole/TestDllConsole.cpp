@@ -8,35 +8,6 @@
 
 static void* _server;
 
-void callback_ptr_server(void* data)
-{
-    packet_header* header = (packet_header*)data;
-    
-    switch (header->cmd)
-    {
-    case command_type::play:
-    {
-        packet_play_from_client* packet = new packet_play_from_client();
-        memcpy(packet, data, header->size);
-
-        std::cout << "callback_ptr" << ", ";
-        std::cout << (uint16_t)packet->header.cmd << ", ";
-        std::cout << packet->header.size << ", ";
-        std::cout << packet->rect.left << ", ";
-        std::cout << packet->rect.top << ", ";
-        std::cout << packet->rect.right << ", ";
-        std::cout << packet->rect.bottom << ", ";
-        std::cout << packet->url_size << ", ";
-        std::cout << packet->url << std::endl;
-
-        delete packet;
-    }
-    break;
-    default:
-        break;
-    }
-}
-
 void callback_data_connection_server(void* data, void* connection)
 {
     packet_header* header = (packet_header*)data;
@@ -48,7 +19,7 @@ void callback_data_connection_server(void* data, void* connection)
         packet_play_from_client* packet = new packet_play_from_client();
         memcpy(packet, data, header->size);
 
-        std::cout << "callback_ptr" << ", ";
+        std::cout << "play" << ", ";
         std::cout << (uint16_t)packet->header.cmd << ", ";
         std::cout << packet->header.size << ", ";
         std::cout << packet->rect.left << ", ";
@@ -59,6 +30,21 @@ void callback_data_connection_server(void* data, void* connection)
         std::cout << packet->url << std::endl;
 
         cppsocket_server_send_play(_server, connection, 0, (uint16_t)packet_result::ok);
+
+        delete packet;
+    }
+    break;
+    case command_type::pause:
+    {
+        packet_pause_from_client* packet = new packet_pause_from_client();
+        memcpy(packet, data, header->size);
+
+        std::cout << "pause" << ", ";
+        std::cout << (uint16_t)packet->header.cmd << ", ";
+        std::cout << packet->header.size << ", ";
+        std::cout << packet->scene_index << std::endl;
+
+        cppsocket_server_send_pause(_server, connection, 0, (uint16_t)packet_result::ok);
 
         delete packet;
     }
@@ -79,7 +65,35 @@ void callback_ptr_client(void* data)
         packet_play_from_server* packet = new packet_play_from_server();
         memcpy(packet, data, header->size);
 
-        std::cout << "callback_ptr_client" << ", ";
+        std::cout << "play" << ", ";
+        std::cout << (uint16_t)packet->header.cmd << ", ";
+        std::cout << packet->header.size << ", ";
+        std::cout << packet->scene_index << ", ";
+        std::cout << (uint16_t)packet->result << std::endl;
+
+        delete packet;
+    }
+    break;
+    case command_type::pause:
+    {
+        packet_pause_from_server* packet = new packet_pause_from_server();
+        memcpy(packet, data, header->size);
+
+        std::cout << "pause" << ", ";
+        std::cout << (uint16_t)packet->header.cmd << ", ";
+        std::cout << packet->header.size << ", ";
+        std::cout << packet->scene_index << ", ";
+        std::cout << (uint16_t)packet->result << std::endl;
+
+        delete packet;
+    }
+    break;
+    case command_type::stop:
+    {
+        packet_stop_from_server* packet = new packet_stop_from_server();
+        memcpy(packet, data, header->size);
+
+        std::cout << "stop" << ", ";
         std::cout << (uint16_t)packet->header.cmd << ", ";
         std::cout << packet->header.size << ", ";
         std::cout << packet->scene_index << ", ";
@@ -96,6 +110,7 @@ void callback_ptr_client(void* data)
 int main()
 {
     int input = 0;
+    printf("Input \n0: server start \n1: client play \n2: client pause \n3: client stop \n4: client play2\n");
     scanf_s("%d", &input);
 
     if (cppsocket_network_initialize())
@@ -107,7 +122,6 @@ int main()
             // Server
             void* server = cppsocket_server_create();
             
-            //cppsocket_server_set_callback_ptr(server, callback_ptr_server);
             cppsocket_server_set_callback_data_connection(server, callback_data_connection_server);
 
             if (cppsocket_server_initialize(server, "127.0.0.1", 53333))
@@ -122,7 +136,7 @@ int main()
         }
         else if (input == 1)
         {
-            RECT rect{ 100, 200, 3000, 1000 };
+            RECT rect{ 0, 0, 1400, 1000 };
             std::string url = "C:\\Wizbrain\\media\\media1.mp4";
 
             // Client
@@ -150,7 +164,46 @@ int main()
 
             if (cppsocket_client_connect(client, "127.0.0.1", 53333))
             {
+                cppsocket_client_send_pause(client, 0);
+
+                while (cppsocket_client_is_connected(client))
+                {
+                    cppsocket_client_frame(client);
+                }
+            }
+            cppsocket_client_delete(client);
+        }
+        else if (input == 3)
+        {
+            // Client
+            void* client = cppsocket_client_create();
+
+            cppsocket_client_set_callback_data(client, callback_ptr_client);
+
+            if (cppsocket_client_connect(client, "127.0.0.1", 53333))
+            {
                 cppsocket_client_send_stop(client, 0);
+
+                while (cppsocket_client_is_connected(client))
+                {
+                    cppsocket_client_frame(client);
+                }
+            }
+            cppsocket_client_delete(client);
+        }
+        else if (input == 4)
+        {
+            RECT rect{ 1400, 0, 3000, 1000 };
+            std::string url = "C:\\Wizbrain\\media\\media2.mp4";
+
+            // Client
+            void* client = cppsocket_client_create();
+
+            cppsocket_client_set_callback_data(client, callback_ptr_client);
+
+            if (cppsocket_client_connect(client, "127.0.0.1", 53333))
+            {
+                cppsocket_client_send_play(client, rect, url.c_str(), url.size());
 
                 while (cppsocket_client_is_connected(client))
                 {

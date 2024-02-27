@@ -16,7 +16,7 @@ void cpp_ffmpeg_wrapper_delete(void * instance)
     delete core;
 }
 
-bool cpp_ffmpeg_wrapper_initialize(void * instance, CALLBACK_UINT32 cb, uint32_t scene_index)
+bool cpp_ffmpeg_wrapper_initialize(void * instance, CALLBACK_INT32_UINT16_PTR_UINT16 cb, uint32_t scene_index)
 {
     FFmpegCore* core = (FFmpegCore*)instance;
     return core->initialize(cb, scene_index);
@@ -43,25 +43,25 @@ int cpp_ffmpeg_wrapper_open_file(void * instance)
     return core->open_file();
 }
 
-void cpp_ffmpeg_wrapper_play_start(void * instance)
+void cpp_ffmpeg_wrapper_play_start(void * instance, void* connection)
 {
     FFmpegCore* core = (FFmpegCore*)instance;
-    core->play_start();
+    core->play_start(connection);
 }
 
-void cpp_ffmpeg_wrapper_play_pause(void * instance)
+void cpp_ffmpeg_wrapper_play_pause(void * instance, void* connection)
 {
     FFmpegCore* core = (FFmpegCore*)instance;
-    core->play_pause();
+    core->play_pause(connection);
 }
 
-void cpp_ffmpeg_wrapper_play_stop(void * instance)
+void cpp_ffmpeg_wrapper_play_stop(void * instance, void* connection)
 {
     FFmpegCore* core = (FFmpegCore*)instance;
-    core->play_stop();
+    core->play_stop(connection);
 }
 
-int32_t cpp_ffmpeg_wrapper_get_frame(void* instance, AVFrame*& frame, int64_t pts)
+int32_t cpp_ffmpeg_wrapper_get_frame(void* instance, AVFrame*& frame)
 {
     FFmpegCore* core = (FFmpegCore*)instance;
     return core->get_frame(frame);

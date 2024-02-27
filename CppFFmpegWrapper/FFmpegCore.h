@@ -5,14 +5,14 @@
 class FFmpegCore
 {
 public:
-    bool initialize(CALLBACK_UINT32 cb, u32 scene_index);
+    bool initialize(CALLBACK_INT32_UINT16_PTR_UINT16 cb, u32 scene_index);
     void shutdown();
 
     int open_file();
 
-    void play_start();
-    void play_pause();
-    void play_stop();
+    void play_start(void* connection);
+    void play_pause(void* connection);
+    void play_stop(void* connection);
 
     void jump_forward();
     void jump_backwards();
@@ -23,7 +23,11 @@ public:
 
 private:
 
+    void* _connection_play_start = nullptr;
+
     bool    _first_decode = false;
+    int64_t _previous_frame_pts = 0;
+    double _time_started = 0.0f;
 
 #pragma region Read
     void read();
@@ -69,6 +73,7 @@ private:
     AVDictionary*       _option = nullptr;
 
     AVRational          _time_base = { 0, 1 };
+    double              _time_base_d = 0.0f;
     s64                 _duration = 0;
     s64                 _start_time = 0;
 
@@ -85,7 +90,7 @@ private:
     std::mutex          _play_mutex;
 
 
-    CALLBACK_UINT32 _callback_notify_first_frame_decoded = nullptr;
+    CALLBACK_INT32_UINT16_PTR_UINT16 _callback_ffmpeg = nullptr;
     u32 _scene_index = 0;
 
 #pragma region circular queue

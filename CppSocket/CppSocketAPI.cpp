@@ -51,13 +51,13 @@ void cppsocket_server_send_play(void * server_instance, void* connection, uint32
 void cppsocket_server_send_pause(void * server_instance, void* connection, uint32_t scene_index, uint16_t result)
 {
     MyServer* server = (MyServer*)server_instance;
-
+    server->send_pause((TcpConnection*)connection, scene_index, result);
 }
 
 void cppsocket_server_send_stop(void * server_instance, void* connection, uint32_t scene_index, uint16_t result)
 {
     MyServer* server = (MyServer*)server_instance;
-
+    server->send_stop((TcpConnection*)connection, scene_index, result);
 }
 
 void cppsocket_server_send_move(void * server_instance, void* connection, uint32_t scene_index, uint16_t result)
