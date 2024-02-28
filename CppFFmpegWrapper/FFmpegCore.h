@@ -18,6 +18,7 @@ public:
     void jump_backwards();
 
     s32 get_frame(AVFrame*& frame);
+    s32 frame_to_next();
 
     void file_path(std::string path) { _file_path = path; }
 

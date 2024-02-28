@@ -180,6 +180,40 @@ s32 FFmpegCore::get_frame(AVFrame *& frame)
     return index;
 }
 
+s32 FFmpegCore::frame_to_next()
+{
+    std::lock_guard<std::mutex> lock(_frame_mutex);
+
+    if (is_empty_frame_queue())
+    {
+        if (_pause_flag)
+        {
+            _time_started = 0.0f;
+        }
+        return error_type::queue_is_empty;
+    }
+
+    double time_now = av_gettime_relative() / 1'000.0;  // millisecond
+    double next_frame_pts = _frame_queue[_output_frame_index]->pts * _time_base_d * 1'000.0;
+    double next_frame_present_time = _time_started + (next_frame_pts);
+
+    if (time_now < next_frame_present_time)
+    {
+        return error_type::use_previous_frame;
+    }
+
+    if (_time_started == 0.0f)
+    {
+        _time_started = time_now - next_frame_pts;
+    }
+
+    av_frame_unref(_frame_queue[_output_frame_index]);
+
+    _output_frame_index = (_output_frame_index + 1) % _frame_queue_size;
+
+    return error_type::ok;
+}
+
 void FFmpegCore::read()
 {
     error_type result = error_type::ok;
@@ -549,34 +583,14 @@ error_type FFmpegCore::output_frame(AVFrame *& frame, s32 & index)
 {
     std::lock_guard<std::mutex> lock(_frame_mutex);
 
-    index = _output_frame_index;
-
     if (is_empty_frame_queue())
     {
-        if (_pause_flag)
-        {
-            _time_started = 0.0f;
-        }
         return error_type::queue_is_empty;
     }
 
-    double time_now = av_gettime_relative() / 1'000.0;  // millisecond
-    double next_frame_pts = _frame_queue[_output_frame_index]->pts * _time_base_d * 1'000.0;
-    double next_frame_present_time = _time_started + (next_frame_pts);
+    index = _output_frame_index;
 
-    if (time_now < next_frame_present_time)
-    {
-        return error_type::use_previous_frame;
-    }
-
-    if (_time_started == 0.0f)
-    {
-        _time_started = time_now - next_frame_pts;
-    }
-
-    av_frame_move_ref(frame, _frame_queue[_output_frame_index]);
-
-    _output_frame_index = (_output_frame_index + 1) % _frame_queue_size;
+    av_frame_ref(frame, _frame_queue[_output_frame_index]);
 
     return error_type::ok;
 }

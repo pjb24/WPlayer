@@ -36,3 +36,5 @@ EXPORT void cpp_ffmpeg_wrapper_play_pause(void* instance, void* connection);
 EXPORT void cpp_ffmpeg_wrapper_play_stop(void* instance, void* connection);
 
 EXPORT int32_t cpp_ffmpeg_wrapper_get_frame(void* instance, AVFrame*& frame);
+
+EXPORT int32_t cpp_ffmpeg_wrapper_frame_to_next(void* instance);

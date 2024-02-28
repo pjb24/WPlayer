@@ -66,3 +66,9 @@ int32_t cpp_ffmpeg_wrapper_get_frame(void* instance, AVFrame*& frame)
     FFmpegCore* core = (FFmpegCore*)instance;
     return core->get_frame(frame);
 }
+
+int32_t cpp_ffmpeg_wrapper_frame_to_next(void * instance)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    return core->frame_to_next();
+}

@@ -33,23 +33,26 @@ struct NormalizedRect
 
 struct Panel
 {
-    u32 adapter_index;
-    s32 vertex_index;
-    s32 texture_index;
-    s32 output_index;   // panel이 그려질 output의 index
-    s32 output_frame_index; // FFmpeg의 AVFrame 패킷 Index
+    u32 adapter_index = -1;
+    s32 vertex_index = -1;
+    s32 texture_index = -1;
+    s32 output_index = -1;   // panel이 그려질 output의 index
+    s32 output_frame_index = 0; // FFmpeg의 AVFrame 패킷 Index
     RECT rect;
     NormalizedRect normalized_rect;
     NormalizedRect normalized_uv;
+    bool normalize_uv_flag = false;
 };
 
 struct Scene
 {
-    s32 scene_index;
+    s32 scene_index = -1;
     char* url;
     std::vector<Panel*> panel_list;
-    int64_t pts = 0;
+    int64_t pts = -1;
     RECT rect;
+    bool using_flag = false;
+    std::map<s32, bool> texture_upload_to_adapter_flag_map; // adapter_index, bool
 };
 
 struct Vertex
@@ -95,7 +98,7 @@ enum class deferred_type : s32
 struct deferred_free_object
 {
     ID3D12Resource* resource;
-    s32 index;
+    s32 index = -1;
     deferred_type type;
     bool free_flag = false;
 };
@@ -243,10 +246,10 @@ void callback_data_connection_server(void* data, void* connection);
 #pragma region FFmpegWrapper
 struct FFmpegProcessingCommand
 {
-    s32 scene_index;
+    s32 scene_index = -1;
     u16 command;
-    void* connection;
-    u16 result;
+    void* connection = nullptr;
+    u16 result = (u16)packet_result::ok;
 };
 
 std::deque<FFmpegProcessingCommand> _ffmpeg_processing_command_queue;
@@ -1674,18 +1677,19 @@ u32 populate_command_list(graphics_data* data)
 
         {
             std::lock_guard<std::mutex> lock(_ffmpeg_data_mutex);
-            auto it = _ffmpeg_data_map.find(scene->scene_index);
-            if (it != _ffmpeg_data_map.end())
+            auto it_ffmpeg_data = _ffmpeg_data_map.find(scene->scene_index);
+            if (it_ffmpeg_data != _ffmpeg_data_map.end())
             {
-                output_frame_index = cpp_ffmpeg_wrapper_get_frame(it->second, frame);
+                output_frame_index = cpp_ffmpeg_wrapper_get_frame(it_ffmpeg_data->second, frame);
             }
         }
-            
+
         if (output_frame_index == -1)
         {
             continue;
         }
 
+        scene->using_flag = true;
         scene->pts = frame->pts;
 
         for (auto panel : scene->panel_list)
@@ -1699,7 +1703,7 @@ u32 populate_command_list(graphics_data* data)
             {
                 create_texture(data, frame->width, frame->height, panel->texture_index);
             }
-                
+
             for (auto output : data->output_list)
             {
                 if (output->output_index != panel->output_index)
@@ -1707,12 +1711,25 @@ u32 populate_command_list(graphics_data* data)
                     continue;
                 }
 
-                normalize_uv(scene->rect, panel->rect, panel->normalized_uv);
+                if (panel->normalize_uv_flag == false)
+                {
+                    panel->normalize_uv_flag = true;
+                    normalize_uv(scene->rect, panel->rect, panel->normalized_uv);
+                }
             }
 
             if (output_frame_index != -1)
             {
-                upload_texture(data, frame, panel->texture_index, output_frame_index);
+                auto it_upload_flag = scene->texture_upload_to_adapter_flag_map.find(panel->adapter_index);
+                if (it_upload_flag != scene->texture_upload_to_adapter_flag_map.end())
+                {
+                    if (it_upload_flag->second == false)
+                    {
+                        upload_texture(data, frame, panel->texture_index, output_frame_index);
+                        it_upload_flag->second = true;
+                    }
+                }
+                    
                 panel->output_frame_index = output_frame_index;
             }
         }
@@ -1893,14 +1910,27 @@ u32 populate_command_list(graphics_data* data)
                     it_panel = scene->panel_list.erase(it_panel);
                 }
 
-                scene->scene_index;
-                _free_scene_queue.push_back(scene->scene_index);
-
-                delete scene;
-                it_scene = _graphics_scene_list.erase(it_scene);
+                if (scene->panel_list.empty())
+                {
+                    remove_scene.all_panel_removed_flag = true;
+                    delete scene;
+                    it_scene = _graphics_scene_list.erase(it_scene);
+                }
+                else
+                {
+                    it_scene++;
+                }
             }
 
-            it_remove_scene = _graphics_remove_queue.erase(it_remove_scene);
+            if (remove_scene.all_panel_removed_flag)
+            {
+                _free_scene_queue.push_back(remove_scene.scene_index);
+                it_remove_scene = _graphics_remove_queue.erase(it_remove_scene);
+            }
+            else
+            {
+                it_remove_scene++;
+            }
         }
     }
 
@@ -1918,7 +1948,8 @@ u32 populate_command_list(graphics_data* data)
         data->cmd_list->ResourceBarrier(1, &transition_barrier_before);
 
         D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = data->rtv_heaps->GetCPUDescriptorHandleForHeapStart();
-        rtv_handle.ptr = SIZE_T(INT64(rtv_handle.ptr) + INT64(data->rtv_descriptor_size * output->frame_index) + INT64(data->rtv_descriptor_size * frame_buffer_count * output->output_index));
+        rtv_handle.ptr = SIZE_T(INT64(output->rtv_handle.ptr) + INT64(data->rtv_descriptor_size * output->frame_index));
+
         data->cmd_list->OMSetRenderTargets(1, &rtv_handle, FALSE, nullptr);
 
         data->cmd_list->ClearRenderTargetView(rtv_handle, _clear_color, 0, nullptr);
@@ -2011,6 +2042,33 @@ u32 render()
         }
     }
 
+    {
+        std::lock_guard<std::mutex> lock(_ffmpeg_data_mutex);
+        for (auto scene : _graphics_scene_list)
+        {
+            if (scene->using_flag == false)
+            {
+                continue;
+            }
+            else
+            {
+                scene->using_flag = false;
+            }
+
+            for (auto it_upload_flag = scene->texture_upload_to_adapter_flag_map.begin(); it_upload_flag != scene->texture_upload_to_adapter_flag_map.end();)
+            {
+                it_upload_flag->second = false;
+                it_upload_flag++;
+            }
+
+            auto it_ffmpeg_data = _ffmpeg_data_map.find(scene->scene_index);
+            if (it_ffmpeg_data != _ffmpeg_data_map.end())
+            {
+                cpp_ffmpeg_wrapper_frame_to_next(it_ffmpeg_data->second);
+            }
+        }
+    }
+
     return u32();
 }
 
@@ -2057,6 +2115,8 @@ u32 create_scene_data(RECT rect, char * url)
             {
                 continue;
             }
+
+            scene->texture_upload_to_adapter_flag_map.insert({ data->adapter_index, false });
 
             Panel* panel = new Panel();
             scene->panel_list.push_back(panel);
