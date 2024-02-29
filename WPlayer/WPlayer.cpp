@@ -164,7 +164,7 @@ IDXGIFactory4*  _factory = nullptr;
 
 std::vector<Scene*> _graphics_insert_list;
 std::deque<RemoveScene> _graphics_remove_queue; // scene_index, all_panel_removed_flag
-std::mutex _graphics_remove_mutex;
+std::mutex _graphics_remove_mutex;  // _graphics_remove_queue의 mutex
 
 bool ready = false;
 std::wstring _asset_path;
@@ -260,7 +260,7 @@ std::map<s32, void*> _ffmpeg_data_map;  // scene_index, ffmpeg_instance
 
 std::thread _ffmpeg_processing_thread;
 bool _ffmpeg_processing_flag = true;
-std::mutex _ffmpeg_data_mutex;
+std::mutex _ffmpeg_data_mutex;  // _ffmpeg_data_map의 mutex
 
 void ffmpeg_processing_thread();
 void callback_ffmpeg_wrapper_int32_uint16_ptr_uint16(s32 scene_index, u16 command, void* connection, u16 result);

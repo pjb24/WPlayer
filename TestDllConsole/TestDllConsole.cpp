@@ -136,7 +136,7 @@ int main()
         }
         else if (input == 1)
         {
-            RECT rect{ 0, 0, 3000, 1000 };
+            RECT rect{ 0, 0, 7680, 4320 };
             std::string url = "C:\\Wizbrain\\media\\media1.mp4";
 
             // Client
