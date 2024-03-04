@@ -202,9 +202,9 @@ u32 create_command_lists();
 u32 delete_command_lists();
 u32 create_index_buffer(graphics_data* data);
 u32 delete_index_buffer();
-u32 create_vertex_buffer(graphics_data* data, s32 vertex_index, NormalizedRect normalized_rect, NormalizedRect normalized_uv);
+u32 create_vertex_buffer(graphics_data* data, s32 vertex_index, NormalizedRect normalized_rect, NormalizedRect normalized_uv, s32 scene_index);
 u32 delete_vertex_buffer_list();
-u32 create_texture(graphics_data* data, u32 width, u32 height, s32 texture_index);
+u32 create_texture(graphics_data* data, u32 width, u32 height, s32 texture_index, s32 scene_index);
 u32 delete_textures();
 u32 create_fences();
 u32 delete_fences();
@@ -221,6 +221,8 @@ float normalize_min_max(int min, int max, int target, int normalized_min, int no
 u32 normalize_rect(RECT base_rect, RECT target_rect, NormalizedRect& normalized_rect);
 u32 normalize_uv(RECT base_rect, RECT target_rect, NormalizedRect& normalized_uv);
 u32 deferred_free_processing(u32 back_buffer_index);
+
+void d3d_memory_check();
 #pragma endregion
 
 #pragma region TCP Server
@@ -444,7 +446,7 @@ u32 enum_adapters()
         }
 
         adapter->GetDesc1(&adapter_desc);
-
+        
         if (adapter_desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
         {
             adapter->Release();
@@ -519,7 +521,7 @@ u32 enum_output_list()
             }
 
             output_data* o_data = new output_data();
-
+            
             o_data->output = output;
             output->GetDesc(&o_data->output_desc);
             o_data->output_index = output_index;
@@ -574,7 +576,7 @@ u32 create_factory()
 #if 1
             debug_controller->SetEnableGPUBasedValidation(true);
 #endif // 1
-
+        
             // Enable additional debug layers.
             dxgi_factory_flags |= DXGI_CREATE_FACTORY_DEBUG;
         }
@@ -620,6 +622,7 @@ u32 create_devices()
         if (hr == S_OK)
         {
             data->device = device;
+            NAME_D3D12_OBJECT_INDEXED(device, data->adapter_index, L"ID3D12Device");
         }
     }
 
@@ -669,6 +672,7 @@ u32 create_command_queues()
         if (hr == S_OK)
         {
             data->cmd_queue = cmd_queue;
+            NAME_D3D12_OBJECT_INDEXED(cmd_queue, data->adapter_index, L"ID3D12CommandQueue");
         }
     }
 
@@ -808,6 +812,8 @@ u32 create_rtv_heaps()
         hr = data->device->CreateDescriptorHeap(&rtv_heap_desc, IID_PPV_ARGS(&data->rtv_heaps));
         data->rtv_descriptor_size = data->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
+        NAME_D3D12_OBJECT_INDEXED(data->rtv_heaps, data->adapter_index, L"ID3D12DescriptorHeap_rtv");
+
         u32 i = 0;
 
         for (auto it = data->output_list.begin(); it != data->output_list.end(); it++)
@@ -820,22 +826,26 @@ u32 create_rtv_heaps()
 
             D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle = o_data->rtv_handle;
 
-            for (u32 n = 0; n < frame_buffer_count; n++)
+            for (u32 j = 0; j < frame_buffer_count; j++)
             {
                 o_data->rtv_view_list.emplace_back();
 
-                hr = o_data->swap_chain->GetBuffer(n, IID_PPV_ARGS(&o_data->rtv_view_list[n]));
-                data->device->CreateRenderTargetView(o_data->rtv_view_list[n], nullptr, cpu_handle);
+                hr = o_data->swap_chain->GetBuffer(j, IID_PPV_ARGS(&o_data->rtv_view_list[j]));
+                data->device->CreateRenderTargetView(o_data->rtv_view_list[j], nullptr, cpu_handle);
                 cpu_handle.ptr = cpu_handle.ptr + data->rtv_descriptor_size;
+
+                NAME_D3D12_OBJECT_INDEXED_3(o_data->rtv_view_list[j], data->adapter_index, i, j, L"ID3D12Resource_rtv_view");
             }
 
             i++;
         }
 
-        for (u32 n = 0; n < frame_buffer_count; n++)
+        for (u32 j = 0; j < frame_buffer_count; j++)
         {
             data->cmd_allocator_list.emplace_back();
-            hr = data->device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&data->cmd_allocator_list[n]));
+            hr = data->device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&data->cmd_allocator_list[j]));
+
+            NAME_D3D12_OBJECT_INDEXED_2(data->cmd_allocator_list[j], data->adapter_index, j, L"ID3D12CommandAllocator");
         }
     }
 
@@ -900,6 +910,8 @@ u32 create_srv_heaps()
         srv_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
         hr = data->device->CreateDescriptorHeap(&srv_heap_desc, IID_PPV_ARGS(&data->srv_heaps));
         data->srv_descriptor_size = data->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+        NAME_D3D12_OBJECT_INDEXED(data->srv_heaps, data->adapter_index, L"ID3D12DescriptorHeap_srv");
     }
 
     return u32();
@@ -983,6 +995,8 @@ u32 create_root_signatures()
         ComPtr<ID3DBlob> error;
         hr = D3D12SerializeVersionedRootSignature(&root_sig_desc, &signature, &error);
         hr = data->device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&data->root_sig));
+
+        NAME_D3D12_OBJECT_INDEXED(data->root_sig, data->adapter_index, L"ID3D12RootSignature");
     }
 
     return u32();
@@ -1050,6 +1064,8 @@ u32 create_psos()
         pso_desc.SampleDesc.Count = 1;
         pso_desc.NodeMask = 0;
         hr = data->device->CreateGraphicsPipelineState(&pso_desc, IID_PPV_ARGS(&data->pso));
+
+        NAME_D3D12_OBJECT_INDEXED(data->pso, data->adapter_index, L"ID3D12PipelineState");
     }
 
     return u32();
@@ -1086,6 +1102,9 @@ u32 create_command_lists()
         {
             hr = data->device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, data->cmd_allocator_list[0], data->pso, IID_PPV_ARGS(&data->cmd_list));
             data->cmd_list->Close();
+
+            NAME_D3D12_OBJECT_INDEXED(data->cmd_list, data->adapter_index, L"ID3D12GraphicsCommandList");
+
             break;
         }
     }
@@ -1147,6 +1166,7 @@ u32 create_index_buffer(graphics_data* data)
         nullptr,
         IID_PPV_ARGS(&data->index_buffer)
     );
+    NAME_D3D12_OBJECT_INDEXED(data->index_buffer, data->adapter_index, L"ID3D12Resource_index_buffer");
 
     hr = data->device->CreateCommittedResource(
         &index_upload_buffer_properties,
@@ -1156,6 +1176,7 @@ u32 create_index_buffer(graphics_data* data)
         nullptr,
         IID_PPV_ARGS(&data->index_upload_buffer)
     );
+    NAME_D3D12_OBJECT_INDEXED(data->index_upload_buffer, data->adapter_index, L"ID3D12Resource_index_upload_buffer");
 
     CD3DX12_RESOURCE_BARRIER transition_barrier = CD3DX12_RESOURCE_BARRIER::Transition(data->index_buffer, D3D12_RESOURCE_STATE_INDEX_BUFFER, D3D12_RESOURCE_STATE_COPY_DEST);
     data->cmd_list->ResourceBarrier(1, &transition_barrier);
@@ -1200,7 +1221,7 @@ u32 delete_index_buffer()
 // Target Adapter
 // Coordinate
 // 
-u32 create_vertex_buffer(graphics_data* data, s32 vertex_index, NormalizedRect normalized_rect, NormalizedRect normalized_uv)
+u32 create_vertex_buffer(graphics_data* data, s32 vertex_index, NormalizedRect normalized_rect, NormalizedRect normalized_uv, s32 scene_index)
 {
     if (_graphics_data_list.empty())
     {
@@ -1234,6 +1255,7 @@ u32 create_vertex_buffer(graphics_data* data, s32 vertex_index, NormalizedRect n
         nullptr,
         IID_PPV_ARGS(&vertex_buffer)
     );
+    NAME_D3D12_OBJECT_INDEXED_2(vertex_buffer, scene_index, vertex_index, L"ID3D12Resource_vertex_buffer");
 
     hr = data->device->CreateCommittedResource(
         &vertex_upload_buffer_properties,
@@ -1243,6 +1265,7 @@ u32 create_vertex_buffer(graphics_data* data, s32 vertex_index, NormalizedRect n
         nullptr,
         IID_PPV_ARGS(&vertex_upload_buffer)
     );
+    NAME_D3D12_OBJECT_INDEXED_2(vertex_upload_buffer, scene_index, vertex_index, L"ID3D12Resource_vertex_upload_buffer");
 
     D3D12_SUBRESOURCE_DATA vertex_data{};
     vertex_data.pData = vertices;
@@ -1304,7 +1327,7 @@ u32 delete_vertex_buffer_list()
 // Target Adapter
 // Size
 //
-u32 create_texture(graphics_data* data, u32 width, u32 height, s32 texture_index)
+u32 create_texture(graphics_data* data, u32 width, u32 height, s32 texture_index, s32 scene_index)
 {
     if (_graphics_data_list.empty())
     {
@@ -1340,6 +1363,8 @@ u32 create_texture(graphics_data* data, u32 width, u32 height, s32 texture_index
             IID_PPV_ARGS(&texture_y)
         );
         data->texture_map_y[i].insert({ texture_index, texture_y });
+
+        NAME_D3D12_OBJECT_INDEXED_2(texture_y, scene_index, i, L"ID3D12Resource_texture_y");
     }
 
     texture_desc.Width /= 2;
@@ -1357,6 +1382,8 @@ u32 create_texture(graphics_data* data, u32 width, u32 height, s32 texture_index
             IID_PPV_ARGS(&texture_u)
         );
         data->texture_map_u[i].insert({ texture_index, texture_u });
+
+        NAME_D3D12_OBJECT_INDEXED_2(texture_u, scene_index, i, L"ID3D12Resource_texture_u");
     }
     for (u32 i = 0; i < frame_buffer_count; i++)
     {
@@ -1370,6 +1397,8 @@ u32 create_texture(graphics_data* data, u32 width, u32 height, s32 texture_index
             IID_PPV_ARGS(&texture_v)
         );
         data->texture_map_v[i].insert({ texture_index, texture_v });
+
+        NAME_D3D12_OBJECT_INDEXED_2(texture_v, scene_index, i, L"ID3D12Resource_texture_v");
     }
 
     u64 upload_buffer_size = 0;
@@ -1405,6 +1434,8 @@ u32 create_texture(graphics_data* data, u32 width, u32 height, s32 texture_index
             IID_PPV_ARGS(&upload_texture_y)
         );
         data->upload_texture_map_y[i].insert({ texture_index, upload_texture_y });
+
+        NAME_D3D12_OBJECT_INDEXED_2(upload_texture_y, scene_index, i, L"ID3D12Resource_upload_texture_y");
     }
 
     texture_desc.Width /= 2;
@@ -1424,6 +1455,8 @@ u32 create_texture(graphics_data* data, u32 width, u32 height, s32 texture_index
             IID_PPV_ARGS(&upload_texture_u)
         );
         data->upload_texture_map_u[i].insert({ texture_index, upload_texture_u });
+
+        NAME_D3D12_OBJECT_INDEXED_2(upload_texture_u, scene_index, i, L"ID3D12Resource_upload_texture_u");
     }
     for (u32 i = 0; i < frame_buffer_count; i++)
     {
@@ -1437,6 +1470,8 @@ u32 create_texture(graphics_data* data, u32 width, u32 height, s32 texture_index
             IID_PPV_ARGS(&upload_texture_v)
         );
         data->upload_texture_map_v[i].insert({ texture_index, upload_texture_v });
+
+        NAME_D3D12_OBJECT_INDEXED_2(upload_texture_v, scene_index, i, L"ID3D12Resource_upload_texture_v");
     }
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc{};
@@ -1550,15 +1585,21 @@ u32 create_fences()
 
     for (auto data : _graphics_data_list)
     {
+        int n = 0;
+
         for (auto output : data->output_list)
         {
             hr = data->device->CreateFence(output->fence_values[output->frame_index], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&output->fence));
+
+            NAME_D3D12_OBJECT_INDEXED_2(output->fence, data->adapter_index, n, L"ID3D12Fence");
 
             output->fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
             if (output->fence_event == nullptr)
             {
                 hr = HRESULT_FROM_WIN32(GetLastError());
             }
+
+            n++;
         }
     }
 
@@ -1701,7 +1742,7 @@ u32 populate_command_list(graphics_data* data)
 
             if (data->texture_map_y[0].find(panel->texture_index) == data->texture_map_y[0].end())
             {
-                create_texture(data, frame->width, frame->height, panel->texture_index);
+                create_texture(data, frame->width, frame->height, panel->texture_index, scene->scene_index);
             }
 
             for (auto output : data->output_list)
@@ -1749,7 +1790,7 @@ u32 populate_command_list(graphics_data* data)
 
             if (data->vertex_buffer_map.find(panel->vertex_index) == data->vertex_buffer_map.end())
             {
-                create_vertex_buffer(data, panel->vertex_index, panel->normalized_rect, panel->normalized_uv);
+                create_vertex_buffer(data, panel->vertex_index, panel->normalized_rect, panel->normalized_uv, scene->scene_index);
             }
         }
     }
@@ -2499,6 +2540,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         _ffmpeg_processing_thread.join();
     }
 
+    d3d_memory_check();
+
     return (int)msg.wParam;
 }
 
@@ -2560,3 +2603,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     }
     return 0;
 }
+
+#if _DEBUG
+void d3d_memory_check()
+{
+    HMODULE dxgidebugdll = GetModuleHandleW(L"dxgidebug.dll");
+    decltype(&DXGIGetDebugInterface) GetDebugInterface = reinterpret_cast<decltype(&DXGIGetDebugInterface)>(GetProcAddress(dxgidebugdll, "DXGIGetDebugInterface"));
+
+    IDXGIDebug* debug;
+
+    GetDebugInterface(IID_PPV_ARGS(&debug));
+
+    OutputDebugString(L"---------------- Report Live Objects ----------------\n");
+    debug->ReportLiveObjects(DXGI_DEBUG_D3D12, DXGI_DEBUG_RLO_DETAIL);
+    OutputDebugString(L"---------------- Report Live Objects ----------------\n");
+
+    debug->Release();
+}
+#endif // _DEBUG
