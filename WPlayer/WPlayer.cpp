@@ -14,6 +14,10 @@
 #include "CppFFmpegWrapperAPI.h"
 #pragma comment(lib, "CppFFmpegWrapper.lib")
 
+#if _DEBUG
+#include "dxgidebug.h"
+#endif // _DEBUG
+
 constexpr u32 frame_buffer_count = 3;
 constexpr u32 texture_resource_count = 3;
 
