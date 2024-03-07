@@ -53,6 +53,9 @@
     <ClCompile Include="PlayerWindow.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="WPlayer_Present_Barrier_Test.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="WPlayer.rc">

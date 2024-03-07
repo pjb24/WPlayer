@@ -59,12 +59,12 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)Include\FFmpeg;$(SolutionDir)Include\CppFFmpegWrapper;$(SolutionDir)Include\CppSocket</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Include\NvAPI;$(SolutionDir)Include\FFmpeg;$(SolutionDir)Include\CppFFmpegWrapper;$(SolutionDir)Include\CppSocket</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)Lib\FFmpeg;$(SolutionDir)Lib\CppFFmpegWrapper\$(Configuration);$(SolutionDir)Lib\CppSocket\$(Configuration)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)Lib\NvAPI;$(SolutionDir)Lib\FFmpeg;$(SolutionDir)Lib\CppFFmpegWrapper\$(Configuration);$(SolutionDir)Lib\CppSocket\$(Configuration)</AdditionalLibraryDirectories>
     </Link>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)*.hlsl $(OutDir)
@@ -82,14 +82,14 @@ xcopy /y /d $(SolutionDir)Lib\*.* $(OutDir)</Command>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)Include\FFmpeg;$(SolutionDir)Include\CppFFmpegWrapper;$(SolutionDir)Include\CppSocket</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Include\NvAPI;$(SolutionDir)Include\FFmpeg;$(SolutionDir)Include\CppFFmpegWrapper;$(SolutionDir)Include\CppSocket</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)Lib\FFmpeg;$(SolutionDir)Lib\CppFFmpegWrapper\$(Configuration);$(SolutionDir)Lib\CppSocket\$(Configuration)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)Lib\NvAPI;$(SolutionDir)Lib\FFmpeg;$(SolutionDir)Lib\CppFFmpegWrapper\$(Configuration);$(SolutionDir)Lib\CppSocket\$(Configuration)</AdditionalLibraryDirectories>
     </Link>
     <PreBuildEvent>
       <Command>xcopy /Y /D $(ProjectDir)*.hlsl $(OutDir)
@@ -113,6 +113,10 @@ xcopy /y /d $(SolutionDir)Lib\*.* $(OutDir)</Command>
     <ClCompile Include="D3D12Data.cpp" />
     <ClCompile Include="PlayerWindow.cpp" />
     <ClCompile Include="WPlayer.cpp" />
+    <ClCompile Include="WPlayer_Present_Barrier_Test.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="WPlayer.rc" />

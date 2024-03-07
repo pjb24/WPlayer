@@ -14,9 +14,17 @@
 #include "CppFFmpegWrapperAPI.h"
 #pragma comment(lib, "CppFFmpegWrapper.lib")
 
+#include "nvapi.h"
+#pragma comment(lib, "nvapi64.lib")
+
 #if _DEBUG
 #include "dxgidebug.h"
 #endif // _DEBUG
+
+NvAPI_Status _nvapi_status = NVAPI_OK;
+
+bool _present_barrier_supported = true;
+bool _disable_present_barrier = true;
 
 constexpr u32 frame_buffer_count = 3;
 constexpr u32 texture_resource_count = 3;
@@ -86,6 +94,11 @@ struct output_data
     D3D12_RECT scissor_rect;
 
     s32 output_index = -1;
+
+    NvPresentBarrierClientHandle present_barrier_client = nullptr;
+    ID3D12Fence* present_barrier_fence = nullptr;
+    bool present_barrier_joined = false;
+    _NV_PRESENT_BARRIER_FRAME_STATISTICS present_barrier_frame_stats;
 };
 
 enum class deferred_type : s32
@@ -159,6 +172,8 @@ struct graphics_data
 
     bool deferred_free_flag[frame_buffer_count];
     std::vector<deferred_free_object> deferred_free_object_list[frame_buffer_count];
+
+    bool present_barrier_supported = false;
 };
 
 #pragma region Graphics
@@ -228,6 +243,7 @@ u32 normalize_rect(RECT base_rect, RECT target_rect, NormalizedRect& normalized_
 u32 normalize_uv(RECT base_rect, RECT target_rect, NormalizedRect& normalized_uv);
 u32 deferred_free_processing(u32 back_buffer_index);
 
+u32 delete_present_barriers();
 #if _DEBUG
 void d3d_memory_check();
 #endif
@@ -777,6 +793,23 @@ u32 create_swap_chains()
 
             swap_chain->Release();
             swap_chain = nullptr;
+
+            if (_disable_present_barrier == false)
+            {
+                if (output->present_barrier_client != nullptr)
+                {
+                    if (output->present_barrier_joined == true)
+                    {
+                        _nvapi_status = NvAPI_LeavePresentBarrier(output->present_barrier_client);
+                        output->present_barrier_joined = false;
+                    }
+
+                    _nvapi_status = NvAPI_DestroyPresentBarrierClient(output->present_barrier_client);
+                    output->present_barrier_client = nullptr;
+                }
+
+                _nvapi_status = NvAPI_D3D12_CreatePresentBarrierClient(data->device, output->swap_chain, &output->present_barrier_client);
+            }
 
             output->frame_index = output->swap_chain->GetCurrentBackBufferIndex();
         }
@@ -2050,7 +2083,10 @@ u32 populate_command_list(graphics_data* data)
 
         data->cmd_list->OMSetRenderTargets(1, &rtv_handle, FALSE, nullptr);
 
+        //float clear_color[] = { _clear_color[0] * output->frame_index, _clear_color[1] * output->frame_index, _clear_color[2] * output->frame_index, _clear_color[3] * output->frame_index };
+
         data->cmd_list->ClearRenderTargetView(rtv_handle, _clear_color, 0, nullptr);
+        //data->cmd_list->ClearRenderTargetView(rtv_handle, clear_color, 0, nullptr);
         data->cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 
@@ -2128,8 +2164,39 @@ u32 render()
                 continue;
             }
             hr = output->swap_chain->Present(1, 0);
+
+            if (_disable_present_barrier == false)
+            {
+                _nvapi_status = NvAPI_QueryPresentBarrierFrameStatistics(output->present_barrier_client, &output->present_barrier_frame_stats);
+
+                switch (output->present_barrier_frame_stats.SyncMode)
+                {
+                case NV_PRESENT_BARRIER_SYNC_MODE::PRESENT_BARRIER_NOT_JOINED:
+                {
+                    OutputDebugString(L"PRESENT_BARRIER_NOT_JOINED\n");
                 }
+                break;
+                case NV_PRESENT_BARRIER_SYNC_MODE::PRESENT_BARRIER_SYNC_CLIENT:
+                {
+                    OutputDebugString(L"PRESENT_BARRIER_SYNC_CLIENT\n");
                 }
+                break;
+                case NV_PRESENT_BARRIER_SYNC_MODE::PRESENT_BARRIER_SYNC_SYSTEM:
+                {
+                    OutputDebugString(L"PRESENT_BARRIER_SYNC_SYSTEM\n");
+                }
+                break;
+                case NV_PRESENT_BARRIER_SYNC_MODE::PRESENT_BARRIER_SYNC_CLUSTER:
+                {
+                    OutputDebugString(L"PRESENT_BARRIER_SYNC_CLUSTER\n");
+                }
+                break;
+                default:
+                    break;
+                }
+            }
+        }
+    }
 
     for (auto data : _graphics_data_list)
     {
@@ -2479,6 +2546,42 @@ u32 deferred_free_processing(u32 back_buffer_index)
     return u32();
 }
 
+u32 delete_present_barriers()
+{
+    if (_graphics_data_list.empty())
+    {
+        return u32();
+    }
+
+    if (_disable_present_barrier == false)
+    {
+        for (auto data : _graphics_data_list)
+        {
+            for (auto output : data->output_list)
+            {
+                if (output->handle == nullptr)
+                {
+                    continue;
+                }
+
+                if (output->present_barrier_joined == true)
+                {
+                    _nvapi_status = NvAPI_LeavePresentBarrier(output->present_barrier_client);
+                    output->present_barrier_joined = false;
+                }
+
+                _nvapi_status = NvAPI_DestroyPresentBarrierClient(output->present_barrier_client);
+                output->present_barrier_client = nullptr;
+
+                output->present_barrier_fence->Release();
+                output->present_barrier_fence = nullptr;
+            }
+        }
+    }
+
+    return u32();
+}
+
 #define MAX_LOADSTRING 100
 
 // 전역 변수:
@@ -2547,9 +2650,58 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     create_devices();
     create_command_queues();
+
+    if (_disable_present_barrier == false)
+    {
+        _nvapi_status = NvAPI_Initialize();
+        // Check whether the system supports present barrier (Quadro + driver with support)
+        for (auto data : _graphics_data_list)
+        {
+            _nvapi_status = NvAPI_D3D12_QueryPresentBarrierSupport(data->device, &data->present_barrier_supported);
+            if (data->present_barrier_supported == false)
+            {
+                _present_barrier_supported = false;
+            }
+
+            if (_nvapi_status != NVAPI_OK || data->present_barrier_supported == false)
+            {
+                OutputDebugStringA("Present barrier is not supported on this system\n");
+                continue;
+                // return false;
+            }
+
+            for (auto output : data->output_list)
+            {
+                if (output->handle == nullptr)
+                {
+                    continue;
+                }
+
+                data->device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&output->present_barrier_fence));
+                NAME_D3D12_OBJECT_INDEXED_2(output->present_barrier_fence, data->adapter_index, output->output_index, L"ID3D12Fence_Nv");
+            }
+        }
+    }
+
     create_swap_chains();
     create_rtv_heaps();
     create_srv_heaps();
+
+    if (_disable_present_barrier == false)
+    {
+        for (auto data : _graphics_data_list)
+        {
+            for (auto output : data->output_list)
+            {
+                if (output->handle == nullptr)
+                {
+                    continue;
+                }
+
+                _nvapi_status = NvAPI_D3D12_RegisterPresentBarrierResources(output->present_barrier_client, output->present_barrier_fence, output->rtv_view_list.data(), static_cast<NvU32>(output->rtv_view_list.size()));
+            }
+        }
+    }
 
     create_root_signatures();
     create_psos();
@@ -2557,6 +2709,29 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     create_fences();
 
+    if (_disable_present_barrier == false)
+    {
+        for (auto data : _graphics_data_list)
+        {
+            for (auto output : data->output_list)
+            {
+                if (output->handle == nullptr)
+                {
+                    continue;
+                }
+
+                if (output->present_barrier_joined == false)
+                {
+                    NV_JOIN_PRESENT_BARRIER_PARAMS params = {};
+                    params.dwVersion = NV_JOIN_PRESENT_BARRIER_PARAMS_VER1;
+                    _nvapi_status = NvAPI_JoinPresentBarrier(output->present_barrier_client, &params);
+                    output->present_barrier_joined = true;
+                }
+
+                output->present_barrier_frame_stats.dwVersion = NV_PRESENT_BARRIER_FRAME_STATICS_VER1;
+            }
+        }
+    }
     ready = true;
 
     MSG msg;
@@ -2581,6 +2756,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     delete_textures();
     delete_vertex_buffer_list();
     delete_index_buffer();
+
+    delete_present_barriers();
 
     delete_fences();
 
@@ -2613,6 +2790,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     {
         _ffmpeg_processing_flag = false;
         _ffmpeg_processing_thread.join();
+    }
+
+    if (_disable_present_barrier == false)
+    {
+        _nvapi_status = NvAPI_Unload();
     }
 
 #if _DEBUG
