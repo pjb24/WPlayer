@@ -329,7 +329,7 @@ void FFmpegCore::open_codec()
     const AVCodec* codec = avcodec_find_decoder(_codec_ctx->codec_id);
 
     _codec_ctx->thread_count = 4;
-    _codec_ctx->thread_type = FF_THREAD_FRAME;
+    _codec_ctx->thread_type = FF_THREAD_SLICE;
 
     result = avcodec_open2(_codec_ctx, codec, nullptr);
     if (result != 0)
