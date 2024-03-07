@@ -21,6 +21,8 @@
 constexpr u32 frame_buffer_count = 3;
 constexpr u32 texture_resource_count = 3;
 
+constexpr int test_window_count = 0;    // 0이면 기본 사용, 0이 아니면 개수만큼 window 생성
+
 struct RemoveScene
 {
     s32 scene_index = -1;
@@ -226,7 +228,9 @@ u32 normalize_rect(RECT base_rect, RECT target_rect, NormalizedRect& normalized_
 u32 normalize_uv(RECT base_rect, RECT target_rect, NormalizedRect& normalized_uv);
 u32 deferred_free_processing(u32 back_buffer_index);
 
+#if _DEBUG
 void d3d_memory_check();
+#endif
 #pragma endregion
 
 #pragma region TCP Server
@@ -736,6 +740,11 @@ u32 create_swap_chains()
     {
         for (auto output : data->output_list)
         {
+            if (output->handle == nullptr)
+            {
+                continue;
+            }
+
             DXGI_SWAP_CHAIN_DESC1 desc{};
             desc.Width = output->output_desc.DesktopCoordinates.right - output->output_desc.DesktopCoordinates.left;
             desc.Height = output->output_desc.DesktopCoordinates.bottom - output->output_desc.DesktopCoordinates.top;
@@ -785,6 +794,11 @@ u32 delete_swap_chains()
     {
         for (auto output : data->output_list)
         {
+            if (output->handle == nullptr)
+            {
+                continue;
+            }
+
             output->swap_chain->Release();
             output->swap_chain = nullptr;
         }
@@ -823,6 +837,11 @@ u32 create_rtv_heaps()
         for (auto it = data->output_list.begin(); it != data->output_list.end(); it++)
         {
             output_data* o_data = *it;
+
+            if (o_data->handle == nullptr)
+            {
+                continue;
+            }
 
             o_data->rtv_handle = data->rtv_heaps->GetCPUDescriptorHandleForHeapStart();
 
@@ -881,6 +900,10 @@ u32 delete_rtv_heaps()
 
         for (auto o_data : data->output_list)
         {
+            if (o_data->handle == nullptr)
+            {
+                continue;
+            }
             for (u32 n = 0; n < frame_buffer_count; n++)
             {
                 o_data->rtv_view_list[n]->Release();
@@ -1593,6 +1616,11 @@ u32 create_fences()
 
         for (auto output : data->output_list)
         {
+            if (output->handle == nullptr)
+            {
+                continue;
+            }
+
             hr = data->device->CreateFence(output->fence_values[output->frame_index], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&output->fence));
 
             NAME_D3D12_OBJECT_INDEXED_2(output->fence, data->adapter_index, n, L"ID3D12Fence");
@@ -1621,6 +1649,11 @@ u32 delete_fences()
     {
         for (auto output : data->output_list)
         {
+            if (output->handle == nullptr)
+            {
+                continue;
+            }
+
             CloseHandle(output->fence_event);
 
             output->fence->Release();
@@ -1642,6 +1675,11 @@ u32 create_viewports()
     {
         for (auto output : data->output_list)
         {
+            if (output->handle == nullptr)
+            {
+                continue;
+            }
+
             output->viewport = { 0.0f, 0.0f, (f32)(output->output_desc.DesktopCoordinates.right - output->output_desc.DesktopCoordinates.left), (f32)(output->output_desc.DesktopCoordinates.bottom - output->output_desc.DesktopCoordinates.top) };
             output->scissor_rect = { 0, 0, (s32)(output->output_desc.DesktopCoordinates.right - output->output_desc.DesktopCoordinates.left), (s32)(output->output_desc.DesktopCoordinates.bottom - output->output_desc.DesktopCoordinates.top) };
         }
@@ -1670,6 +1708,11 @@ u32 wait_for_gpus()
     {
         for (auto output : data->output_list)
         {
+            if (output->handle == nullptr)
+            {
+                continue;
+            }
+
             wait_for_gpu(data->cmd_queue, output);
         }
     }
@@ -1751,6 +1794,10 @@ u32 populate_command_list(graphics_data* data)
 
             for (auto output : data->output_list)
             {
+                if (output->handle == nullptr)
+                {
+                    continue;
+                }
                 if (output->output_index != panel->output_index)
                 {
                     continue;
@@ -1986,6 +2033,10 @@ u32 populate_command_list(graphics_data* data)
 
     for (auto output : data->output_list)
     {
+        if (output->handle == nullptr)
+        {
+            continue;
+        }
         data->cmd_list->RSSetViewports(1, &output->viewport);
         data->cmd_list->RSSetScissorRects(1, &output->scissor_rect);
 
@@ -2070,9 +2121,13 @@ u32 render()
 
         for (auto output : data->output_list)
         {
+            if (output->handle == nullptr)
+            {
+                continue;
+            }
             hr = output->swap_chain->Present(1, 0);
-        }
-    }
+                }
+                }
 
     for (auto data : _graphics_data_list)
     {
@@ -2083,6 +2138,11 @@ u32 render()
 
         for (auto output : data->output_list)
         {
+            if (output->handle == nullptr)
+            {
+                continue;
+            }
+
             move_to_next_frame(data->cmd_queue, output);
         }
     }
@@ -2466,9 +2526,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             continue;
         }
 
+        int n = 0;
+
         for (auto output : data->output_list)
         {
             create_window(szWindowClass, szTitle, hInst, output->output_desc.DesktopCoordinates, nullptr, output->handle);
+            
+            n++;
+
+            if (n == test_window_count)
+            {
+                break;
+            }
         }
     }
 
@@ -2544,7 +2613,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         _ffmpeg_processing_thread.join();
     }
 
+#if _DEBUG
     d3d_memory_check();
+#endif
 
     return (int)msg.wParam;
 }
@@ -2562,7 +2633,8 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 
     wcex.cbSize = sizeof(WNDCLASSEX);
 
-    wcex.style = CS_HREDRAW | CS_VREDRAW;
+    //wcex.style = CS_HREDRAW | CS_VREDRAW;
+    wcex.style = 0;
     wcex.lpfnWndProc = WndProc;
     wcex.cbClsExtra = 0;
     wcex.cbWndExtra = 0;
