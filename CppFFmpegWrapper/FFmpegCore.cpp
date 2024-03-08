@@ -174,6 +174,10 @@ s32 FFmpegCore::get_frame(AVFrame *& frame)
     result = output_frame(frame, index);
     if (result != error_type::ok)
     {
+        if (_eof == true)
+        {
+            return -2;
+        }
         return -1;
     }
 
@@ -498,6 +502,47 @@ void FFmpegCore::play_continue()
     std::lock_guard<std::mutex> lock(_pause_mutex);
 
     _pause_flag = false;
+}
+
+void FFmpegCore::seek_pts(s64 pts)
+{
+    // 재생 일시정지
+    _seek_flag = true;
+
+    // 정지할 때까지 대기
+    while (!(_seek_ready_flag_reader && _seek_ready_flag_decoder))
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time));
+    }
+
+    // 코덱 버퍼 클리어
+    flush_codec();
+
+    // 큐 클리어
+    clear_packet_queue();
+    clear_frame_queue();
+
+    // 위치 이동
+    set_timestamp(pts);
+
+    if (_eof == true)
+    {
+        _eof = false;
+    }
+
+    // 재생 시작
+    _seek_flag = false;
+
+    _seek_ready_flag_reader = false;
+    _seek_ready_flag_decoder = false;
+
+    _seek_condition_reader.notify_one();
+    _seek_condition_decoder.notify_one();
+}
+
+void FFmpegCore::set_timestamp(s64 pts)
+{
+    av_seek_frame(_format_ctx, _stream_index, _start_time + pts, AVSEEK_FLAG_BACKWARD);
 }
 
 bool FFmpegCore::is_full_packet_queue()

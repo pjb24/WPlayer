@@ -22,6 +22,8 @@ public:
 
     void file_path(std::string path) { _file_path = path; }
 
+    void seek_pts(s64 pts);
+
 private:
 
     void* _connection_play_start = nullptr;
@@ -51,7 +53,6 @@ private:
 #pragma endregion
 
 #pragma region Seek
-    void seek_pts(s64 pts);
     void set_timestamp(s64 pts);
 
     bool                _seek_flag = false;

@@ -110,7 +110,7 @@ void callback_ptr_client(void* data)
 int main()
 {
     int input = 0;
-    printf("Input \n0: server start \n1: client play \n2: client pause \n3: client stop \n4: client play2\n 5: client play3\n");
+    printf("Input \n0: server start \n1: client play \n2: client pause \n3: client stop \n4: client play2\n5: client play3\n");
     scanf_s("%d", &input);
 
     if (cppsocket_network_initialize())
@@ -209,8 +209,8 @@ int main()
         }
         else if (input == 5)
         {
-            RECT rect{ 0, 0, 7680, 2160 };
-            std::string url = "C:\\Wizbrain\\media\\output.mp4";
+            RECT rect{ 0, 0, 4000, 1400 };
+            std::string url = "C:\\Wizbrain\\media\\media4.mp4";
 
             // Client
             void* client = cppsocket_client_create();

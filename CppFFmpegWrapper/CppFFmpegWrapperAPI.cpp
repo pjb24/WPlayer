@@ -72,3 +72,9 @@ int32_t cpp_ffmpeg_wrapper_frame_to_next(void * instance)
     FFmpegCore* core = (FFmpegCore*)instance;
     return core->frame_to_next();
 }
+
+void cpp_ffmpeg_wrapper_seek_pts(void * instance, int64_t pts)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->seek_pts(pts);
+}

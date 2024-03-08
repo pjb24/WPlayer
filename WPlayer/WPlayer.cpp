@@ -31,6 +31,8 @@ constexpr u32 texture_resource_count = 3;
 
 constexpr int test_window_count = 0;    // 0이면 기본 사용, 0이 아니면 개수만큼 window 생성
 
+bool _repeat_play_flag = false;
+
 struct RemoveScene
 {
     s32 scene_index = -1;
@@ -397,6 +399,7 @@ void tcp_processing_thread()
             {
                 // TODO: open_file 실패
             }
+            _repeat_play_flag = true;
             cpp_ffmpeg_wrapper_play_start(ffmpeg_instance, data_pair.second);
         }
         break;
@@ -1804,10 +1807,19 @@ u32 populate_command_list(graphics_data* data)
             if (it_ffmpeg_data != _ffmpeg_data_map.end())
             {
                 output_frame_index = cpp_ffmpeg_wrapper_get_frame(it_ffmpeg_data->second, frame);
+
+                if (output_frame_index == -2)
+                {
+                    // eof
+                    if (_repeat_play_flag == true)
+                    {
+                        cpp_ffmpeg_wrapper_seek_pts(it_ffmpeg_data->second, 0);
+                    }
+                }
             }
         }
 
-        if (output_frame_index == -1)
+        if (output_frame_index < 0)
         {
             continue;
         }
