@@ -14,8 +14,8 @@ public:
     void play_pause(void* connection);
     void play_stop(void* connection);
 
-    void jump_forward();
-    void jump_backwards();
+    void jump_forward(void* connection);
+    void jump_backwards(void* connection);
 
     s32 get_frame(AVFrame*& frame);
     s32 frame_to_next();

@@ -78,3 +78,15 @@ void cpp_ffmpeg_wrapper_seek_pts(void * instance, int64_t pts)
     FFmpegCore* core = (FFmpegCore*)instance;
     core->seek_pts(pts);
 }
+
+void cpp_ffmpeg_wrapper_jump_forward(void * instance, void* connection)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->jump_forward(connection);
+}
+
+void cpp_ffmpeg_wrapper_jump_backwards(void * instance, void* connection)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->jump_backwards(connection);
+}

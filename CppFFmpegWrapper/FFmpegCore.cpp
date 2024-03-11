@@ -100,7 +100,7 @@ int FFmpegCore::open_file()
     _time_base_d = av_q2d(_time_base);
     _duration = _format_ctx->streams[_stream_index]->duration;
     _start_time = _format_ctx->streams[_stream_index]->start_time;
-
+    
     return (int)error_type::ok;
 }
 
@@ -170,6 +170,46 @@ void FFmpegCore::play_stop(void* connection)
     _callback_ffmpeg(_scene_index, (uint16_t)command_type::stop, connection, (uint16_t)packet_result::ok);
 }
 
+void FFmpegCore::jump_forward(void* connection)
+{
+    if (_seek_flag)
+    {
+        return;
+    }
+
+    s64 now_pts{ _previous_frame_pts - _start_time };
+    s64 pts{ now_pts + s64(_jump_length / 1000 / av_q2d(_time_base)) };
+
+    if (_duration - _start_time < pts)
+    {
+        pts = _duration - _start_time;
+    }
+
+    seek_pts(pts);
+
+    _callback_ffmpeg(_scene_index, (uint16_t)command_type::jump_forward, connection, (uint16_t)packet_result::ok);
+}
+
+void FFmpegCore::jump_backwards(void* connection)
+{
+    if (_seek_flag)
+    {
+        return;
+    }
+
+    s64 now_pts{ _previous_frame_pts - _start_time };
+    s64 pts{ now_pts - s64(_jump_length / 1000 / av_q2d(_time_base)) };
+
+    if (0 > pts)
+    {
+        pts = 0;
+    }
+
+    seek_pts(pts);
+
+    _callback_ffmpeg(_scene_index, (uint16_t)command_type::jump_backwards, connection, (uint16_t)packet_result::ok);
+}
+
 s32 FFmpegCore::get_frame(AVFrame *& frame)
 {
     error_type result = error_type::ok;
@@ -214,7 +254,7 @@ s32 FFmpegCore::frame_to_next()
     if (_time_started == 0.0f)
     {
         _time_started = time_now - next_frame_pts;
-    }
+        }
 
     av_frame_unref(_frame_queue[_output_frame_index]);
 
@@ -570,6 +610,8 @@ void FFmpegCore::set_timestamp(s64 pts)
     av_seek_frame(_format_ctx, _stream_index, _start_time + pts, AVSEEK_FLAG_BACKWARD);
 }
 
+#pragma region circular queue
+
 bool FFmpegCore::is_full_packet_queue()
 {
     return (_output_packet_index == 0 && _input_packet_index == _packet_queue_size - 1) || (_output_packet_index == _input_packet_index + 1);
@@ -753,3 +795,5 @@ void FFmpegCore::clear_frame_queue()
 
     av_frame_free(&frame);
 }
+
+#pragma endregion

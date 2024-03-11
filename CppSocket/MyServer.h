@@ -13,6 +13,9 @@ public:
     bool send_stop(TcpConnection* connection, uint32_t scene_index, uint16_t result);
     bool send_move(TcpConnection* connection, uint32_t scene_index, uint16_t result);
 
+    bool send_jump_forward(TcpConnection* connection, uint32_t scene_index, uint16_t result);
+    bool send_jump_backwards(TcpConnection* connection, uint32_t scene_index, uint16_t result);
+
     void set_callback_data_connection(CALLBACK_DATA_CONNECTION cb) { callback_data_connection = cb; }
 
 private:

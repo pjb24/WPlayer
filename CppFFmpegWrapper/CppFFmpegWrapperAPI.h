@@ -40,3 +40,7 @@ EXPORT int32_t cpp_ffmpeg_wrapper_get_frame(void* instance, AVFrame*& frame);
 EXPORT int32_t cpp_ffmpeg_wrapper_frame_to_next(void* instance);
 
 EXPORT void cpp_ffmpeg_wrapper_seek_pts(void * instance, int64_t pts);
+
+EXPORT void cpp_ffmpeg_wrapper_jump_forward(void * instance, void* connection);
+
+EXPORT void cpp_ffmpeg_wrapper_jump_backwards(void * instance, void* connection);

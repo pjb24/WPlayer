@@ -356,6 +356,16 @@ void ffmpeg_processing_thread()
 
         }
         break;
+        case command_type::jump_forward:
+        {
+            cppsocket_server_send_jump_forward(_server, data_command.connection, data_command.scene_index, data_command.result);
+        }
+        break;
+        case command_type::jump_backwards:
+        {
+            cppsocket_server_send_jump_backwards(_server, data_command.connection, data_command.scene_index, data_command.result);
+        }
+        break;
         default:
             break;
         }
@@ -426,6 +436,24 @@ void tcp_processing_thread()
             packet_move_from_client* packet = (packet_move_from_client*)data_pair.first;
 
             ffmpeg_instance = _ffmpeg_data_map.find(packet->scene_index)->second;
+        }
+        break;
+        case command_type::jump_forward:
+        {
+            packet_stop_from_client* packet = (packet_stop_from_client*)data_pair.first;
+
+            ffmpeg_instance = _ffmpeg_data_map.find(packet->scene_index)->second;
+
+            cpp_ffmpeg_wrapper_jump_forward(ffmpeg_instance, data_pair.second);
+        }
+        break;
+        case command_type::jump_backwards:
+        {
+            packet_stop_from_client* packet = (packet_stop_from_client*)data_pair.first;
+
+            ffmpeg_instance = _ffmpeg_data_map.find(packet->scene_index)->second;
+
+            cpp_ffmpeg_wrapper_jump_backwards(ffmpeg_instance, data_pair.second);
         }
         break;
         default:

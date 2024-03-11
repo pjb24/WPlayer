@@ -13,6 +13,9 @@ public:
     bool send_stop(uint32_t scene_index);
     bool send_move(uint32_t scene_index, RECT rect);
 
+    bool send_forward(uint32_t scene_index);
+    bool send_backwards(uint32_t scene_index);
+
     void set_callback_data(CALLBACK_DATA cb) { callback_data = cb; }
 
     void callback_client(void* packet);

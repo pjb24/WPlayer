@@ -72,6 +72,42 @@ bool MyServer::send_move(TcpConnection * connection, uint32_t scene_index, uint1
     return true;
 }
 
+bool MyServer::send_jump_forward(TcpConnection * connection, uint32_t scene_index, uint16_t result)
+{
+    packet_header header{};
+    header.cmd = command_type::jump_forward;
+    header.size = sizeof(packet_jump_forward_from_server);
+
+    packet_jump_forward_from_server out_packet{};
+    out_packet.header = header;
+    out_packet.result = (packet_result)result;
+    out_packet.scene_index = scene_index;
+
+    std::shared_ptr<Packet> jump_forward_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    *jump_forward_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(jump_forward_packet);
+
+    return true;
+}
+
+bool MyServer::send_jump_backwards(TcpConnection * connection, uint32_t scene_index, uint16_t result)
+{
+    packet_header header{};
+    header.cmd = command_type::jump_backwards;
+    header.size = sizeof(packet_jump_backwards_from_server);
+
+    packet_jump_backwards_from_server out_packet{};
+    out_packet.header = header;
+    out_packet.result = (packet_result)result;
+    out_packet.scene_index = scene_index;
+
+    std::shared_ptr<Packet> jump_backwards_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    *jump_backwards_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(jump_backwards_packet);
+
+    return true;
+}
+
 void MyServer::OnConnect(TcpConnection& newConnection)
 {
 	std::cout << newConnection.ToString() << " - New connection accepted." << std::endl;

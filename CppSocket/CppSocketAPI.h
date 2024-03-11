@@ -32,6 +32,9 @@ EXPORT void cppsocket_server_send_pause(void* server_instance, void* connection,
 EXPORT void cppsocket_server_send_stop(void* server_instance, void* connection, uint32_t scene_index, uint16_t result);
 EXPORT void cppsocket_server_send_move(void* server_instance, void* connection, uint32_t scene_index, uint16_t result);
 
+EXPORT void cppsocket_server_send_jump_forward(void* server_instance, void* connection, uint32_t scene_index, uint16_t result);
+EXPORT void cppsocket_server_send_jump_backwards(void* server_instance, void* connection, uint32_t scene_index, uint16_t result);
+
 EXPORT void cppsocket_server_set_callback_data_connection(void* server_instance, CALLBACK_DATA_CONNECTION cb);
 
 // --------------------------------
@@ -50,6 +53,9 @@ EXPORT void cppsocket_client_send_play(void* client_instance, RECT rect, const c
 EXPORT void cppsocket_client_send_pause(void* client_instance, uint32_t scene_index);
 EXPORT void cppsocket_client_send_stop(void* client_instance, uint32_t scene_index);
 EXPORT void cppsocket_client_send_move(void* client_instance, uint32_t scene_index, RECT rect);
+
+EXPORT void cppsocket_client_send_jump_forward(void* client_instance, uint32_t scene_index);
+EXPORT void cppsocket_client_send_jump_backwards(void* client_instance, uint32_t scene_index);
 
 EXPORT void cppsocket_client_set_callback_data(void* client_instance, CALLBACK_DATA cb);
 

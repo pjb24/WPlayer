@@ -76,6 +76,40 @@ bool MyClient::send_move(uint32_t scene_index, RECT rect)
     return true;
 }
 
+bool MyClient::send_forward(uint32_t scene_index)
+{
+    packet_header header{};
+    header.cmd = command_type::jump_forward;
+    header.size = sizeof(packet_jump_forward_from_client);
+
+    packet_jump_forward_from_client packet{};
+    packet.header = header;
+    packet.scene_index = scene_index;
+
+    std::shared_ptr<Packet> jump_forward_packet = std::make_shared<Packet>(PacketType::structured_data_from_client);
+    *jump_forward_packet << (void*)&packet;
+    m_connection.m_pmOutgoing.Append(jump_forward_packet);
+
+    return true;
+}
+
+bool MyClient::send_backwards(uint32_t scene_index)
+{
+    packet_header header{};
+    header.cmd = command_type::jump_backwards;
+    header.size = sizeof(packet_jump_backwards_from_client);
+
+    packet_jump_backwards_from_client packet{};
+    packet.header = header;
+    packet.scene_index = scene_index;
+
+    std::shared_ptr<Packet> jump_backwards_packet = std::make_shared<Packet>(PacketType::structured_data_from_client);
+    *jump_backwards_packet << (void*)&packet;
+    m_connection.m_pmOutgoing.Append(jump_backwards_packet);
+
+    return true;
+}
+
 bool MyClient::ProcessPacket(std::shared_ptr<Packet> packet)
 {
     switch (packet->GetPacketType())

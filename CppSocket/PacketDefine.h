@@ -25,6 +25,8 @@ enum class command_type : uint16_t
     pause,  // 1
     stop,   // 2
     move,   // 3
+    jump_forward,   // 4
+    jump_backwards, // 5
 };
 
 struct packet_header
@@ -90,6 +92,36 @@ struct packet_move_from_client
 };
 
 struct packet_move_from_server
+{
+    packet_header   header;
+    packet_result   result; // 명령 수행 결과
+    uint32_t        scene_index;
+};
+// --------------------------------
+
+// jump forward ////////////////////////////////
+struct packet_jump_forward_from_client
+{
+    packet_header   header;
+    uint32_t        scene_index;
+};
+
+struct packet_jump_forward_from_server
+{
+    packet_header   header;
+    packet_result   result; // 명령 수행 결과
+    uint32_t        scene_index;
+};
+// --------------------------------
+
+// jump backwards ////////////////////////////////
+struct packet_jump_backwards_from_client
+{
+    packet_header   header;
+    uint32_t        scene_index;
+};
+
+struct packet_jump_backwards_from_server
 {
     packet_header   header;
     packet_result   result; // 명령 수행 결과

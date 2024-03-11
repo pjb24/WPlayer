@@ -110,7 +110,7 @@ void callback_ptr_client(void* data)
 int main()
 {
     int input = 0;
-    printf("Input \n0: server start \n1: client play \n2: client pause \n3: client stop \n4: client play2\n5: client play3\n");
+    printf("Input \n0: server start \n1: client play \n2: client pause \n3: client stop \n4: client play2\n5: client play3\n6: client jump_forward\n7: client jump_backwards\n");
     scanf_s("%d", &input);
 
     if (cppsocket_network_initialize())
@@ -136,7 +136,7 @@ int main()
         }
         else if (input == 1)
         {
-            RECT rect{ 0, 0, 7680, 2160 };
+            RECT rect{ 0, 0, 1000, 1000 };
             std::string url = "C:\\Wizbrain\\media\\media1.mp4";
 
             // Client
@@ -220,6 +220,42 @@ int main()
             if (cppsocket_client_connect(client, "127.0.0.1", 53333))
             {
                 cppsocket_client_send_play(client, rect, url.c_str(), url.size());
+
+                while (cppsocket_client_is_connected(client))
+                {
+                    cppsocket_client_frame(client);
+                }
+            }
+            cppsocket_client_delete(client);
+        }
+        else if (input == 6)
+        {
+            // Client
+            void* client = cppsocket_client_create();
+
+            cppsocket_client_set_callback_data(client, callback_ptr_client);
+
+            if (cppsocket_client_connect(client, "127.0.0.1", 53333))
+            {
+                cppsocket_client_send_jump_forward(client, 0);
+
+                while (cppsocket_client_is_connected(client))
+                {
+                    cppsocket_client_frame(client);
+                }
+            }
+            cppsocket_client_delete(client);
+        }
+        else if (input == 7)
+        {
+            // Client
+            void* client = cppsocket_client_create();
+
+            cppsocket_client_set_callback_data(client, callback_ptr_client);
+
+            if (cppsocket_client_connect(client, "127.0.0.1", 53333))
+            {
+                cppsocket_client_send_jump_backwards(client, 0);
 
                 while (cppsocket_client_is_connected(client))
                 {
