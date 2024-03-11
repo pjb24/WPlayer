@@ -37,6 +37,11 @@ bool FFmpegCore::initialize(CALLBACK_INT32_UINT16_PTR_UINT16 cb, u32 scene_index
     _callback_ffmpeg = cb;
     _scene_index = scene_index;
 
+    SYSTEM_INFO _stSysInfo;
+    GetSystemInfo(&_stSysInfo);
+    _logical_processor_count = _stSysInfo.dwNumberOfProcessors;	// cpu 논리 프로세서 개수
+    _logical_processor_count_half = _logical_processor_count / 2;
+    
     return true;
 }
 
@@ -332,7 +337,27 @@ void FFmpegCore::open_codec()
 
     const AVCodec* codec = avcodec_find_decoder(_codec_ctx->codec_id);
 
-    _codec_ctx->thread_count = 4;
+    if (_codec_ctx->width * _codec_ctx->height <= 1920 * 1080)
+    {
+        // FHD 사이즈 이하
+        _codec_ctx->thread_count = 4;
+    }
+    else if (_codec_ctx->width * _codec_ctx->height <= 3840 * 2160)
+    {
+        // 4K 사이즈 이하
+        _codec_ctx->thread_count = 8;
+    }
+    else
+    {
+        // 4K 사이즈 초과
+        _codec_ctx->thread_count = 16;
+    }
+
+    if (_codec_ctx->thread_count > _logical_processor_count_half)
+    {
+        _codec_ctx->thread_count = _logical_processor_count_half;
+    }
+
     _codec_ctx->thread_type = FF_THREAD_SLICE;
 
     result = avcodec_open2(_codec_ctx, codec, nullptr);

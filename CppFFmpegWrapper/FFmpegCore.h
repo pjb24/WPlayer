@@ -26,6 +26,9 @@ public:
 
 private:
 
+    int _logical_processor_count = 0;
+    int _logical_processor_count_half = 0;
+
     void* _connection_play_start = nullptr;
 
     bool    _first_decode = false;
