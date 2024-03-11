@@ -119,6 +119,8 @@ void FFmpegCore::play_start(void* connection)
 
     _connection_play_start = connection;
 
+    _time_started = av_gettime_relative() / 1'000.0;
+
     _read_thread = std::thread(&FFmpegCore::read, this);
     _decode_thread = std::thread(&FFmpegCore::decode, this);
 }
@@ -226,6 +228,8 @@ s32 FFmpegCore::get_frame(AVFrame *& frame)
         return -1;
     }
 
+    _previous_frame_pts = frame->pts;
+
     return index;
 }
 
@@ -242,22 +246,36 @@ s32 FFmpegCore::frame_to_next()
         return error_type::queue_is_empty;
     }
 
-    double time_now = av_gettime_relative() / 1'000.0;  // millisecond
-    double next_frame_pts = _frame_queue[_output_frame_index]->pts * _time_base_d * 1'000.0;
-    double next_frame_present_time = _time_started + (next_frame_pts);
+    int frame_queue_size = get_frame_queue_size();
 
-    if (time_now < next_frame_present_time)
+    double time_now = av_gettime_relative() / 1'000.0;  // millisecond
+    double previous_frame_pts = _frame_queue[_output_frame_index]->pts * _time_base_d * 1'000.0;
+
+    if (_time_started == 0.0f)
+    {
+        _time_started = time_now - previous_frame_pts;
+    }
+
+    double previous_frame_present_time = _time_started + (previous_frame_pts);
+
+    double time_delta = previous_frame_present_time - time_now;
+
+    if (time_delta > -(_duration_frame_half))
     {
         return error_type::use_previous_frame;
     }
 
-    if (_time_started == 0.0f)
+    if (frame_queue_size > 2)
     {
-        _time_started = time_now - next_frame_pts;
+        s32 temp_index = (_output_frame_index + 1) % _frame_queue_size;
+        if (_previous_frame_pts > _frame_queue[temp_index]->pts)
+        {
+            av_frame_unref(_frame_queue[_output_frame_index]);
+            _output_frame_index = (_output_frame_index + 1) % _frame_queue_size;
         }
+    }
 
     av_frame_unref(_frame_queue[_output_frame_index]);
-
     _output_frame_index = (_output_frame_index + 1) % _frame_queue_size;
 
     return error_type::ok;
@@ -471,6 +489,9 @@ void FFmpegCore::decode()
                 {
                     _first_decode = false;
                     _callback_ffmpeg(_scene_index, (uint16_t)command_type::play, _connection_play_start, (uint16_t)packet_result::ok);
+                    
+                    _duration_frame = frame->duration;
+                    _duration_frame_half = _duration_frame * _time_base_d * 1'000.0f / 2;
                 }
 
                 while (true)
@@ -579,6 +600,8 @@ void FFmpegCore::seek_pts(s64 pts)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time));
     }
+
+    _time_started = 0.0f;
 
     // 코덱 버퍼 클리어
     flush_codec();
@@ -794,6 +817,38 @@ void FFmpegCore::clear_frame_queue()
     }
 
     av_frame_free(&frame);
+}
+
+s32 FFmpegCore::get_packet_queue_size()
+{
+    if (is_empty_packet_queue())
+    {
+        return 0;
+    }
+    else if (_output_packet_index <= _input_packet_index)
+    {
+        return _input_packet_index - _output_packet_index + 1;
+    }
+    else
+    {
+        return _packet_queue_size - _output_packet_index + _input_packet_index + 1;
+    }
+}
+
+s32 FFmpegCore::get_frame_queue_size()
+{
+    if (is_empty_frame_queue())
+    {
+        return 0;
+    }
+    else if (_output_frame_index <= _input_frame_index)
+    {
+        return _input_frame_index - _output_frame_index + 1;
+    }
+    else
+    {
+        return _frame_queue_size - _output_frame_index + _input_frame_index + 1;
+    }
 }
 
 #pragma endregion

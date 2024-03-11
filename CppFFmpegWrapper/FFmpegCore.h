@@ -79,7 +79,9 @@ private:
 
     AVRational          _time_base = { 0, 1 };
     double              _time_base_d = 0.0f;
-    s64                 _duration = 0;
+    s64                 _duration = 0;  // 스트림 총 길이
+    s64                 _duration_frame = 0; // 1 Frame의 길이
+    double              _duration_frame_half = 0.0f;    // 1 Frame의 길이 절반
     s64                 _start_time = 0;
 
     bool                _read_flag = false;
@@ -138,6 +140,9 @@ private:
     void failed_free_frame_queue(u32 size);
     void clear_packet_queue();
     void clear_frame_queue();
+
+    s32 get_packet_queue_size();
+    s32 get_frame_queue_size();
 
     AVPacket*           _packet_queue[_packet_queue_size];
     s32                 _input_packet_index = 0;
