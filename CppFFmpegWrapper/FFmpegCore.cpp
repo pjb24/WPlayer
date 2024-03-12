@@ -449,6 +449,8 @@ void FFmpegCore::decode()
                 break;
             }
 
+            _time_started = 0.0f;
+
             std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time));
         }
 
