@@ -59,4 +59,5 @@ EXPORT void cppsocket_client_send_jump_backwards(void* client_instance, uint32_t
 
 EXPORT void cppsocket_client_set_callback_data(void* client_instance, CALLBACK_DATA cb);
 
+EXPORT void cppsocket_client_connection_close(void* client_instance);
 // --------------------------------

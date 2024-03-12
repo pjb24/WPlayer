@@ -110,6 +110,11 @@ bool MyClient::send_backwards(uint32_t scene_index)
     return true;
 }
 
+void MyClient::connection_close()
+{
+    m_connection.Close();
+}
+
 bool MyClient::ProcessPacket(std::shared_ptr<Packet> packet)
 {
     switch (packet->GetPacketType())

@@ -20,6 +20,8 @@ public:
 
     void callback_client(void* packet);
 
+    void connection_close();
+
 private:
 	bool ProcessPacket(std::shared_ptr<Packet> packet) override;
 	void OnConnect() override;

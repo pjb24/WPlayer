@@ -158,4 +158,9 @@ void cppsocket_client_set_callback_data(void * client_instance, CALLBACK_DATA cb
     client->set_callback_data(cb);
 }
 
+void cppsocket_client_connection_close(void * client_instance)
+{
+    MyClient* client = (MyClient*)client_instance;
+    client->connection_close();
+}
 // --------------------------------
