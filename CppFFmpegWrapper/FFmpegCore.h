@@ -104,6 +104,16 @@ private:
     CALLBACK_INT32_UINT16_PTR_UINT16 _callback_ffmpeg = nullptr;
     u32 _scene_index = 0;
 
+#pragma region Scale
+    void scale(AVFrame* frame);
+
+    AVPixelFormat       _scale_dest_format = AVPixelFormat::AV_PIX_FMT_YUV420P;
+    AVFrame*            _scale_frame = nullptr;
+    SwsContext*         _sws_ctx = nullptr;
+
+    int                 _scale_alloc_size = 0;
+#pragma endregion
+
 #pragma region circular queue
 
     bool is_full_packet_queue();

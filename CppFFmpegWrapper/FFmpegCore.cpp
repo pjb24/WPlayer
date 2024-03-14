@@ -42,11 +42,19 @@ bool FFmpegCore::initialize(CALLBACK_INT32_UINT16_PTR_UINT16 cb, u32 scene_index
     _logical_processor_count = _stSysInfo.dwNumberOfProcessors;	// cpu 논리 프로세서 개수
     _logical_processor_count_half = _logical_processor_count / 2;
 
+    _scale_frame = av_frame_alloc();
+    
     return true;
 }
 
 void FFmpegCore::shutdown()
 {
+    av_frame_free(&_scale_frame);
+    _scale_frame = nullptr;
+
+    sws_freeContext(_sws_ctx);
+    _sws_ctx = nullptr;
+
     avcodec_free_context(&_codec_ctx);
 
     avformat_close_input(&_format_ctx);
@@ -486,7 +494,7 @@ void FFmpegCore::decode()
             result = decode_internal(packet, frame);
             if (result == error_type::ok)
             {
-                //scale(frame);
+                scale(frame);
 
                 if (_first_decode)
                 {
@@ -634,6 +642,39 @@ void FFmpegCore::seek_pts(s64 pts)
 void FFmpegCore::set_timestamp(s64 pts)
 {
     av_seek_frame(_format_ctx, _stream_index, _start_time + pts, AVSEEK_FLAG_BACKWARD);
+}
+
+void FFmpegCore::scale(AVFrame * frame)
+{
+    if (frame->format == _scale_dest_format)
+    {
+        return;
+    }
+
+    int ret = 0;
+
+    if (_sws_ctx == nullptr)
+    {
+        _sws_ctx = sws_getContext(frame->width, frame->height, (AVPixelFormat)frame->format,
+            frame->width, frame->height, _scale_dest_format,
+            SWS_BICUBIC, nullptr, nullptr, nullptr
+            );
+        _scale_alloc_size = av_image_alloc(_scale_frame->data, _scale_frame->linesize, frame->width, frame->height, (AVPixelFormat)_scale_dest_format, 1);
+    }
+
+    ret = sws_scale(_sws_ctx, frame->data, frame->linesize, 0, frame->height, _scale_frame->data, _scale_frame->linesize);
+
+    av_buffer_unref(frame->buf);
+    *frame->data = nullptr;
+
+    av_image_alloc(frame->data, frame->linesize, frame->width, frame->height, (AVPixelFormat)_scale_dest_format, 1);
+    av_image_copy(frame->data, frame->linesize, _scale_frame->data, _scale_frame->linesize, (AVPixelFormat)_scale_dest_format, frame->width, frame->height);
+
+    AVBufferRef* buf = av_buffer_create(*frame->data, _scale_alloc_size, nullptr, nullptr, 0);
+
+    frame->buf[0] = buf;
+   
+    frame->format = _scale_dest_format;
 }
 
 #pragma region circular queue
