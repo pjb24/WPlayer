@@ -41,7 +41,7 @@ bool FFmpegCore::initialize(CALLBACK_INT32_UINT16_PTR_UINT16 cb, u32 scene_index
     GetSystemInfo(&_stSysInfo);
     _logical_processor_count = _stSysInfo.dwNumberOfProcessors;	// cpu 논리 프로세서 개수
     _logical_processor_count_half = _logical_processor_count / 2;
-    
+
     return true;
 }
 
@@ -268,6 +268,7 @@ s32 FFmpegCore::frame_to_next()
     if (frame_queue_size > 2)
     {
         s32 temp_index = (_output_frame_index + 1) % _frame_queue_size;
+        // pts 역전이 있을 때
         if (_previous_frame_pts > _frame_queue[temp_index]->pts)
         {
             av_frame_unref(_frame_queue[_output_frame_index]);
@@ -398,17 +399,17 @@ void FFmpegCore::open_codec()
     if (_codec_ctx->width * _codec_ctx->height <= 1920 * 1080)
     {
         // FHD 사이즈 이하
-        _codec_ctx->thread_count = 4;
+        _codec_ctx->thread_count = _thread_count_fhd;
     }
     else if (_codec_ctx->width * _codec_ctx->height <= 3840 * 2160)
     {
         // 4K 사이즈 이하
-        _codec_ctx->thread_count = 8;
+        _codec_ctx->thread_count = _thread_count_4k;
     }
     else
     {
         // 4K 사이즈 초과
-        _codec_ctx->thread_count = 16;
+        _codec_ctx->thread_count = _thread_count_4k_higher;
     }
 
     if (_codec_ctx->thread_count > _logical_processor_count_half)

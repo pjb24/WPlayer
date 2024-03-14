@@ -26,6 +26,10 @@ public:
 
 private:
 
+    const int _thread_count_fhd = 4;
+    const int _thread_count_4k = 8;
+    const int _thread_count_4k_higher = 16;
+
     int _logical_processor_count = 0;
     int _logical_processor_count_half = 0;
 
