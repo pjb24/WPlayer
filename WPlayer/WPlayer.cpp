@@ -29,11 +29,15 @@ bool _disable_present_barrier = true;
 constexpr u32 frame_buffer_count = 3;
 constexpr u32 texture_resource_count = 3;
 
-constexpr int test_window_count = 0;    // 0이면 기본 사용, 0이 아니면 개수만큼 window 생성
+int _test_window_count = 0;    // 0이면 기본 사용, 0이 아니면 개수만큼 window 생성
 
 bool _repeat_play_flag = false;
 
-constexpr bool _texture_create_each_panel = true;   // 텍스처를 패널마다 분리해서 만들기
+bool _texture_create_each_panel = true;   // 텍스처를 패널마다 분리해서 만들기
+
+std::string _ip;
+uint16_t _port;
+
 
 struct RemoveScene
 {
@@ -309,6 +313,8 @@ void callback_ffmpeg_wrapper_int32_uint16_ptr_uint16(s32 scene_index, u16 comman
 
 void delete_ffmpeg_instances();
 #pragma endregion
+
+void config_setting();
 
 void ffmpeg_processing_thread()
 {
@@ -2634,7 +2640,7 @@ void server_thread()
 
     cppsocket_server_set_callback_data_connection(_server, callback_data_connection_server);
 
-    if (cppsocket_server_initialize(_server, "127.0.0.1", 53333))
+    if (cppsocket_server_initialize(_server, _ip.c_str(), _port))
     {
         while (_tcp_server_flag)
         {
@@ -2858,6 +2864,42 @@ u32 delete_present_barriers()
     return u32();
 }
 
+void config_setting()
+{
+    wchar_t path_w[260] = { 0, };
+    GetModuleFileName(nullptr, path_w, 260);
+    std::wstring str_path_w = path_w;
+    str_path_w = str_path_w.substr(0, str_path_w.find_last_of(L"\\/"));
+    std::wstring str_ini_path_w = str_path_w + L"\\WPlayer.ini";
+
+    char path_a[260] = { 0, };
+    GetModuleFileNameA(nullptr, path_a, 260);
+    std::string str_path_a = path_a;
+    str_path_a = str_path_a.substr(0, str_path_a.find_last_of("\\/"));
+    std::string str_ini_path_a = str_path_a + "\\WPlayer.ini";
+
+    char result_a[255];
+    wchar_t result_w[255];
+    int result_i = 0;
+
+    GetPrivateProfileStringA("WPlayer", "IP", "", result_a, 255, str_ini_path_a.c_str());
+    _ip = result_a;
+
+    GetPrivateProfileString(L"WPlayer", L"PORT", L"0", result_w, 255, str_ini_path_w.c_str());
+    _port = _ttoi(result_w);
+
+    GetPrivateProfileString(L"WPlayer", L"texture_create_each_panel", L"1", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _texture_create_each_panel = result_i == 0 ? false : true;
+
+    GetPrivateProfileString(L"WPlayer", L"disable_present_barrier", L"1", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _disable_present_barrier = result_i == 0 ? false : true;
+
+    GetPrivateProfileString(L"WPlayer", L"test_window_count", L"0", result_w, 255, str_ini_path_w.c_str());
+    _test_window_count = _ttoi(result_w);
+}
+
 #define MAX_LOADSTRING 100
 
 // 전역 변수:
@@ -2888,6 +2930,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     LoadStringW(hInstance, IDC_WPLAYER, szWindowClass, MAX_LOADSTRING);
     MyRegisterClass(hInstance);
 
+    config_setting();
+
     _tcp_processing_thread = std::thread(tcp_processing_thread);
     _tcp_thread = std::thread(server_thread);
     _ffmpeg_processing_thread = std::thread(ffmpeg_processing_thread);
@@ -2915,7 +2959,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             
             n++;
 
-            if (n == test_window_count)
+            if (n == _test_window_count)
             {
                 break;
             }

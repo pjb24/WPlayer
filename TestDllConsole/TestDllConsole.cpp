@@ -8,8 +8,21 @@
 
 #include "thread"
 
+#include "tchar.h"
+
 static void* _server;
 static void* _client;
+
+bool _use_ini_setting = false;
+int _type = 1;
+std::string _ip;
+uint16_t _port = 0;
+int _left = 0;
+int _top = 0;
+int _right = 0;
+int _bottom = 0;
+std::string _url;
+
 
 void callback_data_connection_server(void* data, void* connection)
 {
@@ -226,25 +239,89 @@ void client_output_messages_step_1()
     std::cout << "input 99 to stop program" << std::endl;
 }
 
+void config_setting()
+{
+    wchar_t path_w[260] = { 0, };
+    GetModuleFileName(nullptr, path_w, 260);
+    std::wstring str_path_w = path_w;
+    str_path_w = str_path_w.substr(0, str_path_w.find_last_of(L"\\/"));
+    std::wstring str_ini_path_w = str_path_w + L"\\TestDllConsole.ini";
+
+    char path_a[260] = { 0, };
+    GetModuleFileNameA(nullptr, path_a, 260);
+    std::string str_path_a = path_a;
+    str_path_a = str_path_a.substr(0, str_path_a.find_last_of("\\/"));
+    std::string str_ini_path_a = str_path_a + "\\TestDllConsole.ini";
+
+    char result_a[255];
+    wchar_t result_w[255];
+    int result_i = 0;
+
+    GetPrivateProfileString(L"TestDllConsole", L"USE_INI_SETTING", L"0", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _use_ini_setting = result_i == 0 ? false : true;
+
+    GetPrivateProfileString(L"TestDllConsole", L"TYPE", L"-1", result_w, 255, str_ini_path_w.c_str());
+    _type = _ttoi(result_w);
+
+    GetPrivateProfileStringA("TestDllConsole", "IP", "", result_a, 255, str_ini_path_a.c_str());
+    _ip = result_a;
+
+    GetPrivateProfileString(L"TestDllConsole", L"PORT", L"0", result_w, 255, str_ini_path_w.c_str());
+    _port = _ttoi(result_w);
+
+    GetPrivateProfileString(L"TestDllConsole", L"LEFT", L"0", result_w, 255, str_ini_path_w.c_str());
+    _left = _ttoi(result_w);
+
+    GetPrivateProfileString(L"TestDllConsole", L"TOP", L"0", result_w, 255, str_ini_path_w.c_str());
+    _top = _ttoi(result_w);
+
+    GetPrivateProfileString(L"TestDllConsole", L"RIGHT", L"0", result_w, 255, str_ini_path_w.c_str());
+    _right = _ttoi(result_w);
+
+    GetPrivateProfileString(L"TestDllConsole", L"BOTTOM", L"0", result_w, 255, str_ini_path_w.c_str());
+    _bottom = _ttoi(result_w);
+    
+    GetPrivateProfileStringA("TestDllConsole", "URL", "", result_a, 255, str_ini_path_a.c_str());
+    _url = result_a;
+}
+
 int main()
 {
+    config_setting();
+
     int input = 0;
     
-    std::cout << "Input" << std::endl;
-    std::cout << "0 : server start" << std::endl;
-    std::cout << "1 : client start" << std::endl;
-    
-    std::cin >> input;
+    if (_type < 0 || _use_ini_setting == false)
+    {
+        std::cout << "Input" << std::endl;
+        std::cout << "0 : server start" << std::endl;
+        std::cout << "1 : client start" << std::endl;
+
+        std::cin >> input;
+    }
+    else
+    {
+        input = _type;
+    }
 
     if (cppsocket_network_initialize())
     {
         std::cout << "Winsock api successfully initialized." << std::endl;
-
+        
         std::string ip;
         uint16_t port = 0;
 
-        std::cout << "Enter Using ip and port. e.g) 127.0.0.1 53333" << std::endl;
-        std::cin >> ip >> port;
+        if (_ip.empty() || _port == 0 || _use_ini_setting == false)
+        {
+            std::cout << "Enter Using ip and port. e.g) 127.0.0.1 53333" << std::endl;
+            std::cin >> ip >> port;
+        }
+        else
+        {
+            ip = _ip;
+            port = _port;
+        }
 
         if (input == 0)
         {
@@ -268,12 +345,39 @@ int main()
             std::thread client_thread(client_frame_thread, ip.c_str(), port);
             client_thread.detach();
 
+            bool auto_play = false;
+
+            if (!(_left == 0 && _top == 0 && _right == 0 && _bottom == 0) && _use_ini_setting == true)
+            {
+                auto_play = true;
+            }
+
             while (true)
             {
                 uint16_t cmd;
 
+                if (auto_play == true)
+                {
+                    auto_play = false;
+
+                    RECT rect{ _left, _top, _right, _bottom };
+
+                    while (!_client)
+                    {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                    }
+                    while (!cppsocket_client_is_connected(_client))
+                    {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                    }
+                    cppsocket_client_send_play(_client, rect, _url.c_str(), _url.size());
+
+                    continue;
+                }
+
                 client_output_messages_step_1();
                 std::cin >> cmd;
+                
                 switch ((command_type)cmd)
                 {
                 case command_type::play:
