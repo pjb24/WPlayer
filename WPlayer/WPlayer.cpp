@@ -33,6 +33,8 @@ constexpr int test_window_count = 0;    // 0이면 기본 사용, 0이 아니면
 
 bool _repeat_play_flag = false;
 
+constexpr bool _texture_create_each_panel = true;   // 텍스처를 패널마다 분리해서 만들기
+
 struct RemoveScene
 {
     s32 scene_index = -1;
@@ -58,6 +60,16 @@ struct Panel
     NormalizedRect normalized_rect;
     NormalizedRect normalized_uv;
     bool normalize_uv_flag = false;
+
+    uint8_t* separated_frame_data_y = nullptr;
+    uint8_t* separated_frame_data_u = nullptr;
+    uint8_t* separated_frame_data_v = nullptr;
+    
+    int separated_frame_linesize_y = 0;
+    int separated_frame_linesize_u = 0;
+    int separated_frame_linesize_v = 0;
+
+    int separated_frame_height = 0;
 };
 
 struct Scene
@@ -241,6 +253,7 @@ u32 create_scene_data(RECT rect, char * url);
 u32 delete_scene_data(s32 scene_index);
 u32 delete_scene_datas();
 u32 upload_texture(graphics_data* data, AVFrame* frame, s32 target_texture_index, s32 output_frame_index);
+u32 upload_texture_each_panel(graphics_data* data, AVFrame* frame, s32 output_frame_index, Panel* panel);
 float normalize_min_max(int min, int max, int target, int normalized_min, int normalized_max);
 u32 normalize_rect(RECT base_rect, RECT target_rect, NormalizedRect& normalized_rect);
 u32 normalize_uv(RECT base_rect, RECT target_rect, NormalizedRect& normalized_uv);
@@ -1333,11 +1346,26 @@ u32 create_vertex_buffer(graphics_data* data, s32 vertex_index, NormalizedRect n
 
     Vertex vertices[] = 
     {
-        { { normalized_rect.left, normalized_rect.top, 0.0f }, { normalized_uv.left, normalized_uv.top } },
-        { { normalized_rect.right, normalized_rect.top, 0.0f }, { normalized_uv.right, normalized_uv.top } },
-        { { normalized_rect.left, normalized_rect.bottom, 0.0f }, { normalized_uv.left, normalized_uv.bottom } },
-        { { normalized_rect.right, normalized_rect.bottom, 0.0f }, { normalized_uv.right, normalized_uv.bottom } }
+        { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
+        { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
+        { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
+        { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } }
     };
+
+    if (_texture_create_each_panel == false)
+    {
+        vertices[0] = { { normalized_rect.left, normalized_rect.top, 0.0f }, { normalized_uv.left, normalized_uv.top } };
+        vertices[1] = { { normalized_rect.right, normalized_rect.top, 0.0f }, { normalized_uv.right, normalized_uv.top } };
+        vertices[2] = { { normalized_rect.left, normalized_rect.bottom, 0.0f }, { normalized_uv.left, normalized_uv.bottom } };
+        vertices[3] = { { normalized_rect.right, normalized_rect.bottom, 0.0f }, { normalized_uv.right, normalized_uv.bottom } };
+    }
+    else
+    {
+        vertices[0] = { { normalized_rect.left, normalized_rect.top, 0.0f }, { 0.0f, 0.0f } };
+        vertices[1] = { { normalized_rect.right, normalized_rect.top, 0.0f }, { 1.0f, 0.0f } };
+        vertices[2] = { { normalized_rect.left, normalized_rect.bottom, 0.0f }, { 0.0f, 1.0f } };
+        vertices[3] = { { normalized_rect.right, normalized_rect.bottom, 0.0f }, { 1.0f, 1.0f } };
+    }
 
     const u32 vertex_buffer_size = sizeof(vertices);
     CD3DX12_HEAP_PROPERTIES vertex_buffer_properties(D3D12_HEAP_TYPE_DEFAULT);
@@ -1866,10 +1894,13 @@ u32 populate_command_list(graphics_data* data)
                 continue;
             }
 
+            if (_texture_create_each_panel == false)
+            {
                 if (data->texture_map_y[0].find(panel->texture_index) == data->texture_map_y[0].end())
                 {
                     create_texture(data, frame->width, frame->height, panel->texture_index, scene->scene_index);
                 }
+            }
 
             for (auto output : data->output_list)
             {
@@ -1887,10 +1918,24 @@ u32 populate_command_list(graphics_data* data)
                     panel->normalize_uv_flag = true;
                     normalize_uv(scene->rect, panel->rect, panel->normalized_uv);
                 }
+
+                if (_texture_create_each_panel == true)
+                {
+                    if (data->texture_map_y[0].find(panel->texture_index) == data->texture_map_y[0].end())
+                    {
+                        create_texture(data, frame->width * (panel->normalized_uv.right - panel->normalized_uv.left), frame->height * (panel->normalized_uv.bottom - panel->normalized_uv.top), panel->texture_index, scene->scene_index);
                     }
+                }
+            }
 
             if (output_frame_index != -1)
             {
+                if (_texture_create_each_panel == true)
+                {
+                    upload_texture_each_panel(data, frame, output_frame_index, panel);
+                }
+                else
+                {
                     auto it_upload_flag = scene->texture_upload_to_adapter_flag_map.find(panel->adapter_index);
                     if (it_upload_flag != scene->texture_upload_to_adapter_flag_map.end())
                     {
@@ -1900,6 +1945,7 @@ u32 populate_command_list(graphics_data* data)
                             it_upload_flag->second = true;
                         }
                     }
+                }
 
                 panel->output_frame_index = output_frame_index;
             }
@@ -2076,6 +2122,18 @@ u32 populate_command_list(graphics_data* data)
                     }
 
                     data->deferred_free_flag[current_back_buffer_index] = true;
+
+                    if (_texture_create_each_panel == true)
+                    {
+                        delete[] panel->separated_frame_data_y;
+                        panel->separated_frame_data_y = nullptr;
+
+                        delete[] panel->separated_frame_data_u;
+                        panel->separated_frame_data_u = nullptr;
+                        
+                        delete[] panel->separated_frame_data_v;
+                        panel->separated_frame_data_v = nullptr;
+                    }
 
                     delete panel;
                     it_panel = scene->panel_list.erase(it_panel);
@@ -2366,7 +2424,12 @@ u32 create_scene_data(RECT rect, char * url)
                 }
 
                 texture_selected_index = panel->texture_index;
+
+                if (_texture_create_each_panel == true)
+                {
+                    texture_selected_index = -1;
                 }
+            }
             else
             {
                 panel->texture_index = texture_selected_index;
@@ -2461,6 +2524,26 @@ u32 normalize_uv(RECT base_rect, RECT target_rect, NormalizedRect& normalized_uv
     normalized_uv.top = normalize_min_max(base_rect.top, base_rect.bottom, target_rect.top, 0, 1);
     normalized_uv.bottom = normalize_min_max(base_rect.top, base_rect.bottom, target_rect.bottom, 0, 1);
 
+    if (normalized_uv.left < 0.0f)
+    {
+        normalized_uv.left = 0.0f;
+    }
+
+    if (normalized_uv.top < 0.0f)
+    {
+        normalized_uv.top = 0.0f;
+    }
+
+    if (normalized_uv.right > 1.0f)
+    {
+        normalized_uv.right = 1.0f;
+    }
+
+    if (normalized_uv.bottom > 1.0f)
+    {
+        normalized_uv.bottom = 1.0f;
+    }
+
     return u32();
 }
 
@@ -2484,6 +2567,18 @@ u32 delete_scene_datas()
         for (auto it_panel = scene->panel_list.begin(); it_panel != scene->panel_list.end();)
         {
             Panel* panel = *it_panel;
+
+            if (_texture_create_each_panel == true)
+            {
+                delete[] panel->separated_frame_data_y;
+                panel->separated_frame_data_y = nullptr;
+
+                delete[] panel->separated_frame_data_u;
+                panel->separated_frame_data_u = nullptr;
+
+                delete[] panel->separated_frame_data_v;
+                panel->separated_frame_data_v = nullptr;
+            }
 
             delete panel;
             it_panel = scene->panel_list.erase(it_panel);
@@ -2599,6 +2694,83 @@ u32 upload_texture(graphics_data* data, AVFrame* frame, s32 target_texture_index
     data->cmd_list->ResourceBarrier(1, &transition_barrier_v);
     UpdateSubresources(data->cmd_list, data->texture_map_v[output_frame_index][target_texture_index], data->upload_texture_map_v[output_frame_index][target_texture_index], 0, 0, 1, &texture_data_v);
     transition_barrier_v = CD3DX12_RESOURCE_BARRIER::Transition(data->texture_map_v[output_frame_index][target_texture_index], D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    data->cmd_list->ResourceBarrier(1, &transition_barrier_v);
+
+    return u32();
+}
+
+u32 upload_texture_each_panel(graphics_data* data, AVFrame* frame, s32 output_frame_index, Panel* panel)
+{
+    if (panel->separated_frame_data_y == nullptr)
+    {
+        // yuv420의 linesize
+        panel->separated_frame_linesize_y = frame->width * (panel->normalized_uv.right - panel->normalized_uv.left);
+        panel->separated_frame_linesize_u = panel->separated_frame_linesize_y / 2;
+        panel->separated_frame_linesize_v = panel->separated_frame_linesize_y / 2;
+    
+        panel->separated_frame_height = frame->height * (panel->normalized_uv.bottom - panel->normalized_uv.top);
+
+        panel->separated_frame_data_y = new uint8_t[panel->separated_frame_linesize_y * panel->separated_frame_height];
+        panel->separated_frame_data_u = new uint8_t[panel->separated_frame_linesize_u * panel->separated_frame_height / 2];
+        panel->separated_frame_data_v = new uint8_t[panel->separated_frame_linesize_v * panel->separated_frame_height / 2];
+    }
+
+    int offset = 0;
+
+    int offset_start_y = frame->width * (frame->height * panel->normalized_uv.top) + (frame->width * panel->normalized_uv.left);
+    for (size_t i = 0; i < panel->separated_frame_height; i++)
+    {
+        memcpy(panel->separated_frame_data_y + offset, frame->data[0] + offset_start_y + (frame->width * i), panel->separated_frame_linesize_y);
+        offset += panel->separated_frame_linesize_y;
+    }
+
+    offset = 0;
+    int offset_start_u = (frame->width / 2) * ((frame->height * panel->normalized_uv.top) / 2) + ((frame->width * panel->normalized_uv.left) / 2);
+    for (size_t i = 0; i < panel->separated_frame_height / 2; i++)
+    {
+        memcpy(panel->separated_frame_data_u + offset, frame->data[1] + offset_start_u + (frame->width / 2 * i), panel->separated_frame_linesize_u);
+        offset += panel->separated_frame_linesize_u;
+    }
+
+    offset = 0;
+    int offset_start_v = (frame->width / 2) * ((frame->height * panel->normalized_uv.top) / 2) + ((frame->width * panel->normalized_uv.left) / 2);
+    for (size_t i = 0; i < panel->separated_frame_height / 2; i++)
+    {
+        memcpy(panel->separated_frame_data_v + offset, frame->data[2] + offset_start_v + (frame->width / 2 * i), panel->separated_frame_linesize_v);
+        offset += panel->separated_frame_linesize_v;
+    }
+
+    D3D12_SUBRESOURCE_DATA texture_data_y{};
+    texture_data_y.pData = panel->separated_frame_data_y;
+    texture_data_y.RowPitch = panel->separated_frame_linesize_y;
+    texture_data_y.SlicePitch = texture_data_y.RowPitch * panel->separated_frame_height;
+
+    CD3DX12_RESOURCE_BARRIER transition_barrier_y = CD3DX12_RESOURCE_BARRIER::Transition(data->texture_map_y[output_frame_index][panel->texture_index], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+    data->cmd_list->ResourceBarrier(1, &transition_barrier_y);
+    UpdateSubresources(data->cmd_list, data->texture_map_y[output_frame_index][panel->texture_index], data->upload_texture_map_y[output_frame_index][panel->texture_index], 0, 0, 1, &texture_data_y);
+    transition_barrier_y = CD3DX12_RESOURCE_BARRIER::Transition(data->texture_map_y[output_frame_index][panel->texture_index], D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    data->cmd_list->ResourceBarrier(1, &transition_barrier_y);
+
+    D3D12_SUBRESOURCE_DATA texture_data_u{};
+    texture_data_u.pData = panel->separated_frame_data_u;
+    texture_data_u.RowPitch = panel->separated_frame_linesize_u;
+    texture_data_u.SlicePitch = texture_data_u.RowPitch * panel->separated_frame_height / 2;
+
+    CD3DX12_RESOURCE_BARRIER transition_barrier_u = CD3DX12_RESOURCE_BARRIER::Transition(data->texture_map_u[output_frame_index][panel->texture_index], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+    data->cmd_list->ResourceBarrier(1, &transition_barrier_u);
+    UpdateSubresources(data->cmd_list, data->texture_map_u[output_frame_index][panel->texture_index], data->upload_texture_map_u[output_frame_index][panel->texture_index], 0, 0, 1, &texture_data_u);
+    transition_barrier_u = CD3DX12_RESOURCE_BARRIER::Transition(data->texture_map_u[output_frame_index][panel->texture_index], D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    data->cmd_list->ResourceBarrier(1, &transition_barrier_u);
+
+    D3D12_SUBRESOURCE_DATA texture_data_v{};
+    texture_data_v.pData = panel->separated_frame_data_v;
+    texture_data_v.RowPitch = panel->separated_frame_linesize_v;
+    texture_data_v.SlicePitch = texture_data_v.RowPitch * panel->separated_frame_height / 2;
+
+    CD3DX12_RESOURCE_BARRIER transition_barrier_v = CD3DX12_RESOURCE_BARRIER::Transition(data->texture_map_v[output_frame_index][panel->texture_index], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+    data->cmd_list->ResourceBarrier(1, &transition_barrier_v);
+    UpdateSubresources(data->cmd_list, data->texture_map_v[output_frame_index][panel->texture_index], data->upload_texture_map_v[output_frame_index][panel->texture_index], 0, 0, 1, &texture_data_v);
+    transition_barrier_v = CD3DX12_RESOURCE_BARRIER::Transition(data->texture_map_v[output_frame_index][panel->texture_index], D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     data->cmd_list->ResourceBarrier(1, &transition_barrier_v);
 
     return u32();
