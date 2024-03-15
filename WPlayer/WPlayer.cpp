@@ -382,6 +382,7 @@ void tcp_processing_thread()
             continue;
         }
 
+        // first : packet_data, second : connection
         std::pair<void*, void*> data_pair;
         {
             std::lock_guard<std::mutex> lk(_tcp_processing_mutex);
@@ -440,7 +441,7 @@ void tcp_processing_thread()
         break;
         case command_type::jump_forward:
         {
-            packet_stop_from_client* packet = (packet_stop_from_client*)data_pair.first;
+            packet_jump_forward_from_client* packet = (packet_jump_forward_from_client*)data_pair.first;
 
             ffmpeg_instance = _ffmpeg_data_map.find(packet->scene_index)->second;
 
@@ -449,7 +450,7 @@ void tcp_processing_thread()
         break;
         case command_type::jump_backwards:
         {
-            packet_stop_from_client* packet = (packet_stop_from_client*)data_pair.first;
+            packet_jump_backwards_from_client* packet = (packet_jump_backwards_from_client*)data_pair.first;
 
             ffmpeg_instance = _ffmpeg_data_map.find(packet->scene_index)->second;
 
@@ -1327,7 +1328,7 @@ u32 create_vertex_buffer(graphics_data* data, s32 vertex_index, NormalizedRect n
     ID3D12Resource* vertex_upload_buffer = nullptr;
     D3D12_VERTEX_BUFFER_VIEW vertex_buffer_view;
 
-    Vertex vertices[] =
+    Vertex vertices[] = 
     {
         { { normalized_rect.left, normalized_rect.top, 0.0f }, { normalized_uv.left, normalized_uv.top } },
         { { normalized_rect.right, normalized_rect.top, 0.0f }, { normalized_uv.right, normalized_uv.top } },
@@ -1862,10 +1863,10 @@ u32 populate_command_list(graphics_data* data)
                 continue;
             }
 
-            if (data->texture_map_y[0].find(panel->texture_index) == data->texture_map_y[0].end())
-            {
-                create_texture(data, frame->width, frame->height, panel->texture_index, scene->scene_index);
-            }
+                if (data->texture_map_y[0].find(panel->texture_index) == data->texture_map_y[0].end())
+                {
+                    create_texture(data, frame->width, frame->height, panel->texture_index, scene->scene_index);
+                }
 
             for (auto output : data->output_list)
             {
@@ -1883,20 +1884,20 @@ u32 populate_command_list(graphics_data* data)
                     panel->normalize_uv_flag = true;
                     normalize_uv(scene->rect, panel->rect, panel->normalized_uv);
                 }
-            }
+                    }
 
             if (output_frame_index != -1)
             {
-                auto it_upload_flag = scene->texture_upload_to_adapter_flag_map.find(panel->adapter_index);
-                if (it_upload_flag != scene->texture_upload_to_adapter_flag_map.end())
-                {
-                    if (it_upload_flag->second == false)
+                    auto it_upload_flag = scene->texture_upload_to_adapter_flag_map.find(panel->adapter_index);
+                    if (it_upload_flag != scene->texture_upload_to_adapter_flag_map.end())
                     {
-                        upload_texture(data, frame, panel->texture_index, output_frame_index);
-                        it_upload_flag->second = true;
+                        if (it_upload_flag->second == false)
+                        {
+                            upload_texture(data, frame, panel->texture_index, output_frame_index);
+                            it_upload_flag->second = true;
+                        }
                     }
-                }
-                    
+
                 panel->output_frame_index = output_frame_index;
             }
         }
@@ -2362,7 +2363,7 @@ u32 create_scene_data(RECT rect, char * url)
                 }
 
                 texture_selected_index = panel->texture_index;
-            }
+                }
             else
             {
                 panel->texture_index = texture_selected_index;
