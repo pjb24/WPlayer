@@ -344,12 +344,18 @@ void ffmpeg_processing_thread()
                 it++;
             }
 
-            cppsocket_server_send_play(_server, data_command.connection, data_command.scene_index, data_command.result);
+            if (data_command.connection != nullptr)
+            {
+                cppsocket_server_send_play(_server, data_command.connection, data_command.scene_index, data_command.result);
+            }
         }
         break;
         case command_type::pause:
         {
-            cppsocket_server_send_pause(_server, data_command.connection, data_command.scene_index, data_command.result);
+            if (data_command.connection != nullptr)
+            {
+                cppsocket_server_send_pause(_server, data_command.connection, data_command.scene_index, data_command.result);
+            }
         }
         break;
         case command_type::stop:
@@ -364,7 +370,10 @@ void ffmpeg_processing_thread()
             }
             delete_scene_data(data_command.scene_index);
 
-            cppsocket_server_send_stop(_server, data_command.connection, data_command.scene_index, data_command.result);
+            if (data_command.connection != nullptr)
+            {
+                cppsocket_server_send_stop(_server, data_command.connection, data_command.scene_index, data_command.result);
+            }
         }
         break;
         case command_type::move:
@@ -374,12 +383,18 @@ void ffmpeg_processing_thread()
         break;
         case command_type::jump_forward:
         {
-            cppsocket_server_send_jump_forward(_server, data_command.connection, data_command.scene_index, data_command.result);
+            if (data_command.connection != nullptr)
+            {
+                cppsocket_server_send_jump_forward(_server, data_command.connection, data_command.scene_index, data_command.result);
+            }
         }
         break;
         case command_type::jump_backwards:
         {
-            cppsocket_server_send_jump_backwards(_server, data_command.connection, data_command.scene_index, data_command.result);
+            if (data_command.connection != nullptr)
+            {
+                cppsocket_server_send_jump_backwards(_server, data_command.connection, data_command.scene_index, data_command.result);
+            }
         }
         break;
         default:
@@ -2642,22 +2657,17 @@ void callback_ffmpeg_wrapper_int32_uint16_ptr_uint16(s32 scene_index, u16 comman
 }
 
 void delete_ffmpeg_instances()
-{
-    std::lock_guard<std::mutex> lock(_ffmpeg_data_mutex);
-    
-    void* ffmpeg_instance = nullptr;
-    s32 scene_index = -1;
+{   
+    std::vector<void*> ffmpeg_instances;
 
-    for (auto it = _ffmpeg_data_map.begin(); it != _ffmpeg_data_map.end();)
+    for (auto it = _ffmpeg_data_map.begin(); it != _ffmpeg_data_map.end(); it++)
     {
-        cpp_ffmpeg_wrapper_play_stop(it->second, nullptr);
+        ffmpeg_instances.push_back(it->second);
+    }
 
-        cpp_ffmpeg_wrapper_shutdown(it->second);
-        cpp_ffmpeg_wrapper_delete(it->second);
-
-        delete_scene_data(it->first);
-
-        it = _ffmpeg_data_map.erase(it);
+    for (auto it : ffmpeg_instances)
+    {
+        cpp_ffmpeg_wrapper_play_stop(it, nullptr);
     }
 }
 
@@ -3031,13 +3041,19 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         _tcp_processing_thread.join();
     }
 
+    delete_ffmpeg_instances();
+
     if (_ffmpeg_processing_thread.joinable())
     {
+        while (_ffmpeg_processing_command_queue.empty() == false)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time_ffmpeg_processing));
+        }
+
         _ffmpeg_processing_flag = false;
         _ffmpeg_processing_thread.join();
     }
-
-    delete_ffmpeg_instances();
+    
     delete_scene_datas();
 
     delete_textures();
