@@ -96,7 +96,8 @@ private:
 
 
     bool                _codec_opened = false;
-    bool                _eof = false;
+    bool                _eof_read = false;
+    bool                _eof_decode = false;
 
     std::mutex          _play_mutex;
 

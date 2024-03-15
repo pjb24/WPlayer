@@ -241,7 +241,7 @@ s32 FFmpegCore::get_frame(AVFrame *& frame)
     result = output_frame(frame, index);
     if (result != error_type::ok)
     {
-        if (_eof == true)
+        if (_eof_read == true)
         {
             return -2;
         }
@@ -356,7 +356,7 @@ void FFmpegCore::read()
 
                 break;
             }
-            else if (_eof)
+            else if (_eof_read)
             {
                 std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time));
                 break;
@@ -377,7 +377,7 @@ error_type FFmpegCore::read_internal(AVPacket *& packet)
 
     int result = 0;
 
-    if (_eof)
+    if (_eof_read)
     {
         return error_type::read_eof;
     }
@@ -386,7 +386,7 @@ error_type FFmpegCore::read_internal(AVPacket *& packet)
     if (result == AVERROR_EOF)
     {
         // TODO: EOF
-        _eof = true;
+        _eof_read = true;
     }
 
     if (packet->stream_index != _stream_index)
@@ -488,7 +488,7 @@ void FFmpegCore::decode()
                 {
                     // queue_is_empty
                     std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time));
-                    if (_eof)
+                    if (_eof_decode)
                     {
                         break;
                     }
@@ -618,6 +618,11 @@ void FFmpegCore::play_continue()
 
 void FFmpegCore::seek_pts(s64 pts)
 {
+    if (_read_flag == false && _decode_flag == false)
+    {
+        return;
+    }
+
     // 재생 일시정지
     _seek_flag = true;
 
@@ -639,9 +644,14 @@ void FFmpegCore::seek_pts(s64 pts)
     // 위치 이동
     set_timestamp(pts);
 
-    if (_eof == true)
+    if (_eof_read == true)
     {
-        _eof = false;
+        _eof_read = false;
+    }
+
+    if (_eof_decode == true)
+    {
+        _eof_decode = false;
     }
 
     // 재생 시작
