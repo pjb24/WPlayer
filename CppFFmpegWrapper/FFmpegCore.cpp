@@ -148,7 +148,10 @@ void FFmpegCore::play_pause(void* connection)
         result = packet_result::pause;
     }
 
-    _callback_ffmpeg(_scene_index, (uint16_t)command_type::pause, connection, (uint16_t)result);
+    if (connection != nullptr)
+    {
+        _callback_ffmpeg(_scene_index, (uint16_t)command_type::pause, connection, (uint16_t)result);
+    }
 }
 
 void FFmpegCore::play_stop(void* connection)
@@ -177,7 +180,10 @@ void FFmpegCore::play_stop(void* connection)
         _decode_thread.join();
     }
 
-    _callback_ffmpeg(_scene_index, (uint16_t)command_type::stop, connection, (uint16_t)packet_result::ok);
+    if (connection != nullptr)
+    {
+        _callback_ffmpeg(_scene_index, (uint16_t)command_type::stop, connection, (uint16_t)packet_result::ok);
+    }
 }
 
 void FFmpegCore::jump_forward(void* connection)
@@ -197,7 +203,10 @@ void FFmpegCore::jump_forward(void* connection)
 
     seek_pts(pts);
 
-    _callback_ffmpeg(_scene_index, (uint16_t)command_type::jump_forward, connection, (uint16_t)packet_result::ok);
+    if (connection != nullptr)
+    {
+        _callback_ffmpeg(_scene_index, (uint16_t)command_type::jump_forward, connection, (uint16_t)packet_result::ok);
+    }
 }
 
 void FFmpegCore::jump_backwards(void* connection)
@@ -217,7 +226,10 @@ void FFmpegCore::jump_backwards(void* connection)
 
     seek_pts(pts);
 
-    _callback_ffmpeg(_scene_index, (uint16_t)command_type::jump_backwards, connection, (uint16_t)packet_result::ok);
+    if (connection != nullptr)
+    {
+        _callback_ffmpeg(_scene_index, (uint16_t)command_type::jump_backwards, connection, (uint16_t)packet_result::ok);
+    }
 }
 
 s32 FFmpegCore::get_frame(AVFrame *& frame)
@@ -499,7 +511,10 @@ void FFmpegCore::decode()
                 if (_first_decode)
                 {
                     _first_decode = false;
-                    _callback_ffmpeg(_scene_index, (uint16_t)command_type::play, _connection_play_start, (uint16_t)packet_result::ok);
+                    if (_connection_play_start != nullptr)
+                    {
+                        _callback_ffmpeg(_scene_index, (uint16_t)command_type::play, _connection_play_start, (uint16_t)packet_result::ok);
+                    }
                     
                     _duration_frame = frame->duration;
                     _duration_frame_half = _duration_frame * _time_base_d * 1'000.0f / 2;

@@ -239,6 +239,7 @@ u32 populate_command_list(graphics_data* data);
 u32 render();
 u32 create_scene_data(RECT rect, char * url);
 u32 delete_scene_data(s32 scene_index);
+u32 delete_scene_datas();
 u32 upload_texture(graphics_data* data, AVFrame* frame, s32 target_texture_index, s32 output_frame_index);
 float normalize_min_max(int min, int max, int target, int normalized_min, int normalized_max);
 u32 normalize_rect(RECT base_rect, RECT target_rect, NormalizedRect& normalized_rect);
@@ -292,6 +293,8 @@ std::mutex _ffmpeg_data_mutex;  // _ffmpeg_data_map의 mutex
 
 void ffmpeg_processing_thread();
 void callback_ffmpeg_wrapper_int32_uint16_ptr_uint16(s32 scene_index, u16 command, void* connection, u16 result);
+
+void delete_ffmpeg_instances();
 #pragma endregion
 
 void ffmpeg_processing_thread()
@@ -2470,6 +2473,36 @@ u32 delete_scene_data(s32 scene_index)
     return u32();
 }
 
+u32 delete_scene_datas()
+{
+    std::lock_guard<std::mutex> lock(_graphics_remove_mutex);
+
+    for (auto it_scene = _graphics_scene_list.begin(); it_scene != _graphics_scene_list.end();)
+    {
+        Scene* scene = *it_scene;
+
+        for (auto it_panel = scene->panel_list.begin(); it_panel != scene->panel_list.end();)
+        {
+            Panel* panel = *it_panel;
+
+            delete panel;
+            it_panel = scene->panel_list.erase(it_panel);
+        }
+
+        if (scene->panel_list.empty())
+        {
+            delete scene;
+            it_scene = _graphics_scene_list.erase(it_scene);
+        }
+        else
+        {
+            it_scene++;
+        }
+    }
+
+    return u32();
+}
+
 void callback_data_connection_server(void* data, void* connection)
 {
     packet_header* header = (packet_header*)data;
@@ -2511,6 +2544,26 @@ void server_thread()
 void callback_ffmpeg_wrapper_int32_uint16_ptr_uint16(s32 scene_index, u16 command, void* connection, u16 result)
 {
     _ffmpeg_processing_command_queue.push_back({ scene_index, command, connection, result });
+}
+
+void delete_ffmpeg_instances()
+{
+    std::lock_guard<std::mutex> lock(_ffmpeg_data_mutex);
+    
+    void* ffmpeg_instance = nullptr;
+    s32 scene_index = -1;
+
+    for (auto it = _ffmpeg_data_map.begin(); it != _ffmpeg_data_map.end();)
+    {
+        cpp_ffmpeg_wrapper_play_stop(it->second, nullptr);
+
+        cpp_ffmpeg_wrapper_shutdown(it->second);
+        cpp_ffmpeg_wrapper_delete(it->second);
+
+        delete_scene_data(it->first);
+
+        it = _ffmpeg_data_map.erase(it);
+    }
 }
 
 u32 upload_texture(graphics_data* data, AVFrame* frame, s32 target_texture_index, s32 output_frame_index)
@@ -2794,6 +2847,27 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     wait_for_gpus();
 
+    if (_tcp_thread.joinable())
+    {
+        _tcp_server_flag = false;
+        _tcp_thread.join();
+    }
+
+    if (_tcp_processing_thread.joinable())
+    {
+        _tcp_processing_flag = false;
+        _tcp_processing_thread.join();
+    }
+
+    if (_ffmpeg_processing_thread.joinable())
+    {
+        _ffmpeg_processing_flag = false;
+        _ffmpeg_processing_thread.join();
+    }
+
+    delete_ffmpeg_instances();
+    delete_scene_datas();
+
     delete_textures();
     delete_vertex_buffer_list();
     delete_index_buffer();
@@ -2814,24 +2888,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     delete_output_list();
     delete_adapters();
     delete_factory();
-
-    if (_tcp_thread.joinable())
-    {
-        _tcp_server_flag = false;
-        _tcp_thread.join();
-    }
-
-    if (_tcp_processing_thread.joinable())
-    {
-        _tcp_processing_flag = false;
-        _tcp_processing_thread.join();
-    }
-
-    if (_ffmpeg_processing_thread.joinable())
-    {
-        _ffmpeg_processing_flag = false;
-        _ffmpeg_processing_thread.join();
-    }
 
     if (_disable_present_barrier == false)
     {
