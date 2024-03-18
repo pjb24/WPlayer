@@ -35,6 +35,8 @@ bool _repeat_play_flag = false;
 
 bool _texture_create_each_panel = true;   // 텍스처를 패널마다 분리해서 만들기
 
+bool _window_create_position_shift_up = false;  // 윈도우를 위로 이동해서 생성
+
 std::string _ip;
 uint16_t _port;
 
@@ -797,10 +799,28 @@ u32 create_window(WCHAR* window_class, WCHAR* title, HINSTANCE instance, RECT re
 {
     AdjustWindowRect(&rect, WS_POPUP, FALSE);
 
+    int left = 0;
+    int top = 0;
+    int width = 0;
+    int height = 0;
+
+    if (_window_create_position_shift_up == true)
+    {
+        left = rect.left;
+        top = rect.top - 1;
+        width = rect.right - rect.left;
+        height = rect.bottom - rect.top + 1;
+    }
+    else
+    {
+        left = rect.left;
+        top = rect.top;
+        width = rect.right - rect.left;
+        height = rect.bottom - rect.top;
+    }
+
     handle = CreateWindow(window_class, title, WS_POPUP,
-        //rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top,
-        rect.left, rect.top - 1, rect.right - rect.left, rect.bottom - rect.top + 1,
-        //rect.left, rect.top - 1, rect.right - rect.left, rect.bottom - rect.top,
+        left, top, width, height,
         nullptr, nullptr, instance, data);
 
     if (handle == nullptr)
@@ -2898,6 +2918,10 @@ void config_setting()
 
     GetPrivateProfileString(L"WPlayer", L"test_window_count", L"0", result_w, 255, str_ini_path_w.c_str());
     _test_window_count = _ttoi(result_w);
+
+    GetPrivateProfileString(L"WPlayer", L"window_create_position_shift_up", L"0", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _window_create_position_shift_up = result_i == 0 ? false : true;
 }
 
 #define MAX_LOADSTRING 100
