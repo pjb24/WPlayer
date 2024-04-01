@@ -2056,8 +2056,9 @@ u32 populate_command_list(graphics_data* data)
                 panel->output_frame_index = output_frame_index;
             }
         }
+
+        av_frame_unref(frame);
     }
-    av_frame_unref(frame);
     av_frame_free(&frame);
 
     // create vertex
