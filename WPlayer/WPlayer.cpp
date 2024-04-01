@@ -2955,7 +2955,7 @@ u32 upload_texture_each_panel(graphics_data* data, AVFrame* frame, s32 output_fr
     int offset_start_y = frame->width * (frame->height * panel->normalized_uv.top) + (frame->width * panel->normalized_uv.left);
     for (size_t i = 0; i < panel->separated_frame_height; i++)
     {
-        memcpy(panel->separated_frame_data_y + offset, frame->data[0] + offset_start_y + (frame->width * i), panel->separated_frame_linesize_y);
+        memcpy(panel->separated_frame_data_y + offset, frame->data[0] + offset_start_y + (frame->linesize[0] * i), panel->separated_frame_linesize_y);
         offset += panel->separated_frame_linesize_y;
     }
 
@@ -2963,7 +2963,7 @@ u32 upload_texture_each_panel(graphics_data* data, AVFrame* frame, s32 output_fr
     int offset_start_u = (frame->width / 2) * ((frame->height * panel->normalized_uv.top) / 2) + ((frame->width * panel->normalized_uv.left) / 2);
     for (size_t i = 0; i < panel->separated_frame_height / 2; i++)
     {
-        memcpy(panel->separated_frame_data_u + offset, frame->data[1] + offset_start_u + (frame->width / 2 * i), panel->separated_frame_linesize_u);
+        memcpy(panel->separated_frame_data_u + offset, frame->data[1] + offset_start_u + (frame->linesize[1] * i), panel->separated_frame_linesize_u);
         offset += panel->separated_frame_linesize_u;
     }
 
@@ -2971,7 +2971,7 @@ u32 upload_texture_each_panel(graphics_data* data, AVFrame* frame, s32 output_fr
     int offset_start_v = (frame->width / 2) * ((frame->height * panel->normalized_uv.top) / 2) + ((frame->width * panel->normalized_uv.left) / 2);
     for (size_t i = 0; i < panel->separated_frame_height / 2; i++)
     {
-        memcpy(panel->separated_frame_data_v + offset, frame->data[2] + offset_start_v + (frame->width / 2 * i), panel->separated_frame_linesize_v);
+        memcpy(panel->separated_frame_data_v + offset, frame->data[2] + offset_start_v + (frame->linesize[2] * i), panel->separated_frame_linesize_v);
         offset += panel->separated_frame_linesize_v;
     }
 
