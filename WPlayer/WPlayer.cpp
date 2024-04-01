@@ -37,6 +37,12 @@ bool _texture_create_each_panel = true;   // 텍스처를 패널마다 분리해
 
 bool _window_create_position_shift_up = false;  // 윈도우를 위로 이동해서 생성
 
+bool _create_one_swapchain_for_each_adapter = false;    // 1 Adapter 당 1 SwapChain을 생성
+
+int _create_one_swapchain_for_each_adapter_window_width = 0;    // create_one_swapchain_for_each_adapter 옵션을 사용할 때 생성될 window의 width
+int _create_one_swapchain_for_each_adapter_window_height = 0;   // create_one_swapchain_for_each_adapter 옵션을 사용할 때 생성될 window의 height
+
+
 std::string _ip;
 uint16_t _port;
 
@@ -119,6 +125,8 @@ struct output_data
     ID3D12Fence* present_barrier_fence = nullptr;
     bool present_barrier_joined = false;
     _NV_PRESENT_BARRIER_FRAME_STATISTICS present_barrier_frame_stats;
+
+    RECT create_one_swapchain_for_each_adapter_rect = { 0, 0, 0, 0 };
 };
 
 enum class deferred_type : s32
@@ -623,6 +631,47 @@ u32 enum_output_list()
             output_index++;
 
             data->output_list.push_back(o_data);
+
+            if (_create_one_swapchain_for_each_adapter == true)
+            {
+                for (size_t i = 1; ; i++)
+                {
+                    if (o_data->output_desc.DesktopCoordinates.left < _create_one_swapchain_for_each_adapter_window_width * i)
+                    {
+                        o_data->create_one_swapchain_for_each_adapter_rect.left = _create_one_swapchain_for_each_adapter_window_width * (i - 1);
+                        break;
+                    }
+                }
+
+                for (size_t i = 1; ; i++)
+                {
+                    if (o_data->output_desc.DesktopCoordinates.top < _create_one_swapchain_for_each_adapter_window_height * i)
+                    {
+                        o_data->create_one_swapchain_for_each_adapter_rect.top = _create_one_swapchain_for_each_adapter_window_height * (i - 1);
+                        break;
+                    }
+                }
+
+                for (size_t i = 1; ; i++)
+                {
+                    if (o_data->output_desc.DesktopCoordinates.right <= _create_one_swapchain_for_each_adapter_window_width * i)
+                    {
+                        o_data->create_one_swapchain_for_each_adapter_rect.right = _create_one_swapchain_for_each_adapter_window_width * i;
+                        break;
+                    }
+                }
+
+                for (size_t i = 1; ; i++)
+                {
+                    if (o_data->output_desc.DesktopCoordinates.bottom < _create_one_swapchain_for_each_adapter_window_height * i)
+                    {
+                        o_data->create_one_swapchain_for_each_adapter_rect.bottom = _create_one_swapchain_for_each_adapter_window_height * i;
+                        break;
+                    }
+                }
+
+                break;
+            }
         }
     }
 
@@ -853,8 +902,16 @@ u32 create_swap_chains()
             }
 
             DXGI_SWAP_CHAIN_DESC1 desc{};
-            desc.Width = output->output_desc.DesktopCoordinates.right - output->output_desc.DesktopCoordinates.left;
-            desc.Height = output->output_desc.DesktopCoordinates.bottom - output->output_desc.DesktopCoordinates.top;
+            if (_create_one_swapchain_for_each_adapter == true)
+            {
+                desc.Width = output->create_one_swapchain_for_each_adapter_rect.right - output->create_one_swapchain_for_each_adapter_rect.left;
+                desc.Height = output->create_one_swapchain_for_each_adapter_rect.bottom - output->create_one_swapchain_for_each_adapter_rect.top;
+            }
+            else
+            {
+                desc.Width = output->output_desc.DesktopCoordinates.right - output->output_desc.DesktopCoordinates.left;
+                desc.Height = output->output_desc.DesktopCoordinates.bottom - output->output_desc.DesktopCoordinates.top;
+            }
             desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
             desc.SampleDesc.Count = 1;
             desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -1819,8 +1876,16 @@ u32 create_viewports()
                 continue;
             }
 
-            output->viewport = { 0.0f, 0.0f, (f32)(output->output_desc.DesktopCoordinates.right - output->output_desc.DesktopCoordinates.left), (f32)(output->output_desc.DesktopCoordinates.bottom - output->output_desc.DesktopCoordinates.top) };
-            output->scissor_rect = { 0, 0, (s32)(output->output_desc.DesktopCoordinates.right - output->output_desc.DesktopCoordinates.left), (s32)(output->output_desc.DesktopCoordinates.bottom - output->output_desc.DesktopCoordinates.top) };
+            if (_create_one_swapchain_for_each_adapter == true)
+            {
+                output->viewport = { 0.0f, 0.0f, (f32)(output->create_one_swapchain_for_each_adapter_rect.right - output->create_one_swapchain_for_each_adapter_rect.left), (f32)(output->create_one_swapchain_for_each_adapter_rect.bottom - output->create_one_swapchain_for_each_adapter_rect.top) };
+                output->scissor_rect = { 0, 0, (s32)(output->create_one_swapchain_for_each_adapter_rect.right - output->create_one_swapchain_for_each_adapter_rect.left), (s32)(output->create_one_swapchain_for_each_adapter_rect.bottom - output->create_one_swapchain_for_each_adapter_rect.top) };
+            }
+            else
+            {
+                output->viewport = { 0.0f, 0.0f, (f32)(output->output_desc.DesktopCoordinates.right - output->output_desc.DesktopCoordinates.left), (f32)(output->output_desc.DesktopCoordinates.bottom - output->output_desc.DesktopCoordinates.top) };
+                output->scissor_rect = { 0, 0, (s32)(output->output_desc.DesktopCoordinates.right - output->output_desc.DesktopCoordinates.left), (s32)(output->output_desc.DesktopCoordinates.bottom - output->output_desc.DesktopCoordinates.top) };
+            }
         }
     }
 
@@ -2425,12 +2490,26 @@ u32 create_scene_data(RECT rect, char * url)
             // base left - target right < 0 : base left < target right
             // base top - target bottom < 0 : base top < target bottom
             //
-            if (!(output->output_desc.DesktopCoordinates.right > rect.left &&
-                output->output_desc.DesktopCoordinates.bottom > rect.top &&
-                output->output_desc.DesktopCoordinates.left < rect.right &&
-                output->output_desc.DesktopCoordinates.top < rect.bottom))
+
+            if (_create_one_swapchain_for_each_adapter == true)
             {
-                continue;
+                if (!(output->create_one_swapchain_for_each_adapter_rect.right > rect.left &&
+                    output->create_one_swapchain_for_each_adapter_rect.bottom > rect.top &&
+                    output->create_one_swapchain_for_each_adapter_rect.left < rect.right &&
+                    output->create_one_swapchain_for_each_adapter_rect.top < rect.bottom))
+                {
+                    continue;
+                }
+            }
+            else
+            {
+                if (!(output->output_desc.DesktopCoordinates.right > rect.left &&
+                    output->output_desc.DesktopCoordinates.bottom > rect.top &&
+                    output->output_desc.DesktopCoordinates.left < rect.right &&
+                    output->output_desc.DesktopCoordinates.top < rect.bottom))
+                {
+                    continue;
+                }
             }
 
             scene->texture_upload_to_adapter_flag_map.insert({ data->adapter_index, false });
@@ -2498,43 +2577,87 @@ u32 create_scene_data(RECT rect, char * url)
             // O.B = T.B : O.B + 1
             // O.B > T.B : T.B
             //
-            if (output->output_desc.DesktopCoordinates.left < rect.left)
+
+            if (_create_one_swapchain_for_each_adapter == true)
             {
-                panel->rect.left = rect.left;
+                if (output->create_one_swapchain_for_each_adapter_rect.left < rect.left)
+                {
+                    panel->rect.left = rect.left;
+                }
+                else
+                {
+                    panel->rect.left = output->create_one_swapchain_for_each_adapter_rect.left - 1;
+                }
+
+                if (output->create_one_swapchain_for_each_adapter_rect.right > rect.right)
+                {
+                    panel->rect.right = rect.right;
+                }
+                else
+                {
+                    panel->rect.right = output->create_one_swapchain_for_each_adapter_rect.right + 1;
+                }
+
+                if (output->create_one_swapchain_for_each_adapter_rect.top < rect.top)
+                {
+                    panel->rect.top = rect.top;
+                }
+                else
+                {
+                    panel->rect.top = output->create_one_swapchain_for_each_adapter_rect.top - 1;
+                }
+
+                if (output->create_one_swapchain_for_each_adapter_rect.bottom > rect.bottom)
+                {
+                    panel->rect.bottom = rect.bottom;
+                }
+                else
+                {
+                    panel->rect.bottom = output->create_one_swapchain_for_each_adapter_rect.bottom + 1;
+                }
+
+                normalize_rect(output->create_one_swapchain_for_each_adapter_rect, panel->rect, panel->normalized_rect);
             }
             else
             {
-                panel->rect.left = output->output_desc.DesktopCoordinates.left - 1;
-            }
+                if (output->output_desc.DesktopCoordinates.left < rect.left)
+                {
+                    panel->rect.left = rect.left;
+                }
+                else
+                {
+                    panel->rect.left = output->output_desc.DesktopCoordinates.left - 1;
+                }
 
-            if (output->output_desc.DesktopCoordinates.right > rect.right)
-            {
-                panel->rect.right = rect.right;
-            }
-            else
-            {
-                panel->rect.right = output->output_desc.DesktopCoordinates.right + 1;
-            }
+                if (output->output_desc.DesktopCoordinates.right > rect.right)
+                {
+                    panel->rect.right = rect.right;
+                }
+                else
+                {
+                    panel->rect.right = output->output_desc.DesktopCoordinates.right + 1;
+                }
 
-            if (output->output_desc.DesktopCoordinates.top < rect.top)
-            {
-                panel->rect.top = rect.top;
-            }
-            else
-            {
-                panel->rect.top = output->output_desc.DesktopCoordinates.top - 1;
-            }
+                if (output->output_desc.DesktopCoordinates.top < rect.top)
+                {
+                    panel->rect.top = rect.top;
+                }
+                else
+                {
+                    panel->rect.top = output->output_desc.DesktopCoordinates.top - 1;
+                }
 
-            if (output->output_desc.DesktopCoordinates.bottom > rect.bottom)
-            {
-                panel->rect.bottom = rect.bottom;
-            }
-            else
-            {
-                panel->rect.bottom = output->output_desc.DesktopCoordinates.bottom + 1;
-            }
+                if (output->output_desc.DesktopCoordinates.bottom > rect.bottom)
+                {
+                    panel->rect.bottom = rect.bottom;
+                }
+                else
+                {
+                    panel->rect.bottom = output->output_desc.DesktopCoordinates.bottom + 1;
+                }
 
-            normalize_rect(output->output_desc.DesktopCoordinates, panel->rect, panel->normalized_rect);
+                normalize_rect(output->output_desc.DesktopCoordinates, panel->rect, panel->normalized_rect);
+            }
         }
     }
 
@@ -2922,6 +3045,18 @@ void config_setting()
     GetPrivateProfileString(L"WPlayer", L"window_create_position_shift_up", L"0", result_w, 255, str_ini_path_w.c_str());
     result_i = _ttoi(result_w);
     _window_create_position_shift_up = result_i == 0 ? false : true;
+
+    GetPrivateProfileString(L"WPlayer", L"create_one_swapchain_for_each_adapter", L"0", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _create_one_swapchain_for_each_adapter = result_i == 0 ? false : true;
+
+    GetPrivateProfileString(L"WPlayer", L"create_one_swapchain_for_each_adapter_window_width", L"0", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _create_one_swapchain_for_each_adapter_window_width = result_i;
+
+    GetPrivateProfileString(L"WPlayer", L"create_one_swapchain_for_each_adapter_window_height", L"0", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _create_one_swapchain_for_each_adapter_window_height = result_i;
 }
 
 #define MAX_LOADSTRING 100
@@ -2979,7 +3114,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         for (auto output : data->output_list)
         {
-            create_window(szWindowClass, szTitle, hInst, output->output_desc.DesktopCoordinates, nullptr, output->handle);
+            if (_create_one_swapchain_for_each_adapter == true)
+            {
+                create_window(szWindowClass, szTitle, hInst, output->create_one_swapchain_for_each_adapter_rect, nullptr, output->handle);
+            }
+            else
+            {
+                create_window(szWindowClass, szTitle, hInst, output->output_desc.DesktopCoordinates, nullptr, output->handle);
+            }
             
             n++;
 
