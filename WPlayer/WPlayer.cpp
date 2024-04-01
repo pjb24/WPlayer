@@ -49,7 +49,7 @@ uint16_t _port;
 
 struct RemoveScene
 {
-    s32 scene_index = -1;
+    u32 scene_index = u32_invalid_id;
     bool all_panel_removed_flag = false;
 };
 
@@ -86,7 +86,7 @@ struct Panel
 
 struct Scene
 {
-    s32 scene_index = -1;
+    u32 scene_index = u32_invalid_id;
     char* url;
     std::vector<Panel*> panel_list;
     int64_t pts = -1;
@@ -221,8 +221,8 @@ const float _clear_color[] = { 0.0f, 0.2f, 0.4f, 1.0f };
 
 std::vector<Scene*> _graphics_scene_list;
 
-std::deque<s32> _free_scene_queue;  // scene_index
-s32 _next_scene_index = 0;
+std::deque<u32> _free_scene_queue;  // scene_index
+u32 _next_scene_index = 0;
 
 void get_asset_path(wchar_t * path, u32 path_size);
 std::wstring get_asset_full_path(LPCWSTR asset_name);
@@ -251,9 +251,9 @@ u32 create_command_lists();
 u32 delete_command_lists();
 u32 create_index_buffer(graphics_data* data);
 u32 delete_index_buffer();
-u32 create_vertex_buffer(graphics_data* data, s32 vertex_index, NormalizedRect normalized_rect, NormalizedRect normalized_uv, s32 scene_index);
+u32 create_vertex_buffer(graphics_data* data, s32 vertex_index, NormalizedRect normalized_rect, NormalizedRect normalized_uv, u32 scene_index);
 u32 delete_vertex_buffer_list();
-u32 create_texture(graphics_data* data, u32 width, u32 height, s32 texture_index, s32 scene_index);
+u32 create_texture(graphics_data* data, u32 width, u32 height, s32 texture_index, u32 scene_index);
 u32 delete_textures();
 u32 create_fences();
 u32 delete_fences();
@@ -264,7 +264,7 @@ u32 move_to_next_frame(ID3D12CommandQueue* cmd_queue, output_data* data);
 u32 populate_command_list(graphics_data* data);
 u32 render();
 u32 create_scene_data(RECT rect, char * url);
-u32 delete_scene_data(s32 scene_index);
+u32 delete_scene_data(u32 scene_index);
 u32 delete_scene_datas();
 u32 upload_texture(graphics_data* data, AVFrame* frame, s32 target_texture_index, s32 output_frame_index);
 u32 upload_texture_each_panel(graphics_data* data, AVFrame* frame, s32 output_frame_index, Panel* panel);
@@ -302,7 +302,7 @@ void callback_data_connection_server(void* data, void* connection);
 #pragma region FFmpegWrapper
 struct FFmpegProcessingCommand
 {
-    s32 scene_index = -1;
+    u32 scene_index = u32_invalid_id;
     u16 command;
     void* connection = nullptr;
     u16 result = (u16)packet_result::ok;
@@ -312,14 +312,14 @@ std::deque<FFmpegProcessingCommand> _ffmpeg_processing_command_queue;
 
 constexpr u32 _sleep_time_ffmpeg_processing = 10;
 
-std::map<s32, void*> _ffmpeg_data_map;  // scene_index, ffmpeg_instance
+std::map<u32, void*> _ffmpeg_data_map;  // scene_index, ffmpeg_instance
 
 std::thread _ffmpeg_processing_thread;
 bool _ffmpeg_processing_flag = true;
 std::mutex _ffmpeg_data_mutex;  // _ffmpeg_data_map의 mutex
 
 void ffmpeg_processing_thread();
-void callback_ffmpeg_wrapper_int32_uint16_ptr_uint16(s32 scene_index, u16 command, void* connection, u16 result);
+void callback_ffmpeg_wrapper_uint32_uint16_ptr_uint16(u32 scene_index, u16 command, void* connection, u16 result);
 
 void delete_ffmpeg_instances();
 #pragma endregion
@@ -446,12 +446,12 @@ void tcp_processing_thread()
         case command_type::play:
         {
             packet_play_from_client* packet = (packet_play_from_client*)data_pair.first;
-            s32 scene_index = create_scene_data(packet->rect, packet->url);
+            u32 scene_index = create_scene_data(packet->rect, packet->url);
             ffmpeg_instance = cpp_ffmpeg_wrapper_create();
 
             _ffmpeg_data_map.insert({ scene_index, ffmpeg_instance });
 
-            cpp_ffmpeg_wrapper_initialize(ffmpeg_instance, callback_ffmpeg_wrapper_int32_uint16_ptr_uint16, scene_index);
+            cpp_ffmpeg_wrapper_initialize(ffmpeg_instance, callback_ffmpeg_wrapper_uint32_uint16_ptr_uint16, scene_index);
             cpp_ffmpeg_wrapper_set_file_path(ffmpeg_instance, packet->url);
             if (cpp_ffmpeg_wrapper_open_file(ffmpeg_instance) != 0)
             {
@@ -1429,7 +1429,7 @@ u32 delete_index_buffer()
 // Target Adapter
 // Coordinate
 // 
-u32 create_vertex_buffer(graphics_data* data, s32 vertex_index, NormalizedRect normalized_rect, NormalizedRect normalized_uv, s32 scene_index)
+u32 create_vertex_buffer(graphics_data* data, s32 vertex_index, NormalizedRect normalized_rect, NormalizedRect normalized_uv, u32 scene_index)
 {
     if (_graphics_data_list.empty())
     {
@@ -1550,7 +1550,7 @@ u32 delete_vertex_buffer_list()
 // Target Adapter
 // Size
 //
-u32 create_texture(graphics_data* data, u32 width, u32 height, s32 texture_index, s32 scene_index)
+u32 create_texture(graphics_data* data, u32 width, u32 height, s32 texture_index, u32 scene_index)
 {
     if (_graphics_data_list.empty())
     {
@@ -2712,7 +2712,7 @@ u32 normalize_uv(RECT base_rect, RECT target_rect, NormalizedRect& normalized_uv
     return u32();
 }
 
-u32 delete_scene_data(s32 scene_index)
+u32 delete_scene_data(u32 scene_index)
 {
     std::lock_guard<std::mutex> lock(_graphics_remove_mutex);
 
@@ -2801,7 +2801,7 @@ void server_thread()
 /// 
 /// </summary>
 /// <param name="index"> scene index </param>
-void callback_ffmpeg_wrapper_int32_uint16_ptr_uint16(s32 scene_index, u16 command, void* connection, u16 result)
+void callback_ffmpeg_wrapper_uint32_uint16_ptr_uint16(u32 scene_index, u16 command, void* connection, u16 result)
 {
     _ffmpeg_processing_command_queue.push_back({ scene_index, command, connection, result });
 }

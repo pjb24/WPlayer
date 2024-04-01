@@ -15,13 +15,13 @@ extern "C"
 #pragma comment(lib, "avutil.lib")
 
 // CallbackType
-typedef void(*CALLBACK_INT32_UINT16_PTR_UINT16)(int32_t, uint16_t, void*, uint16_t);
+typedef void(*CALLBACK_UINT32_UINT16_PTR_UINT16)(uint32_t, uint16_t, void*, uint16_t);
 
 EXPORT void* cpp_ffmpeg_wrapper_create();
 
 EXPORT void cpp_ffmpeg_wrapper_delete(void* instance);
 
-EXPORT bool cpp_ffmpeg_wrapper_initialize(void* instance, CALLBACK_INT32_UINT16_PTR_UINT16 cb, uint32_t scene_index);
+EXPORT bool cpp_ffmpeg_wrapper_initialize(void* instance, CALLBACK_UINT32_UINT16_PTR_UINT16 cb, uint32_t scene_index);
 
 EXPORT void cpp_ffmpeg_wrapper_shutdown(void* instance);
 

@@ -5,7 +5,7 @@
 class FFmpegCore
 {
 public:
-    bool initialize(CALLBACK_INT32_UINT16_PTR_UINT16 cb, u32 scene_index);
+    bool initialize(CALLBACK_UINT32_UINT16_PTR_UINT16 cb, u32 scene_index);
     void shutdown();
 
     int open_file();
@@ -102,7 +102,7 @@ private:
     std::mutex          _play_mutex;
 
 
-    CALLBACK_INT32_UINT16_PTR_UINT16 _callback_ffmpeg = nullptr;
+    CALLBACK_UINT32_UINT16_PTR_UINT16 _callback_ffmpeg = nullptr;
     u32 _scene_index = 0;
 
 #pragma region Scale
