@@ -289,6 +289,7 @@ void server_thread();
 
 #pragma region Packet Processing
 // first : packet_data, second : connection
+// CppSocket의 콜백 명령 저장 큐
 std::deque<std::pair<void*, void*>> _tcp_processing_command_queue;
 constexpr u32 _sleep_time_tcp_processing = 10;
 std::thread _tcp_processing_thread;
@@ -308,6 +309,7 @@ struct FFmpegProcessingCommand
     u16 result = (u16)packet_result::ok;
 };
 
+// CppFFmpegWrapper의 콜백 명령 저장 큐
 std::deque<FFmpegProcessingCommand> _ffmpeg_processing_command_queue;
 
 constexpr u32 _sleep_time_ffmpeg_processing = 10;
@@ -326,6 +328,7 @@ void delete_ffmpeg_instances();
 
 void config_setting();
 
+// CppFFmpegWrapper의 콜백 명령 처리
 void ffmpeg_processing_thread()
 {
     while (_ffmpeg_processing_flag)
@@ -419,6 +422,7 @@ void ffmpeg_processing_thread()
     }
 }
 
+// CppSocket의 콜백 명령 처리
 void tcp_processing_thread()
 {
     while (_tcp_processing_flag)
@@ -547,6 +551,21 @@ void tcp_processing_thread()
             ffmpeg_instance = it->second;
 
             cpp_ffmpeg_wrapper_jump_backwards(ffmpeg_instance, data_pair.second);
+        }
+        break;
+        case command_type::seek_repeat_self:
+        {
+            packet_seek_repeat_self* packet = (packet_seek_repeat_self*)data_pair.first;
+
+            auto it = _ffmpeg_data_map.find(packet->scene_index);
+            if (it == _ffmpeg_data_map.end())
+            {
+                break;
+            }
+
+            ffmpeg_instance = it->second;
+
+            cpp_ffmpeg_wrapper_seek_pts(ffmpeg_instance, 0);
         }
         break;
         default:
@@ -2024,7 +2043,18 @@ u32 populate_command_list(graphics_data* data)
                     // eof
                     if (_repeat_play_flag == true)
                     {
-                        cpp_ffmpeg_wrapper_seek_pts(it_ffmpeg_data->second, 0);
+                        packet_seek_repeat_self temp_packet;
+                        temp_packet.scene_index = scene->scene_index;
+                        temp_packet.header.cmd = command_type::seek_repeat_self;
+                        temp_packet.header.size = sizeof(packet_seek_repeat_self);
+
+                        void* packet = new char[temp_packet.header.size];
+                        memcpy(packet, &temp_packet, temp_packet.header.size);
+
+                        {
+                            std::lock_guard<std::mutex> lk(_tcp_processing_mutex);
+                            _tcp_processing_command_queue.push_back(std::pair<void*, void*>(packet, nullptr));
+                        }
                     }
                 }
             }

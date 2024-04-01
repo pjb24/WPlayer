@@ -608,6 +608,11 @@ void FFmpegCore::seek_pts(s64 pts)
         return;
     }
 
+    if (_seek_flag == true)
+    {
+        return;
+    }
+
     // 재생 일시정지
     _seek_flag = true;
 
