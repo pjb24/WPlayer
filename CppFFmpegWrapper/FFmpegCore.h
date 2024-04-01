@@ -5,7 +5,7 @@
 class FFmpegCore
 {
 public:
-    bool initialize(CALLBACK_UINT32_UINT16_PTR_UINT16 cb, u32 scene_index);
+    bool initialize(CALLBACK_UINT32_UINT16_PTR_UINT16 cb);
     void shutdown();
 
     int open_file();
@@ -20,6 +20,7 @@ public:
     s32 get_frame(AVFrame*& frame);
     s32 frame_to_next();
 
+    void scene_index(u32 scene_index) { _scene_index = scene_index; }
     void file_path(std::string path) { _file_path = path; }
 
     void seek_pts(s64 pts);

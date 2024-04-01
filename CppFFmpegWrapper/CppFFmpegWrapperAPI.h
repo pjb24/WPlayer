@@ -21,9 +21,11 @@ EXPORT void* cpp_ffmpeg_wrapper_create();
 
 EXPORT void cpp_ffmpeg_wrapper_delete(void* instance);
 
-EXPORT bool cpp_ffmpeg_wrapper_initialize(void* instance, CALLBACK_UINT32_UINT16_PTR_UINT16 cb, uint32_t scene_index);
+EXPORT bool cpp_ffmpeg_wrapper_initialize(void* instance, CALLBACK_UINT32_UINT16_PTR_UINT16 cb);
 
 EXPORT void cpp_ffmpeg_wrapper_shutdown(void* instance);
+
+EXPORT void cpp_ffmpeg_wrapper_set_scene_index(void* instance, uint32_t scene_index);
 
 EXPORT void cpp_ffmpeg_wrapper_set_file_path(void* instance, char* url);
 

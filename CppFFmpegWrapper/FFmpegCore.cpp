@@ -2,7 +2,7 @@
 
 #include "FFmpegCore.h"
 
-bool FFmpegCore::initialize(CALLBACK_UINT32_UINT16_PTR_UINT16 cb, u32 scene_index)
+bool FFmpegCore::initialize(CALLBACK_UINT32_UINT16_PTR_UINT16 cb)
 {
     u32 packet_index = 0;
     u32 frame_index = 0;
@@ -35,7 +35,6 @@ bool FFmpegCore::initialize(CALLBACK_UINT32_UINT16_PTR_UINT16 cb, u32 scene_inde
     _first_decode = true;
 
     _callback_ffmpeg = cb;
-    _scene_index = scene_index;
 
     SYSTEM_INFO _stSysInfo;
     GetSystemInfo(&_stSysInfo);

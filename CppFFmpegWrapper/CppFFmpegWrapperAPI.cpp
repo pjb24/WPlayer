@@ -16,16 +16,22 @@ void cpp_ffmpeg_wrapper_delete(void * instance)
     delete core;
 }
 
-bool cpp_ffmpeg_wrapper_initialize(void * instance, CALLBACK_UINT32_UINT16_PTR_UINT16 cb, uint32_t scene_index)
+bool cpp_ffmpeg_wrapper_initialize(void * instance, CALLBACK_UINT32_UINT16_PTR_UINT16 cb)
 {
     FFmpegCore* core = (FFmpegCore*)instance;
-    return core->initialize(cb, scene_index);
+    return core->initialize(cb);
 }
 
 void cpp_ffmpeg_wrapper_shutdown(void * instance)
 {
     FFmpegCore* core = (FFmpegCore*)instance;
     core->shutdown();
+}
+
+void cpp_ffmpeg_wrapper_set_scene_index(void* instance, uint32_t scene_index)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->scene_index(scene_index);
 }
 
 void cpp_ffmpeg_wrapper_set_file_path(void * instance, char * url)

@@ -451,7 +451,8 @@ void tcp_processing_thread()
 
             _ffmpeg_data_map.insert({ scene_index, ffmpeg_instance });
 
-            cpp_ffmpeg_wrapper_initialize(ffmpeg_instance, callback_ffmpeg_wrapper_uint32_uint16_ptr_uint16, scene_index);
+            cpp_ffmpeg_wrapper_initialize(ffmpeg_instance, callback_ffmpeg_wrapper_uint32_uint16_ptr_uint16);
+            cpp_ffmpeg_wrapper_set_scene_index(ffmpeg_instance, scene_index);
             cpp_ffmpeg_wrapper_set_file_path(ffmpeg_instance, packet->url);
             if (cpp_ffmpeg_wrapper_open_file(ffmpeg_instance) != 0)
             {
