@@ -42,6 +42,13 @@ bool _create_one_swapchain_for_each_adapter = false;    // 1 Adapter 당 1 SwapC
 int _create_one_swapchain_for_each_adapter_window_width = 0;    // create_one_swapchain_for_each_adapter 옵션을 사용할 때 생성될 window의 width
 int _create_one_swapchain_for_each_adapter_window_height = 0;   // create_one_swapchain_for_each_adapter 옵션을 사용할 때 생성될 window의 height
 
+bool _create_one_swapchain_for_each_adapter_without_control_output = false;    // 1 Adapter 당 1 SwapChain을 생성, 컨트롤 모니터 1개를 윈도우 생성에서 제외함.
+
+// 윈도우 생성에서 제외할 모니터의 좌표 값들
+int _create_one_swapchain_for_each_adapter_without_control_output_excluded_window_left = 0;
+int _create_one_swapchain_for_each_adapter_without_control_output_excluded_window_top = 0;
+int _create_one_swapchain_for_each_adapter_without_control_output_excluded_window_right = 0;
+int _create_one_swapchain_for_each_adapter_without_control_output_excluded_window_bottom = 0;
 
 std::string _ip;
 uint16_t _port;
@@ -127,6 +134,7 @@ struct output_data
     _NV_PRESENT_BARRIER_FRAME_STATISTICS present_barrier_frame_stats;
 
     RECT create_one_swapchain_for_each_adapter_rect = { 0, 0, 0, 0 };
+    RECT create_one_swapchain_for_each_adapter_without_control_output_rect = { 0, 0, 0, 0 };
 };
 
 enum class deferred_type : s32
@@ -679,6 +687,12 @@ u32 enum_output_list()
             continue;
         }
 
+        int count_create_one_swapchain_for_each_adapter_without_control_output = 0;
+        int temp_left = 0;
+        int temp_top = 0;
+        int temp_right = 0;
+        int temp_bottom = 0;
+
         for (u32 i = 0; ; i++)
         {
             hr = data->adapter->EnumOutputs(i, &output);
@@ -687,14 +701,22 @@ u32 enum_output_list()
                 break;
             }
 
-            output_data* o_data = new output_data();
-            
-            o_data->output = output;
-            output->GetDesc(&o_data->output_desc);
-            o_data->output_index = output_index;
-            output_index++;
+            output_data* o_data = nullptr;
 
-            data->output_list.push_back(o_data);
+            if (count_create_one_swapchain_for_each_adapter_without_control_output != 0)
+            {
+            }
+            else
+            {
+                o_data = new output_data();
+            
+                o_data->output = output;
+                output->GetDesc(&o_data->output_desc);
+                o_data->output_index = output_index;
+                output_index++;
+
+                data->output_list.push_back(o_data);
+            }
 
             if (_create_one_swapchain_for_each_adapter == true)
             {
@@ -735,6 +757,72 @@ u32 enum_output_list()
                 }
 
                 break;
+            }
+            else if (_create_one_swapchain_for_each_adapter_without_control_output == true)
+            {
+                DXGI_OUTPUT_DESC output_desc;
+                output->GetDesc(&output_desc);
+
+                if (output_desc.DesktopCoordinates.left == _create_one_swapchain_for_each_adapter_without_control_output_excluded_window_left
+                    && output_desc.DesktopCoordinates.top == _create_one_swapchain_for_each_adapter_without_control_output_excluded_window_top
+                    && output_desc.DesktopCoordinates.right == _create_one_swapchain_for_each_adapter_without_control_output_excluded_window_right
+                    && output_desc.DesktopCoordinates.bottom == _create_one_swapchain_for_each_adapter_without_control_output_excluded_window_bottom
+                    )
+                {
+                    output->Release();
+                    output = nullptr;
+                    continue;
+                }
+                
+                if (count_create_one_swapchain_for_each_adapter_without_control_output == 0)
+                {
+                    temp_left = output_desc.DesktopCoordinates.left;
+                    temp_top = output_desc.DesktopCoordinates.top;
+                    temp_right = output_desc.DesktopCoordinates.right;
+                    temp_bottom = output_desc.DesktopCoordinates.bottom;
+                }
+
+                if (temp_left > output_desc.DesktopCoordinates.left)
+                {
+                    temp_left = output_desc.DesktopCoordinates.left;
+                }
+
+                if (temp_top > output_desc.DesktopCoordinates.top)
+                {
+                    temp_top = output_desc.DesktopCoordinates.top;
+                }
+                
+                if (temp_right < output_desc.DesktopCoordinates.right)
+                {
+                    temp_right = output_desc.DesktopCoordinates.right;
+                }
+
+                if (temp_bottom < output_desc.DesktopCoordinates.bottom)
+                {
+                    temp_bottom = output_desc.DesktopCoordinates.bottom;
+                }
+
+                if (count_create_one_swapchain_for_each_adapter_without_control_output != 0)
+                {
+                    output->Release();
+                    output = nullptr;
+                }
+
+                count_create_one_swapchain_for_each_adapter_without_control_output++;
+            }
+        }
+
+        if (_create_one_swapchain_for_each_adapter_without_control_output == true)
+        {
+            auto it = data->output_list.begin();
+            if (it != data->output_list.end())
+            {
+                output_data* o_data = *it;
+
+                o_data->create_one_swapchain_for_each_adapter_without_control_output_rect.left = temp_left;
+                o_data->create_one_swapchain_for_each_adapter_without_control_output_rect.top = temp_top;
+                o_data->create_one_swapchain_for_each_adapter_without_control_output_rect.right = temp_right;
+                o_data->create_one_swapchain_for_each_adapter_without_control_output_rect.bottom = temp_bottom;
             }
         }
     }
@@ -970,6 +1058,11 @@ u32 create_swap_chains()
             {
                 desc.Width = output->create_one_swapchain_for_each_adapter_rect.right - output->create_one_swapchain_for_each_adapter_rect.left;
                 desc.Height = output->create_one_swapchain_for_each_adapter_rect.bottom - output->create_one_swapchain_for_each_adapter_rect.top;
+            }
+            else if (_create_one_swapchain_for_each_adapter_without_control_output == true)
+            {
+                desc.Width = output->create_one_swapchain_for_each_adapter_without_control_output_rect.right - output->create_one_swapchain_for_each_adapter_without_control_output_rect.left;
+                desc.Height = output->create_one_swapchain_for_each_adapter_without_control_output_rect.bottom - output->create_one_swapchain_for_each_adapter_without_control_output_rect.top;
             }
             else
             {
@@ -1945,6 +2038,11 @@ u32 create_viewports()
                 output->viewport = { 0.0f, 0.0f, (f32)(output->create_one_swapchain_for_each_adapter_rect.right - output->create_one_swapchain_for_each_adapter_rect.left), (f32)(output->create_one_swapchain_for_each_adapter_rect.bottom - output->create_one_swapchain_for_each_adapter_rect.top) };
                 output->scissor_rect = { 0, 0, (s32)(output->create_one_swapchain_for_each_adapter_rect.right - output->create_one_swapchain_for_each_adapter_rect.left), (s32)(output->create_one_swapchain_for_each_adapter_rect.bottom - output->create_one_swapchain_for_each_adapter_rect.top) };
             }
+            else if (_create_one_swapchain_for_each_adapter_without_control_output == true)
+            {
+                output->viewport = { 0.0f, 0.0f, (f32)(output->create_one_swapchain_for_each_adapter_without_control_output_rect.right - output->create_one_swapchain_for_each_adapter_without_control_output_rect.left), (f32)(output->create_one_swapchain_for_each_adapter_without_control_output_rect.bottom - output->create_one_swapchain_for_each_adapter_without_control_output_rect.top) };
+                output->scissor_rect = { 0, 0, (s32)(output->create_one_swapchain_for_each_adapter_without_control_output_rect.right - output->create_one_swapchain_for_each_adapter_without_control_output_rect.left), (s32)(output->create_one_swapchain_for_each_adapter_without_control_output_rect.bottom - output->create_one_swapchain_for_each_adapter_without_control_output_rect.top) };
+            }
             else
             {
                 output->viewport = { 0.0f, 0.0f, (f32)(output->output_desc.DesktopCoordinates.right - output->output_desc.DesktopCoordinates.left), (f32)(output->output_desc.DesktopCoordinates.bottom - output->output_desc.DesktopCoordinates.top) };
@@ -2577,6 +2675,16 @@ u32 create_scene_data(RECT rect, char * url)
                     continue;
                 }
             }
+            else if (_create_one_swapchain_for_each_adapter_without_control_output == true)
+            {
+                if (!(output->create_one_swapchain_for_each_adapter_without_control_output_rect.right > rect.left &&
+                    output->create_one_swapchain_for_each_adapter_without_control_output_rect.bottom > rect.top &&
+                    output->create_one_swapchain_for_each_adapter_without_control_output_rect.left < rect.right &&
+                    output->create_one_swapchain_for_each_adapter_without_control_output_rect.top < rect.bottom))
+                {
+                    continue;
+                }
+            }
             else
             {
                 if (!(output->output_desc.DesktopCoordinates.right > rect.left &&
@@ -2693,6 +2801,46 @@ u32 create_scene_data(RECT rect, char * url)
                 }
 
                 normalize_rect(output->create_one_swapchain_for_each_adapter_rect, panel->rect, panel->normalized_rect);
+            }
+            else if (_create_one_swapchain_for_each_adapter_without_control_output == true)
+            {
+                if (output->create_one_swapchain_for_each_adapter_without_control_output_rect.left < rect.left)
+                {
+                    panel->rect.left = rect.left;
+                }
+                else
+                {
+                    panel->rect.left = output->create_one_swapchain_for_each_adapter_without_control_output_rect.left - 1;
+                }
+
+                if (output->create_one_swapchain_for_each_adapter_without_control_output_rect.right > rect.right)
+                {
+                    panel->rect.right = rect.right;
+                }
+                else
+                {
+                    panel->rect.right = output->create_one_swapchain_for_each_adapter_without_control_output_rect.right + 1;
+                }
+
+                if (output->create_one_swapchain_for_each_adapter_without_control_output_rect.top < rect.top)
+                {
+                    panel->rect.top = rect.top;
+                }
+                else
+                {
+                    panel->rect.top = output->create_one_swapchain_for_each_adapter_without_control_output_rect.top - 1;
+                }
+
+                if (output->create_one_swapchain_for_each_adapter_without_control_output_rect.bottom > rect.bottom)
+                {
+                    panel->rect.bottom = rect.bottom;
+                }
+                else
+                {
+                    panel->rect.bottom = output->create_one_swapchain_for_each_adapter_without_control_output_rect.bottom + 1;
+                }
+
+                normalize_rect(output->create_one_swapchain_for_each_adapter_without_control_output_rect, panel->rect, panel->normalized_rect);
             }
             else
             {
@@ -3133,6 +3281,26 @@ void config_setting()
     GetPrivateProfileString(L"WPlayer", L"create_one_swapchain_for_each_adapter_window_height", L"0", result_w, 255, str_ini_path_w.c_str());
     result_i = _ttoi(result_w);
     _create_one_swapchain_for_each_adapter_window_height = result_i;
+
+    GetPrivateProfileString(L"WPlayer", L"create_one_swapchain_for_each_adapter_without_control_output", L"0", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _create_one_swapchain_for_each_adapter_without_control_output = result_i == 0 ? false : true;
+
+    GetPrivateProfileString(L"WPlayer", L"create_one_swapchain_for_each_adapter_without_control_output_excluded_window_left", L"0", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _create_one_swapchain_for_each_adapter_without_control_output_excluded_window_left = result_i;
+
+    GetPrivateProfileString(L"WPlayer", L"create_one_swapchain_for_each_adapter_without_control_output_excluded_window_top", L"0", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _create_one_swapchain_for_each_adapter_without_control_output_excluded_window_top = result_i;
+
+    GetPrivateProfileString(L"WPlayer", L"create_one_swapchain_for_each_adapter_without_control_output_excluded_window_right", L"0", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _create_one_swapchain_for_each_adapter_without_control_output_excluded_window_right = result_i;
+
+    GetPrivateProfileString(L"WPlayer", L"create_one_swapchain_for_each_adapter_without_control_output_excluded_window_bottom", L"0", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _create_one_swapchain_for_each_adapter_without_control_output_excluded_window_bottom = result_i;
 }
 
 #define MAX_LOADSTRING 100
@@ -3193,6 +3361,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             if (_create_one_swapchain_for_each_adapter == true)
             {
                 create_window(szWindowClass, szTitle, hInst, output->create_one_swapchain_for_each_adapter_rect, nullptr, output->handle);
+            }
+            else if (_create_one_swapchain_for_each_adapter_without_control_output == true)
+            {
+                create_window(szWindowClass, szTitle, hInst, output->create_one_swapchain_for_each_adapter_without_control_output_rect, nullptr, output->handle);
             }
             else
             {
