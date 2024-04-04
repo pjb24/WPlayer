@@ -111,6 +111,65 @@ bool MyServer::send_jump_backwards(TcpConnection * connection, cppsocket_struct_
     return true;
 }
 
+bool MyServer::send_play_sync_group(TcpConnection* connection, cppsocket_struct_server_send_play_sync_group data)
+{
+    packet_header header{};
+    header.cmd = command_type::play_sync_group;
+    header.size = sizeof(packet_play_sync_group_from_server);
+
+    packet_play_sync_group_from_server out_packet{};
+    out_packet.header = header;
+    out_packet.result = (packet_result)data.result;
+    out_packet.scene_index = data.scene_index;
+    out_packet.rect = data.rect;
+    out_packet.sync_group_index = data.scene_index;
+    out_packet.sync_group_count = data.sync_group_count;
+    out_packet.url_size = data.url_size;
+    memcpy(out_packet.url, data.url, data.url_size);
+
+    std::shared_ptr<Packet> play_sync_group_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    *play_sync_group_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(play_sync_group_packet);
+
+    return true;
+}
+
+bool MyServer::send_pause_sync_group(TcpConnection* connection, cppsocket_struct_server_send_pause_sync_group data)
+{
+    packet_header header{};
+    header.cmd = command_type::pause_sync_group;
+    header.size = sizeof(packet_pause_sync_group_from_server);
+
+    packet_pause_sync_group_from_server out_packet{};
+    out_packet.header = header;
+    out_packet.result = (packet_result)data.result;
+    out_packet.sync_group_index = data.sync_group_index;
+
+    std::shared_ptr<Packet> pause_sync_group_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    *pause_sync_group_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(pause_sync_group_packet);
+
+    return true;
+}
+
+bool MyServer::send_stop_sync_group(TcpConnection* connection, cppsocket_struct_server_send_stop_sync_group data)
+{
+    packet_header header{};
+    header.cmd = command_type::stop_sync_group;
+    header.size = sizeof(packet_stop_sync_group_from_server);
+
+    packet_stop_sync_group_from_server out_packet{};
+    out_packet.header = header;
+    out_packet.result = (packet_result)data.result;
+    out_packet.sync_group_index = data.sync_group_index;
+
+    std::shared_ptr<Packet> stop_sync_group_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    *stop_sync_group_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(stop_sync_group_packet);
+
+    return true;
+}
+
 void MyServer::OnConnect(TcpConnection& newConnection)
 {
 	std::cout << newConnection.ToString() << " - New connection accepted." << std::endl;

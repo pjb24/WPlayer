@@ -231,6 +231,56 @@ void callback_ptr_client(void* data)
         delete packet;
     }
     break;
+    case command_type::play_sync_group:
+    {
+        packet_play_sync_group_from_server* packet = new packet_play_sync_group_from_server();
+        memcpy(packet, data, header->size);
+
+        std::cout << "play_sync_group" << ", ";
+        std::cout << "command_type: " << (uint16_t)packet->header.cmd << ", ";
+        std::cout << "packet size: " << packet->header.size << ", ";
+        std::cout << "scene_index: " << packet->scene_index << ", ";
+        std::cout << "rect.left: " << packet->rect.left << ", ";
+        std::cout << "rect.top: " << packet->rect.top << ", ";
+        std::cout << "rect.right: " << packet->rect.right << ", ";
+        std::cout << "rect.bottom: " << packet->rect.bottom << ", ";
+        std::cout << "sync_group_index: " << packet->sync_group_index << ", ";
+        std::cout << "sync_group_count: " << packet->sync_group_count << ", ";
+        std::cout << "url_size: " << packet->url_size << ", ";
+        std::cout << "url: " << packet->url << ", ";
+        std::cout << "result: " << (uint16_t)packet->result << std::endl;
+
+        delete packet;
+    }
+    break;
+    case command_type::pause_sync_group:
+    {
+        packet_pause_sync_group_from_server* packet = new packet_pause_sync_group_from_server();
+        memcpy(packet, data, header->size);
+
+        std::cout << "pause_sync_group" << ", ";
+        std::cout << "command_type: " << (uint16_t)packet->header.cmd << ", ";
+        std::cout << "packet size: " << packet->header.size << ", ";
+        std::cout << "sync_group_index: " << packet->sync_group_index << ", ";
+        std::cout << "result: " << (uint16_t)packet->result << std::endl;
+
+        delete packet;
+    }
+    break;
+    case command_type::stop_sync_group:
+    {
+        packet_stop_sync_group_from_server* packet = new packet_stop_sync_group_from_server();
+        memcpy(packet, data, header->size);
+
+        std::cout << "stop_sync_group" << ", ";
+        std::cout << "command_type: " << (uint16_t)packet->header.cmd << ", ";
+        std::cout << "packet size: " << packet->header.size << ", ";
+        std::cout << "sync_group_index: " << packet->sync_group_index << ", ";
+        std::cout << "result: " << (uint16_t)packet->result << std::endl;
+
+        delete packet;
+    }
+    break;
     default:
         break;
     }
@@ -265,6 +315,9 @@ void client_output_messages_step_1()
     std::cout << "4(jump_forward)" << std::endl;
     std::cout << "5(jump_backwards)" << std::endl;
     std::cout << "6(seek_repeat_self) (internal command type, not implemented)" << std::endl;
+    std::cout << "7(play_sync_group)" << std::endl;
+    std::cout << "8(pause_sync_group)" << std::endl;
+    std::cout << "9(stop_sync_group)" << std::endl;
 
     std::cout << std::endl;
     std::cout << "input 99 to stop program" << std::endl;
@@ -488,6 +541,54 @@ int main()
                     data.scene_index = scene_index;
 
                     cppsocket_client_send_jump_backwards(_client, data);
+                }
+                break;
+                case command_type::play_sync_group:
+                {
+                    std::cout << "play, Input rect.left rect.top rect.right rect.bottom url sync_group_index sync_group_count" << std::endl;
+
+                    RECT rect;
+                    std::string url;
+                    uint32_t sync_group_index;
+                    uint16_t sync_group_count;
+
+                    std::cin >> rect.left >> rect.top >> rect.right >> rect.bottom >> url;
+                    std::cin >> sync_group_index >> sync_group_count;
+
+                    cppsocket_struct_client_send_play_sync_group data{};
+                    data.rect = rect;
+                    data.url_size = url.size();
+                    data.url = url.c_str();
+                    data.sync_group_index = sync_group_index;
+                    data.sync_group_count = sync_group_count;
+
+                    cppsocket_client_send_play_sync_group(_client, data);
+                }
+                break;
+                case command_type::pause_sync_group:
+                {
+                    std::cout << "pause, Input sync_group_index" << std::endl;
+
+                    uint32_t sync_group_index;
+                    std::cin >> sync_group_index;
+
+                    cppsocket_struct_client_send_pause_sync_group data{};
+                    data.sync_group_index = sync_group_index;
+
+                    cppsocket_client_send_pause_sync_group(_client, data);
+                }
+                break;
+                case command_type::stop_sync_group:
+                {
+                    std::cout << "stop, Input sync_group_index" << std::endl;
+
+                    uint32_t sync_group_index;
+                    std::cin >> sync_group_index;
+
+                    cppsocket_struct_client_send_stop_sync_group data{};
+                    data.sync_group_index = sync_group_index;
+
+                    cppsocket_client_send_stop_sync_group(_client, data);
                 }
                 break;
                 default:

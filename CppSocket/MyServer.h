@@ -18,6 +18,10 @@ public:
     bool send_jump_forward(TcpConnection* connection, cppsocket_struct_server_send_jump_forward data);
     bool send_jump_backwards(TcpConnection* connection, cppsocket_struct_server_send_jump_backwards data);
 
+    bool send_play_sync_group(TcpConnection* connection, cppsocket_struct_server_send_play_sync_group data);
+    bool send_pause_sync_group(TcpConnection* connection, cppsocket_struct_server_send_pause_sync_group data);
+    bool send_stop_sync_group(TcpConnection* connection, cppsocket_struct_server_send_stop_sync_group data);
+
     void set_callback_data_connection(CALLBACK_DATA_CONNECTION cb) { callback_data_connection = cb; }
 
 private:

@@ -37,6 +37,10 @@ EXPORT void cppsocket_server_send_move(void* server_instance, void* connection, 
 EXPORT void cppsocket_server_send_jump_forward(void* server_instance, void* connection, cppsocket_struct_server_send_jump_forward data);
 EXPORT void cppsocket_server_send_jump_backwards(void* server_instance, void* connection, cppsocket_struct_server_send_jump_backwards data);
 
+EXPORT void cppsocket_server_send_play_sync_group(void* server_instance, void* connection, cppsocket_struct_server_send_play_sync_group data);
+EXPORT void cppsocket_server_send_pause_sync_group(void* server_instance, void* connection, cppsocket_struct_server_send_pause_sync_group data);
+EXPORT void cppsocket_server_send_stop_sync_group(void* server_instance, void* connection, cppsocket_struct_server_send_stop_sync_group data);
+
 EXPORT void cppsocket_server_set_callback_data_connection(void* server_instance, CALLBACK_DATA_CONNECTION cb);
 
 // --------------------------------
@@ -58,6 +62,10 @@ EXPORT void cppsocket_client_send_move(void* client_instance, cppsocket_struct_c
 
 EXPORT void cppsocket_client_send_jump_forward(void* client_instance, cppsocket_struct_client_send_jump_forward data);
 EXPORT void cppsocket_client_send_jump_backwards(void* client_instance, cppsocket_struct_client_send_jump_backwards data);
+
+EXPORT void cppsocket_client_send_play_sync_group(void* client_instance, cppsocket_struct_client_send_play_sync_group data);
+EXPORT void cppsocket_client_send_pause_sync_group(void* client_instance, cppsocket_struct_client_send_pause_sync_group data);
+EXPORT void cppsocket_client_send_stop_sync_group(void* client_instance, cppsocket_struct_client_send_stop_sync_group data);
 
 EXPORT void cppsocket_client_set_callback_data(void* client_instance, CALLBACK_DATA cb);
 

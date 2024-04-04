@@ -33,7 +33,7 @@ constexpr u32 texture_resource_count = 3;
 
 int _test_window_count = 0;    // 0이면 기본 사용, 0이 아니면 개수만큼 window 생성
 
-bool _repeat_play_flag = false;
+bool _repeat_play_flag = true;
 
 bool _texture_create_each_panel = true;   // 텍스처를 패널마다 분리해서 만들기
 
@@ -456,6 +456,64 @@ void ffmpeg_processing_thread()
             }
         }
         break;
+        case command_type::play_sync_group:
+        {
+            //for (auto it = _graphics_insert_list.begin(); it != _graphics_insert_list.end();)
+            //{
+            //    if ((*it)->scene_index == data_command.scene_index)
+            //    {
+            //        _graphics_scene_list.push_back(*it);
+            //        _graphics_insert_list.erase(it);
+            //        break;
+            //    }
+
+            //    it++;
+            //}
+            
+            // _graphics_insert_list 에서 sync_group_insert 으로 이동
+            // sync_group_index에 맞게 들어간 queue의 count가 충족되면 _graphics_scene_list로 전부 이동
+
+
+            if (data_command.connection != nullptr)
+            {
+                cppsocket_struct_server_send_play_sync_group data{};
+                data.scene_index = data_command.scene_index;
+                data.result = data_command.result;
+                data.rect = data_command.rect;
+                data.sync_group_index = data_command.sync_group_index;
+                data.url_size = data_command.url_size;
+                memcpy(data.url, data_command.url, data_command.url_size);
+
+                cppsocket_server_send_play_sync_group(_server, data_command.connection, data);
+            }
+        }
+        break;
+        case command_type::pause_sync_group:
+        {
+
+            if (data_command.connection != nullptr)
+            {
+                cppsocket_struct_server_send_pause_sync_group data{};
+                data.result = data_command.result;
+                data.sync_group_index = data_command.sync_group_index;
+
+                cppsocket_server_send_pause_sync_group(_server, data_command.connection, data);
+            }
+        }
+        break;
+        case command_type::stop_sync_group:
+        {
+
+            if (data_command.connection != nullptr)
+            {
+                cppsocket_struct_server_send_stop_sync_group data{};
+                data.result = data_command.result;
+                data.sync_group_index = data_command.sync_group_index;
+
+                cppsocket_server_send_stop_sync_group(_server, data_command.connection, data);
+            }
+        }
+        break;
         default:
             break;
         }
@@ -524,7 +582,6 @@ void tcp_processing_thread()
 
             cpp_ffmpeg_wrapper_set_rect(ffmpeg_instance, packet->rect);
 
-            _repeat_play_flag = true;
             cpp_ffmpeg_wrapper_play_start(ffmpeg_instance, data_pair.second);
         }
         break;
@@ -639,6 +696,64 @@ void tcp_processing_thread()
             ffmpeg_instance = it->second.ffmpeg_instance;
 
             cpp_ffmpeg_wrapper_seek_pts(ffmpeg_instance, 0);
+        }
+        break;
+        case command_type::play_sync_group:
+        {
+            packet_play_sync_group_from_client* packet = (packet_play_sync_group_from_client*)data_pair.first;
+            ffmpeg_instance = cpp_ffmpeg_wrapper_create();
+
+            cpp_ffmpeg_wrapper_initialize(ffmpeg_instance, callback_ffmpeg_wrapper_ptr);
+            cpp_ffmpeg_wrapper_set_file_path(ffmpeg_instance, packet->url);
+            if (cpp_ffmpeg_wrapper_open_file(ffmpeg_instance) != 0)
+            {
+                // TODO: open_file 실패
+                // 1, file_not_exist
+                // 7, file_path_unsetted
+
+                cpp_ffmpeg_wrapper_shutdown(ffmpeg_instance);
+                cpp_ffmpeg_wrapper_delete(ffmpeg_instance);
+
+                cppsocket_struct_server_send_play_sync_group data{};
+                data.scene_index = u32_invalid_id;
+                data.result = (u16)packet_result::fail;
+                data.rect = packet->rect;
+                data.url_size = packet->url_size;
+                memcpy(data.url, packet->url, packet->url_size);
+
+                data.sync_group_index = packet->sync_group_index;
+                data.sync_group_count = packet->sync_group_count;
+
+                cppsocket_server_send_play_sync_group(_server, data_pair.second, data);
+                break;
+            }
+
+            u32 scene_index = create_scene_data(packet->rect, packet->sync_group_index, packet->sync_group_count);
+
+            FFmpegInstanceData ffmpeg_instance_data;
+            ffmpeg_instance_data.ffmpeg_instance = ffmpeg_instance;
+            ffmpeg_instance_data.sync_group_index = packet->sync_group_index;
+            ffmpeg_instance_data.sync_group_count = packet->sync_group_count;
+
+            _ffmpeg_data_map.insert({ scene_index, ffmpeg_instance_data });
+            cpp_ffmpeg_wrapper_set_scene_index(ffmpeg_instance, scene_index);
+
+            // client에 돌려주기 위한 정보를 cpp_ffmpeg_wrapper에 세팅
+            cpp_ffmpeg_wrapper_set_rect(ffmpeg_instance, packet->rect);
+            cpp_ffmpeg_wrapper_set_sync_group_index(ffmpeg_instance, packet->sync_group_index);
+            cpp_ffmpeg_wrapper_set_sync_group_count(ffmpeg_instance, packet->sync_group_count);
+
+            cpp_ffmpeg_wrapper_play_start(ffmpeg_instance, data_pair.second);
+        }
+        break;
+        case command_type::pause_sync_group:
+        {
+
+        }
+        break;
+        case command_type::stop_sync_group:
+        {
+
         }
         break;
         default:

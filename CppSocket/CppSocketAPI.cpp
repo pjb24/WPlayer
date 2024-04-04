@@ -78,6 +78,24 @@ void cppsocket_server_send_jump_backwards(void * server_instance, void * connect
     server->send_jump_backwards((TcpConnection*)connection, data);
 }
 
+void cppsocket_server_send_play_sync_group(void* server_instance, void* connection, cppsocket_struct_server_send_play_sync_group data)
+{
+    MyServer* server = (MyServer*)server_instance;
+    server->send_play_sync_group((TcpConnection*)connection, data);
+}
+
+void cppsocket_server_send_pause_sync_group(void* server_instance, void* connection, cppsocket_struct_server_send_pause_sync_group data)
+{
+    MyServer* server = (MyServer*)server_instance;
+    server->send_pause_sync_group((TcpConnection*)connection, data);
+}
+
+void cppsocket_server_send_stop_sync_group(void* server_instance, void* connection, cppsocket_struct_server_send_stop_sync_group data)
+{
+    MyServer* server = (MyServer*)server_instance;
+    server->send_stop_sync_group((TcpConnection*)connection, data);
+}
+
 void cppsocket_server_set_callback_data_connection(void * server_instance, CALLBACK_DATA_CONNECTION cb)
 {
     MyServer* server = (MyServer*)server_instance;
@@ -150,6 +168,24 @@ void cppsocket_client_send_jump_backwards(void * client_instance, cppsocket_stru
 {
     MyClient* client = (MyClient*)client_instance;
     client->send_backwards(data);
+}
+
+void cppsocket_client_send_play_sync_group(void* client_instance, cppsocket_struct_client_send_play_sync_group data)
+{
+    MyClient* client = (MyClient*)client_instance;
+    client->send_play_sync_group(data);
+}
+
+void cppsocket_client_send_pause_sync_group(void* client_instance, cppsocket_struct_client_send_pause_sync_group data)
+{
+    MyClient* client = (MyClient*)client_instance;
+    client->send_pause_sync_group(data);
+}
+
+void cppsocket_client_send_stop_sync_group(void* client_instance, cppsocket_struct_client_send_stop_sync_group data)
+{
+    MyClient* client = (MyClient*)client_instance;
+    client->send_stop_sync_group(data);
 }
 
 void cppsocket_client_set_callback_data(void * client_instance, CALLBACK_DATA cb)

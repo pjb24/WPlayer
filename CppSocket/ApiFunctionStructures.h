@@ -40,6 +40,25 @@ struct cppsocket_struct_client_send_jump_backwards
     uint32_t scene_index;
 };
 
+struct cppsocket_struct_client_send_play_sync_group
+{
+    RECT rect;
+    const char* url;
+    uint16_t url_size;
+    uint32_t sync_group_index;
+    uint16_t sync_group_count;
+};
+
+struct cppsocket_struct_client_send_pause_sync_group
+{
+    uint32_t sync_group_index;
+};
+
+struct cppsocket_struct_client_send_stop_sync_group
+{
+    uint32_t sync_group_index;
+};
+
 // --------------------------------
 
 // server ////////////////////////////////
@@ -80,6 +99,29 @@ struct cppsocket_struct_server_send_jump_forward
 struct cppsocket_struct_server_send_jump_backwards
 {
     uint32_t scene_index;
+    uint16_t result;
+};
+
+struct cppsocket_struct_server_send_play_sync_group
+{
+    uint32_t scene_index;
+    uint16_t result;
+    RECT rect;
+    char url[260];
+    uint16_t url_size;
+    uint32_t sync_group_index;
+    uint16_t sync_group_count;
+};
+
+struct cppsocket_struct_server_send_pause_sync_group
+{
+    uint32_t sync_group_index;
+    uint16_t result;
+};
+
+struct cppsocket_struct_server_send_stop_sync_group
+{
+    uint32_t sync_group_index;
     uint16_t result;
 };
 

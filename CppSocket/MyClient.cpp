@@ -110,6 +110,61 @@ bool MyClient::send_backwards(cppsocket_struct_client_send_jump_backwards data)
     return true;
 }
 
+bool MyClient::send_play_sync_group(cppsocket_struct_client_send_play_sync_group data)
+{
+    packet_header header{};
+    header.cmd = command_type::play_sync_group;
+    header.size = sizeof(packet_play_sync_group_from_client);
+
+    packet_play_sync_group_from_client packet{};
+    packet.header = header;
+    packet.rect = data.rect;
+    packet.sync_group_index = data.sync_group_index;
+    packet.sync_group_count = data.sync_group_count;
+    packet.url_size = data.url_size;
+    memcpy(packet.url, data.url, data.url_size);
+
+    std::shared_ptr<Packet> play_sync_group_packet = std::make_shared<Packet>(PacketType::structured_data_from_client);
+    *play_sync_group_packet << (void*)&packet;
+    m_connection.m_pmOutgoing.Append(play_sync_group_packet);
+
+    return true;
+}
+
+bool MyClient::send_pause_sync_group(cppsocket_struct_client_send_pause_sync_group data)
+{
+    packet_header header{};
+    header.cmd = command_type::pause_sync_group;
+    header.size = sizeof(packet_pause_sync_group_from_client);
+
+    packet_pause_sync_group_from_client packet{};
+    packet.header = header;
+    packet.sync_group_index = data.sync_group_index;
+
+    std::shared_ptr<Packet> pause_sync_group_packet = std::make_shared<Packet>(PacketType::structured_data_from_client);
+    *pause_sync_group_packet << (void*)&packet;
+    m_connection.m_pmOutgoing.Append(pause_sync_group_packet);
+
+    return true;
+}
+
+bool MyClient::send_stop_sync_group(cppsocket_struct_client_send_stop_sync_group data)
+{
+    packet_header header{};
+    header.cmd = command_type::stop_sync_group;
+    header.size = sizeof(packet_stop_sync_group_from_client);
+
+    packet_stop_sync_group_from_client packet{};
+    packet.header = header;
+    packet.sync_group_index = data.sync_group_index;
+
+    std::shared_ptr<Packet> stop_sync_group_packet = std::make_shared<Packet>(PacketType::structured_data_from_client);
+    *stop_sync_group_packet << (void*)&packet;
+    m_connection.m_pmOutgoing.Append(stop_sync_group_packet);
+
+    return true;
+}
+
 void MyClient::connection_close()
 {
     m_connection.Close();

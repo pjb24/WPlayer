@@ -30,6 +30,9 @@ enum class command_type : uint16_t
     jump_forward,   // 4
     jump_backwards, // 5
     seek_repeat_self,   // 6
+    play_sync_group,    // 7
+    pause_sync_group,   // 8
+    stop_sync_group,    // 9
 
     invalid = u16_invalid_id
 };
@@ -145,3 +148,61 @@ struct packet_seek_repeat_self
 };
 
 // --------------------------------
+
+// play sync group ////////////////////////////////
+struct packet_play_sync_group_from_client
+{
+    packet_header   header;
+    RECT            rect;       // 좌표
+    uint32_t        sync_group_index;   // sync group 번호
+    uint16_t        sync_group_count;   // sync group index에 해당하는 sync group에 소속될 scene 개수
+    uint16_t        url_size;
+    char            url[260];   // URL
+};
+
+struct packet_play_sync_group_from_server
+{
+    packet_header   header;
+    packet_result   result;     // 명령 수행 결과
+    uint32_t        scene_index;
+    RECT            rect;
+    uint32_t        sync_group_index;   // sync group 번호
+    uint16_t        sync_group_count;
+    uint16_t        url_size;
+    char            url[260];   // URL
+};
+
+// --------------------------------
+
+// pause sync group ////////////////////////////////
+struct packet_pause_sync_group_from_client
+{
+    packet_header   header;
+    uint32_t        sync_group_index;   // sync group 번호
+};
+
+struct packet_pause_sync_group_from_server
+{
+    packet_header   header;
+    packet_result   result;     // 명령 수행 결과
+    uint32_t        sync_group_index;       // sync group 번호
+};
+
+// --------------------------------
+
+// stop sync group ////////////////////////////////
+struct packet_stop_sync_group_from_client
+{
+    packet_header   header;
+    uint32_t        sync_group_index;   // sync group 번호
+};
+
+struct packet_stop_sync_group_from_server
+{
+    packet_header   header;
+    packet_result   result;     // 명령 수행 결과
+    uint32_t        sync_group_index;       // sync group 번호
+};
+
+// --------------------------------
+

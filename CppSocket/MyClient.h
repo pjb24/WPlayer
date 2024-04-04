@@ -18,6 +18,10 @@ public:
     bool send_forward(cppsocket_struct_client_send_jump_forward data);
     bool send_backwards(cppsocket_struct_client_send_jump_backwards data);
 
+    bool send_play_sync_group(cppsocket_struct_client_send_play_sync_group data);
+    bool send_pause_sync_group(cppsocket_struct_client_send_pause_sync_group data);
+    bool send_stop_sync_group(cppsocket_struct_client_send_stop_sync_group data);
+
     void set_callback_data(CALLBACK_DATA cb) { callback_data = cb; }
 
     void callback_client(void* packet);
