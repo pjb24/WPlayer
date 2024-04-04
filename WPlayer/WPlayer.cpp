@@ -476,6 +476,8 @@ void tcp_processing_thread()
             _ffmpeg_data_map.insert({ scene_index, ffmpeg_instance });
             cpp_ffmpeg_wrapper_set_scene_index(ffmpeg_instance, scene_index);
 
+            cpp_ffmpeg_wrapper_set_rect(ffmpeg_instance, packet->rect);
+
             _repeat_play_flag = true;
             cpp_ffmpeg_wrapper_play_start(ffmpeg_instance, data_pair.second);
         }

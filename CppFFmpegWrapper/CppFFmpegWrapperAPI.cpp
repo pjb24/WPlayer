@@ -34,6 +34,24 @@ void cpp_ffmpeg_wrapper_set_scene_index(void* instance, uint32_t scene_index)
     core->scene_index(scene_index);
 }
 
+void cpp_ffmpeg_wrapper_set_rect(void* instance, RECT rect)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->rect(rect);
+}
+
+void cpp_ffmpeg_wrapper_set_sync_group_index(void* instance, uint32_t sync_group_index)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->sync_group_index(sync_group_index);
+}
+
+void cpp_ffmpeg_wrapper_set_sync_group_count(void* instance, uint16_t sync_group_count)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->sync_group_count(sync_group_count);
+}
+
 void cpp_ffmpeg_wrapper_set_file_path(void * instance, char * url)
 {
     FFmpegCore* core = (FFmpegCore*)instance;
