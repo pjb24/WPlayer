@@ -126,6 +126,7 @@
     <ClInclude Include="SocketOption.h" />
     <ClInclude Include="StringTrimHelper.h" />
     <ClInclude Include="TcpConnection.h" />
+    <ClInclude Include="TypesDefine.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Client.cpp">

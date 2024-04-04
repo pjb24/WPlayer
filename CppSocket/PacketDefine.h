@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stdint.h>
+#include "TypesDefine.h"
 
 enum class PacketType : uint16_t
 {
