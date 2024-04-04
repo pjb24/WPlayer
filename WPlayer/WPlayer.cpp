@@ -96,12 +96,16 @@ struct Panel
 struct Scene
 {
     u32 scene_index = u32_invalid_id;
-    char* url;
+
     std::vector<Panel*> panel_list;
     int64_t pts = -1;
+
     RECT rect;
     bool using_flag = false;
     std::map<s32, bool> texture_upload_to_adapter_flag_map; // adapter_index, bool
+
+    u32 sync_group_index = u32_invalid_id;
+    u16 sync_group_count = 0;
 };
 
 struct Vertex
@@ -273,7 +277,7 @@ u32 wait_for_gpus();
 u32 move_to_next_frame(ID3D12CommandQueue* cmd_queue, output_data* data);
 u32 populate_command_list(graphics_data* data);
 u32 render();
-u32 create_scene_data(RECT rect, char * url);
+u32 create_scene_data(RECT rect, u32 sync_group_index = u32_invalid_id, u16 sync_group_count = 0);
 u32 delete_scene_data(u32 scene_index);
 u32 delete_scene_datas();
 u32 upload_texture(graphics_data* data, AVFrame* frame, s32 target_texture_index, s32 output_frame_index);
@@ -313,12 +317,20 @@ void callback_data_connection_server(void* data, void* connection);
 #pragma region FFmpegWrapper
 using FFmpegProcessingCommand = ffmpeg_wrapper_callback_data;
 
+struct FFmpegInstanceData
+{
+    void* ffmpeg_instance = nullptr;
+    uint32_t sync_group_index = u32_invalid_id;
+    uint16_t sync_group_count = 0;
+    bool render_ready = false;
+};
+
 // CppFFmpegWrapper의 콜백 명령 저장 큐
 std::deque<FFmpegProcessingCommand> _ffmpeg_processing_command_queue;
 
 constexpr u32 _sleep_time_ffmpeg_processing = 10;
 
-std::map<u32, void*> _ffmpeg_data_map;  // scene_index, ffmpeg_instance
+std::map<u32, FFmpegInstanceData> _ffmpeg_data_map;  // scene_index, ffmpeg_instance
 
 std::thread _ffmpeg_processing_thread;
 bool _ffmpeg_processing_flag = true;
@@ -343,7 +355,6 @@ void ffmpeg_processing_thread()
             continue;
         }
 
-        // scene_index, command, connection
         FFmpegProcessingCommand data_command;
         {
             std::lock_guard<std::mutex> lk(_ffmpeg_data_mutex);
@@ -399,7 +410,7 @@ void ffmpeg_processing_thread()
             void* ffmpeg_instance = nullptr;
             {
                 std::lock_guard<std::mutex> lock(_ffmpeg_data_mutex);
-                ffmpeg_instance = _ffmpeg_data_map.find(data_command.scene_index)->second;
+                ffmpeg_instance = _ffmpeg_data_map.find(data_command.scene_index)->second.ffmpeg_instance;
                 cpp_ffmpeg_wrapper_shutdown(ffmpeg_instance);
                 cpp_ffmpeg_wrapper_delete(ffmpeg_instance);
                 _ffmpeg_data_map.erase(data_command.scene_index);
@@ -503,8 +514,12 @@ void tcp_processing_thread()
                 break;
             }
 
-            u32 scene_index = create_scene_data(packet->rect, packet->url);
-            _ffmpeg_data_map.insert({ scene_index, ffmpeg_instance });
+            u32 scene_index = create_scene_data(packet->rect);
+
+            FFmpegInstanceData ffmpeg_instance_data;
+            ffmpeg_instance_data.ffmpeg_instance = ffmpeg_instance;
+
+            _ffmpeg_data_map.insert({ scene_index, ffmpeg_instance_data });
             cpp_ffmpeg_wrapper_set_scene_index(ffmpeg_instance, scene_index);
 
             cpp_ffmpeg_wrapper_set_rect(ffmpeg_instance, packet->rect);
@@ -528,7 +543,7 @@ void tcp_processing_thread()
                 break;
             }
 
-            ffmpeg_instance = it->second;
+            ffmpeg_instance = it->second.ffmpeg_instance;
 
             cpp_ffmpeg_wrapper_play_pause(ffmpeg_instance, data_pair.second);
         }
@@ -548,7 +563,7 @@ void tcp_processing_thread()
                 break;
             }
 
-            ffmpeg_instance = it->second;
+            ffmpeg_instance = it->second.ffmpeg_instance;
 
             cpp_ffmpeg_wrapper_play_stop(ffmpeg_instance, data_pair.second);
         }
@@ -568,7 +583,7 @@ void tcp_processing_thread()
                 break;
             }
 
-            ffmpeg_instance = it->second;
+            ffmpeg_instance = it->second.ffmpeg_instance;
         }
         break;
         case command_type::jump_forward:
@@ -586,7 +601,7 @@ void tcp_processing_thread()
                 break;
             }
 
-            ffmpeg_instance = it->second;
+            ffmpeg_instance = it->second.ffmpeg_instance;
 
             cpp_ffmpeg_wrapper_jump_forward(ffmpeg_instance, data_pair.second);
         }
@@ -606,7 +621,7 @@ void tcp_processing_thread()
                 break;
             }
 
-            ffmpeg_instance = it->second;
+            ffmpeg_instance = it->second.ffmpeg_instance;
 
             cpp_ffmpeg_wrapper_jump_backwards(ffmpeg_instance, data_pair.second);
         }
@@ -621,7 +636,7 @@ void tcp_processing_thread()
                 break;
             }
 
-            ffmpeg_instance = it->second;
+            ffmpeg_instance = it->second.ffmpeg_instance;
 
             cpp_ffmpeg_wrapper_seek_pts(ffmpeg_instance, 0);
         }
@@ -2184,7 +2199,7 @@ u32 populate_command_list(graphics_data* data)
             auto it_ffmpeg_data = _ffmpeg_data_map.find(scene->scene_index);
             if (it_ffmpeg_data != _ffmpeg_data_map.end())
             {
-                output_frame_index = cpp_ffmpeg_wrapper_get_frame(it_ffmpeg_data->second, frame);
+                output_frame_index = cpp_ffmpeg_wrapper_get_frame(it_ffmpeg_data->second.ffmpeg_instance, frame);
 
                 if (output_frame_index == -2)
                 {
@@ -2670,7 +2685,7 @@ u32 render()
             auto it_ffmpeg_data = _ffmpeg_data_map.find(scene->scene_index);
             if (it_ffmpeg_data != _ffmpeg_data_map.end())
             {
-                cpp_ffmpeg_wrapper_frame_to_next(it_ffmpeg_data->second);
+                cpp_ffmpeg_wrapper_frame_to_next(it_ffmpeg_data->second.ffmpeg_instance);
             }
         }
     }
@@ -2682,14 +2697,15 @@ u32 render()
 /// 
 /// </summary>
 /// <param name="rect"></param>
-/// <param name="url"></param>
 /// <returns> created scene_index </returns>
-u32 create_scene_data(RECT rect, char * url)
+u32 create_scene_data(RECT rect, u32 sync_group_index, u16 sync_group_count)
 {
     Scene* scene = new Scene();
 
-    scene->url = url;
     scene->rect = rect;
+
+    scene->sync_group_index = sync_group_index;
+    scene->sync_group_count = sync_group_count;
 
     if (_free_scene_queue.empty())
     {
@@ -3103,7 +3119,7 @@ void callback_ffmpeg_wrapper_ptr(void* param)
 
 void delete_ffmpeg_instances()
 {   
-    std::vector<void*> ffmpeg_instances;
+    std::vector<FFmpegInstanceData> ffmpeg_instances;
 
     for (auto it = _ffmpeg_data_map.begin(); it != _ffmpeg_data_map.end(); it++)
     {
@@ -3112,7 +3128,7 @@ void delete_ffmpeg_instances()
 
     for (auto it : ffmpeg_instances)
     {
-        cpp_ffmpeg_wrapper_play_stop(it, nullptr);
+        cpp_ffmpeg_wrapper_play_stop(it.ffmpeg_instance, nullptr);
     }
 }
 
