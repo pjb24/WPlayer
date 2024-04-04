@@ -59,7 +59,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)Include\NvAPI;$(SolutionDir)Include\FFmpeg;$(SolutionDir)Include\CppFFmpegWrapper;$(SolutionDir)Include\CppSocket</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Include\NvAPI;$(SolutionDir)Include\FFmpeg;$(SolutionDir)CppFFmpegWrapper;$(SolutionDir)CppSocket</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -83,7 +83,7 @@ xcopy /y $(ProjectDir)WPlayer.ini $(OutDir)</Command>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(SolutionDir)Include\NvAPI;$(SolutionDir)Include\FFmpeg;$(SolutionDir)Include\CppFFmpegWrapper;$(SolutionDir)Include\CppSocket</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Include\NvAPI;$(SolutionDir)Include\FFmpeg;$(SolutionDir)CppFFmpegWrapper;$(SolutionDir)CppSocket</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

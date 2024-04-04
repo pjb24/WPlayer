@@ -27,6 +27,7 @@ enum class command_type : uint16_t
     move,   // 3
     jump_forward,   // 4
     jump_backwards, // 5
+    seek_repeat_self,   // 6
 };
 
 struct packet_header
@@ -127,4 +128,13 @@ struct packet_jump_backwards_from_server
     packet_result   result; // 명령 수행 결과
     uint32_t        scene_index;
 };
+// --------------------------------
+
+// seek repeat self ////////////////////////////////
+struct packet_seek_repeat_self
+{
+    packet_header   header;
+    uint32_t        scene_index;
+};
+
 // --------------------------------
