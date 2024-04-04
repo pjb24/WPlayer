@@ -24,6 +24,7 @@ public:
     void rect(RECT rect) { _rect = rect; }
     void sync_group_index(u32 sync_group_index) { _sync_group_index = sync_group_index; }
     void sync_group_count(u16 sync_group_count) { _sync_group_count = sync_group_count; }
+    void sync_group_time_started() { _time_started = 0.0f; }
     void file_path(std::string path) { _file_path = path; }
 
     void seek_pts(s64 pts);
@@ -110,7 +111,7 @@ private:
     u32 _scene_index = u32_invalid_id;
     RECT _rect = { 0, 0, 0, 0 };
     u32 _sync_group_index = u32_invalid_id;
-    u16 _sync_group_count = u16_invalid_id;
+    u16 _sync_group_count = 0;
     u16 _url_size = 0;
 
 #pragma region Scale

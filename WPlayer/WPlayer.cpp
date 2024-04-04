@@ -340,6 +340,14 @@ void ffmpeg_processing_thread();
 void callback_ffmpeg_wrapper_ptr(void* param);
 
 void delete_ffmpeg_instances();
+
+struct SyncGroupCounter
+{
+    u16 sync_group_count = 0;
+    u16 sync_group_input_count = 0;
+};
+
+std::map<u32, SyncGroupCounter> _sync_group_counter_map;
 #pragma endregion
 
 void config_setting();
@@ -458,21 +466,44 @@ void ffmpeg_processing_thread()
         break;
         case command_type::play_sync_group:
         {
-            //for (auto it = _graphics_insert_list.begin(); it != _graphics_insert_list.end();)
-            //{
-            //    if ((*it)->scene_index == data_command.scene_index)
-            //    {
-            //        _graphics_scene_list.push_back(*it);
-            //        _graphics_insert_list.erase(it);
-            //        break;
-            //    }
+            SyncGroupCounter sync_group_counter{};
 
-            //    it++;
-            //}
-            
-            // _graphics_insert_list 에서 sync_group_insert 으로 이동
-            // sync_group_index에 맞게 들어간 queue의 count가 충족되면 _graphics_scene_list로 전부 이동
+            std::map<u32, SyncGroupCounter>::iterator it = _sync_group_counter_map.find(data_command.sync_group_index);
+            if (it == _sync_group_counter_map.end())
+            {
+                sync_group_counter.sync_group_count = data_command.sync_group_count;
+                sync_group_counter.sync_group_input_count++;
 
+                _sync_group_counter_map.insert({ data_command.sync_group_index, sync_group_counter });
+            }
+            else
+            {
+                sync_group_counter = it->second;
+                sync_group_counter.sync_group_input_count++;
+            }
+
+            if (sync_group_counter.sync_group_count == sync_group_counter.sync_group_input_count)
+            {
+                for (auto it = _graphics_insert_list.begin(); it != _graphics_insert_list.end();)
+                {
+                    if ((*it)->sync_group_index == data_command.sync_group_index)
+                    {
+                        std::lock_guard<std::mutex> lock(_ffmpeg_data_mutex);
+
+                        void* ffmpeg_instance = _ffmpeg_data_map.find((*it)->scene_index)->second.ffmpeg_instance;
+                        cpp_ffmpeg_wrapper_set_sync_group_time_started(ffmpeg_instance);
+
+                        _graphics_scene_list.push_back(*it);
+                        it = _graphics_insert_list.erase(it);
+                    }
+                    else
+                    {
+                        it++;
+                    }
+                }
+
+                _sync_group_counter_map.erase(data_command.sync_group_index);
+            }
 
             if (data_command.connection != nullptr)
             {

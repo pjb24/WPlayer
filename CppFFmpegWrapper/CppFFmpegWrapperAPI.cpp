@@ -52,6 +52,12 @@ void cpp_ffmpeg_wrapper_set_sync_group_count(void* instance, uint16_t sync_group
     core->sync_group_count(sync_group_count);
 }
 
+void cpp_ffmpeg_wrapper_set_sync_group_time_started(void* instance)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->sync_group_time_started();
+}
+
 void cpp_ffmpeg_wrapper_set_file_path(void * instance, char * url)
 {
     FFmpegCore* core = (FFmpegCore*)instance;

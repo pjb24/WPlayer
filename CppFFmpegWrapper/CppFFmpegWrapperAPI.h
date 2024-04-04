@@ -33,6 +33,8 @@ EXPORT void cpp_ffmpeg_wrapper_set_sync_group_index(void* instance, uint32_t syn
 
 EXPORT void cpp_ffmpeg_wrapper_set_sync_group_count(void* instance, uint16_t sync_group_count);
 
+EXPORT void cpp_ffmpeg_wrapper_set_sync_group_time_started(void* instance);
+
 EXPORT void cpp_ffmpeg_wrapper_set_file_path(void* instance, char* url);
 
 EXPORT int cpp_ffmpeg_wrapper_open_file(void* instance);

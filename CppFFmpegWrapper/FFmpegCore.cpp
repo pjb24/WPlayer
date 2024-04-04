@@ -533,7 +533,16 @@ void FFmpegCore::decode()
 
                     ffmpeg_wrapper_callback_data* data = new ffmpeg_wrapper_callback_data();
                     data->scene_index = _scene_index;
-                    data->command = (u16)command_type::play;
+
+                    if (_sync_group_count == 0)
+                    {
+                        data->command = (u16)command_type::play;
+                    }
+                    else
+                    {
+                        data->command = (u16)command_type::play_sync_group;
+                    }
+
                     data->connection = _connection_play_start;
                     data->result = (u16)packet_result::ok;
 
