@@ -42,40 +42,40 @@ void cppsocket_server_frame(void * server_instance)
     server->Frame();
 }
 
-void cppsocket_server_send_play(void * server_instance, void* connection, uint32_t scene_index, uint16_t result)
+void cppsocket_server_send_play(void * server_instance, void* connection, cppsocket_struct_server_send_play data)
 {
     MyServer* server = (MyServer*)server_instance;
-    server->send_play((TcpConnection*)connection, scene_index, result);
+    server->send_play((TcpConnection*)connection, data);
 }
 
-void cppsocket_server_send_pause(void * server_instance, void* connection, uint32_t scene_index, uint16_t result)
+void cppsocket_server_send_pause(void * server_instance, void* connection, cppsocket_struct_server_send_pause data)
 {
     MyServer* server = (MyServer*)server_instance;
-    server->send_pause((TcpConnection*)connection, scene_index, result);
+    server->send_pause((TcpConnection*)connection, data);
 }
 
-void cppsocket_server_send_stop(void * server_instance, void* connection, uint32_t scene_index, uint16_t result)
+void cppsocket_server_send_stop(void * server_instance, void* connection, cppsocket_struct_server_send_stop data)
 {
     MyServer* server = (MyServer*)server_instance;
-    server->send_stop((TcpConnection*)connection, scene_index, result);
+    server->send_stop((TcpConnection*)connection, data);
 }
 
-void cppsocket_server_send_move(void * server_instance, void* connection, uint32_t scene_index, uint16_t result)
+void cppsocket_server_send_move(void * server_instance, void* connection, cppsocket_struct_server_send_move data)
 {
     MyServer* server = (MyServer*)server_instance;
-    server->send_move((TcpConnection*)connection, scene_index, result);
+    server->send_move((TcpConnection*)connection, data);
 }
 
-void cppsocket_server_send_jump_forward(void * server_instance, void * connection, uint32_t scene_index, uint16_t result)
+void cppsocket_server_send_jump_forward(void * server_instance, void * connection, cppsocket_struct_server_send_jump_forward data)
 {
     MyServer* server = (MyServer*)server_instance;
-    server->send_jump_forward((TcpConnection*)connection, scene_index, result);
+    server->send_jump_forward((TcpConnection*)connection, data);
 }
 
-void cppsocket_server_send_jump_backwards(void * server_instance, void * connection, uint32_t scene_index, uint16_t result)
+void cppsocket_server_send_jump_backwards(void * server_instance, void * connection, cppsocket_struct_server_send_jump_backwards data)
 {
     MyServer* server = (MyServer*)server_instance;
-    server->send_jump_backwards((TcpConnection*)connection, scene_index, result);
+    server->send_jump_backwards((TcpConnection*)connection, data);
 }
 
 void cppsocket_server_set_callback_data_connection(void * server_instance, CALLBACK_DATA_CONNECTION cb)
@@ -116,40 +116,40 @@ void cppsocket_client_frame(void * client_instance)
     client->Frame();
 }
 
-void cppsocket_client_send_play(void * client_instance, RECT rect, const char * url, uint16_t url_size)
+void cppsocket_client_send_play(void * client_instance, cppsocket_struct_client_send_play data)
 {
     MyClient* client = (MyClient*)client_instance;
-    client->send_play(rect, url, url_size);
+    client->send_play(data);
 }
 
-void cppsocket_client_send_pause(void * client_instance, uint32_t scene_index)
+void cppsocket_client_send_pause(void * client_instance, cppsocket_struct_client_send_pause data)
 {
     MyClient* client = (MyClient*)client_instance;
-    client->send_pause(scene_index);
+    client->send_pause(data);
 }
 
-void cppsocket_client_send_stop(void * client_instance, uint32_t scene_index)
+void cppsocket_client_send_stop(void * client_instance, cppsocket_struct_client_send_stop data)
 {
     MyClient* client = (MyClient*)client_instance;
-    client->send_stop(scene_index);
+    client->send_stop(data);
 }
 
-void cppsocket_client_send_move(void * client_instance, uint32_t scene_index, RECT rect)
+void cppsocket_client_send_move(void * client_instance, cppsocket_struct_client_send_move data)
 {
     MyClient* client = (MyClient*)client_instance;
-    client->send_move(scene_index, rect);
+    client->send_move(data);
 }
 
-void cppsocket_client_send_jump_forward(void * client_instance, uint32_t scene_index)
+void cppsocket_client_send_jump_forward(void * client_instance, cppsocket_struct_client_send_jump_forward data)
 {
     MyClient* client = (MyClient*)client_instance;
-    client->send_forward(scene_index);
+    client->send_forward(data);
 }
 
-void cppsocket_client_send_jump_backwards(void * client_instance, uint32_t scene_index)
+void cppsocket_client_send_jump_backwards(void * client_instance, cppsocket_struct_client_send_jump_backwards data)
 {
     MyClient* client = (MyClient*)client_instance;
-    client->send_backwards(scene_index);
+    client->send_backwards(data);
 }
 
 void cppsocket_client_set_callback_data(void * client_instance, CALLBACK_DATA cb)

@@ -17,6 +17,8 @@ enum class packet_result : uint16_t
     fail,   // 1
 	pause,  // 2
     resume, // 3
+
+    invalid = u16_invalid_id
 };
 
 enum class command_type : uint16_t
@@ -28,6 +30,8 @@ enum class command_type : uint16_t
     jump_forward,   // 4
     jump_backwards, // 5
     seek_repeat_self,   // 6
+
+    invalid = u16_invalid_id
 };
 
 struct packet_header
@@ -50,6 +54,9 @@ struct packet_play_from_server
     packet_header   header;
     packet_result   result;     // 명령 수행 결과
     uint32_t        scene_index;
+    RECT            rect;
+    uint16_t        url_size;
+    char            url[260];
 };
 // --------------------------------
 

@@ -1,6 +1,6 @@
 #include "MyServer.h"
 
-bool MyServer::send_play(TcpConnection * connection, uint32_t scene_index, uint16_t result)
+bool MyServer::send_play(TcpConnection * connection, cppsocket_struct_server_send_play data)
 {
     packet_header header{};
     header.cmd = command_type::play;
@@ -8,8 +8,11 @@ bool MyServer::send_play(TcpConnection * connection, uint32_t scene_index, uint1
 
     packet_play_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = packet_result(result);
-    out_packet.scene_index = scene_index;
+    out_packet.result = packet_result(data.result);
+    out_packet.scene_index = data.scene_index;
+    out_packet.rect = data.rect;
+    out_packet.url_size = data.url_size;
+    memcpy(out_packet.url, data.url, data.url_size);
 
     std::shared_ptr<Packet> play_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
     *play_packet << (void*)&out_packet;
@@ -18,7 +21,7 @@ bool MyServer::send_play(TcpConnection * connection, uint32_t scene_index, uint1
     return true;
 }
 
-bool MyServer::send_pause(TcpConnection * connection, uint32_t scene_index, uint16_t result)
+bool MyServer::send_pause(TcpConnection * connection, cppsocket_struct_server_send_pause data)
 {
     packet_header header{};
     header.cmd = command_type::pause;
@@ -26,8 +29,8 @@ bool MyServer::send_pause(TcpConnection * connection, uint32_t scene_index, uint
 
     packet_pause_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = (packet_result)result;
-    out_packet.scene_index = scene_index;
+    out_packet.result = (packet_result)data.result;
+    out_packet.scene_index = data.scene_index;
 
     std::shared_ptr<Packet> pause_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
     *pause_packet << (void*)&out_packet;
@@ -36,7 +39,7 @@ bool MyServer::send_pause(TcpConnection * connection, uint32_t scene_index, uint
     return true;
 }
 
-bool MyServer::send_stop(TcpConnection * connection, uint32_t scene_index, uint16_t result)
+bool MyServer::send_stop(TcpConnection * connection, cppsocket_struct_server_send_stop data)
 {
     packet_header header{};
     header.cmd = command_type::stop;
@@ -44,8 +47,8 @@ bool MyServer::send_stop(TcpConnection * connection, uint32_t scene_index, uint1
 
     packet_stop_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = (packet_result)result;
-    out_packet.scene_index = scene_index;
+    out_packet.result = (packet_result)data.result;
+    out_packet.scene_index = data.scene_index;
 
     std::shared_ptr<Packet> stop_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
     *stop_packet << (void*)&out_packet;
@@ -54,7 +57,7 @@ bool MyServer::send_stop(TcpConnection * connection, uint32_t scene_index, uint1
     return true;
 }
 
-bool MyServer::send_move(TcpConnection * connection, uint32_t scene_index, uint16_t result)
+bool MyServer::send_move(TcpConnection * connection, cppsocket_struct_server_send_move data)
 {
     packet_header header{};
     header.cmd = command_type::move;
@@ -62,8 +65,8 @@ bool MyServer::send_move(TcpConnection * connection, uint32_t scene_index, uint1
 
     packet_move_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = (packet_result)result;
-    out_packet.scene_index = scene_index;
+    out_packet.result = (packet_result)data.result;
+    out_packet.scene_index = data.scene_index;
 
     std::shared_ptr<Packet> move_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
     *move_packet << (void*)&out_packet;
@@ -72,7 +75,7 @@ bool MyServer::send_move(TcpConnection * connection, uint32_t scene_index, uint1
     return true;
 }
 
-bool MyServer::send_jump_forward(TcpConnection * connection, uint32_t scene_index, uint16_t result)
+bool MyServer::send_jump_forward(TcpConnection * connection, cppsocket_struct_server_send_jump_forward data)
 {
     packet_header header{};
     header.cmd = command_type::jump_forward;
@@ -80,8 +83,8 @@ bool MyServer::send_jump_forward(TcpConnection * connection, uint32_t scene_inde
 
     packet_jump_forward_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = (packet_result)result;
-    out_packet.scene_index = scene_index;
+    out_packet.result = (packet_result)data.result;
+    out_packet.scene_index = data.scene_index;
 
     std::shared_ptr<Packet> jump_forward_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
     *jump_forward_packet << (void*)&out_packet;
@@ -90,7 +93,7 @@ bool MyServer::send_jump_forward(TcpConnection * connection, uint32_t scene_inde
     return true;
 }
 
-bool MyServer::send_jump_backwards(TcpConnection * connection, uint32_t scene_index, uint16_t result)
+bool MyServer::send_jump_backwards(TcpConnection * connection, cppsocket_struct_server_send_jump_backwards data)
 {
     packet_header header{};
     header.cmd = command_type::jump_backwards;
@@ -98,8 +101,8 @@ bool MyServer::send_jump_backwards(TcpConnection * connection, uint32_t scene_in
 
     packet_jump_backwards_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = (packet_result)result;
-    out_packet.scene_index = scene_index;
+    out_packet.result = (packet_result)data.result;
+    out_packet.scene_index = data.scene_index;
 
     std::shared_ptr<Packet> jump_backwards_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
     *jump_backwards_packet << (void*)&out_packet;

@@ -9,6 +9,7 @@
 
 #include "CppSocketAPI.h"
 #include "PacketDefine.h"
+#include "ApiFunctionStructures.h"
 #pragma comment(lib, "CppSocket.lib")
 
 #include "CppFFmpegWrapperAPI.h"
@@ -370,7 +371,14 @@ void ffmpeg_processing_thread()
 
             if (data_command.connection != nullptr)
             {
-                cppsocket_server_send_play(_server, data_command.connection, data_command.scene_index, data_command.result);
+                cppsocket_struct_server_send_play data{};
+                data.scene_index = data_command.scene_index;
+                data.result = data_command.result;
+                data.rect = data_command.rect;
+                data.url_size = data_command.url_size;
+                memcpy(data.url, data_command.url, data_command.url_size);
+
+                cppsocket_server_send_play(_server, data_command.connection, data);
             }
         }
         break;
@@ -378,7 +386,11 @@ void ffmpeg_processing_thread()
         {
             if (data_command.connection != nullptr)
             {
-                cppsocket_server_send_pause(_server, data_command.connection, data_command.scene_index, data_command.result);
+                cppsocket_struct_server_send_pause data{};
+                data.scene_index = data_command.scene_index;
+                data.result = data_command.result;
+
+                cppsocket_server_send_pause(_server, data_command.connection, data);
             }
         }
         break;
@@ -396,7 +408,11 @@ void ffmpeg_processing_thread()
 
             if (data_command.connection != nullptr)
             {
-                cppsocket_server_send_stop(_server, data_command.connection, data_command.scene_index, data_command.result);
+                cppsocket_struct_server_send_stop data{};
+                data.scene_index = data_command.scene_index;
+                data.result = data_command.result;
+
+                cppsocket_server_send_stop(_server, data_command.connection, data);
             }
         }
         break;
@@ -409,7 +425,11 @@ void ffmpeg_processing_thread()
         {
             if (data_command.connection != nullptr)
             {
-                cppsocket_server_send_jump_forward(_server, data_command.connection, data_command.scene_index, data_command.result);
+                cppsocket_struct_server_send_jump_forward data{};
+                data.scene_index = data_command.scene_index;
+                data.result = data_command.result;
+
+                cppsocket_server_send_jump_forward(_server, data_command.connection, data);
             }
         }
         break;
@@ -417,7 +437,11 @@ void ffmpeg_processing_thread()
         {
             if (data_command.connection != nullptr)
             {
-                cppsocket_server_send_jump_backwards(_server, data_command.connection, data_command.scene_index, data_command.result);
+                cppsocket_struct_server_send_jump_backwards data{};
+                data.scene_index = data_command.scene_index;
+                data.result = data_command.result;
+
+                cppsocket_server_send_jump_backwards(_server, data_command.connection, data);
             }
         }
         break;
@@ -468,7 +492,14 @@ void tcp_processing_thread()
                 cpp_ffmpeg_wrapper_shutdown(ffmpeg_instance);
                 cpp_ffmpeg_wrapper_delete(ffmpeg_instance);
 
-                cppsocket_server_send_play(_server, data_pair.second, u32_invalid_id, (u16)packet_result::fail);
+                cppsocket_struct_server_send_play data{};
+                data.scene_index = u32_invalid_id;
+                data.result = (u16)packet_result::fail;
+                data.rect = packet->rect;
+                data.url_size = packet->url_size;
+                memcpy(data.url, packet->url, packet->url_size);
+
+                cppsocket_server_send_play(_server, data_pair.second, data);
                 break;
             }
 
@@ -489,7 +520,11 @@ void tcp_processing_thread()
             auto it = _ffmpeg_data_map.find(packet->scene_index);
             if (it == _ffmpeg_data_map.end())
             {
-                cppsocket_server_send_pause(_server, data_pair.second, packet->scene_index, (u16)packet_result::fail);
+                cppsocket_struct_server_send_pause data{};
+                data.scene_index = packet->scene_index;
+                data.result = (u16)packet_result::fail;
+
+                cppsocket_server_send_pause(_server, data_pair.second, data);
                 break;
             }
 
@@ -505,7 +540,11 @@ void tcp_processing_thread()
             auto it = _ffmpeg_data_map.find(packet->scene_index);
             if (it == _ffmpeg_data_map.end())
             {
-                cppsocket_server_send_stop(_server, data_pair.second, packet->scene_index, (u16)packet_result::fail);
+                cppsocket_struct_server_send_stop data{};
+                data.scene_index = packet->scene_index;
+                data.result = (u16)packet_result::fail;
+
+                cppsocket_server_send_stop(_server, data_pair.second, data);
                 break;
             }
 
@@ -521,7 +560,11 @@ void tcp_processing_thread()
             auto it = _ffmpeg_data_map.find(packet->scene_index);
             if (it == _ffmpeg_data_map.end())
             {
-                cppsocket_server_send_move(_server, data_pair.second, packet->scene_index, (u16)packet_result::fail);
+                cppsocket_struct_server_send_move data{};
+                data.scene_index = packet->scene_index;
+                data.result = (u16)packet_result::fail;
+
+                cppsocket_server_send_move(_server, data_pair.second, data);
                 break;
             }
 
@@ -535,7 +578,11 @@ void tcp_processing_thread()
             auto it = _ffmpeg_data_map.find(packet->scene_index);
             if (it == _ffmpeg_data_map.end())
             {
-                cppsocket_server_send_jump_forward(_server, data_pair.second, packet->scene_index, (u16)packet_result::fail);
+                cppsocket_struct_server_send_jump_forward data{};
+                data.scene_index = packet->scene_index;
+                data.result = (u16)packet_result::fail;
+
+                cppsocket_server_send_jump_forward(_server, data_pair.second, data);
                 break;
             }
 
@@ -551,7 +598,11 @@ void tcp_processing_thread()
             auto it = _ffmpeg_data_map.find(packet->scene_index);
             if (it == _ffmpeg_data_map.end())
             {
-                cppsocket_server_send_jump_backwards(_server, data_pair.second, packet->scene_index, (u16)packet_result::fail);
+                cppsocket_struct_server_send_jump_backwards data{};
+                data.scene_index = packet->scene_index;
+                data.result = (u16)packet_result::fail;
+
+                cppsocket_server_send_jump_backwards(_server, data_pair.second, data);
                 break;
             }
 

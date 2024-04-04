@@ -5,16 +5,18 @@
 
 #include "CallbackTypes.h"
 
+#include "ApiFunctionStructures.h"
+
 class MyClient : public Client
 {
 public:
-    bool send_play(RECT rect, const char* url, uint16_t url_size);
-    bool send_pause(uint32_t scene_index);
-    bool send_stop(uint32_t scene_index);
-    bool send_move(uint32_t scene_index, RECT rect);
+    bool send_play(cppsocket_struct_client_send_play data);
+    bool send_pause(cppsocket_struct_client_send_pause data);
+    bool send_stop(cppsocket_struct_client_send_stop data);
+    bool send_move(cppsocket_struct_client_send_move data);
 
-    bool send_forward(uint32_t scene_index);
-    bool send_backwards(uint32_t scene_index);
+    bool send_forward(cppsocket_struct_client_send_jump_forward data);
+    bool send_backwards(cppsocket_struct_client_send_jump_backwards data);
 
     void set_callback_data(CALLBACK_DATA cb) { callback_data = cb; }
 

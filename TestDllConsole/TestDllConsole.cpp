@@ -5,6 +5,7 @@
 
 #include "CppSocketAPI.h"
 #include "PacketDefine.h"
+#include "ApiFunctionStructures.h"
 
 #include "thread"
 
@@ -45,7 +46,14 @@ void callback_data_connection_server(void* data, void* connection)
         std::cout << "url_size: " << packet->url_size << ", ";
         std::cout << "url: " << packet->url << std::endl;
 
-        cppsocket_server_send_play(_server, connection, 0, (uint16_t)packet_result::ok);
+        cppsocket_struct_server_send_play data{};
+        data.scene_index = 0;
+        data.result = (uint16_t)packet_result::ok;
+        data.rect = packet->rect;
+        data.url_size = packet->url_size;
+        memcpy(data.url, packet->url, packet->url_size);
+
+        cppsocket_server_send_play(_server, connection, data);
 
         delete packet;
     }
@@ -60,7 +68,11 @@ void callback_data_connection_server(void* data, void* connection)
         std::cout << "packet size: " << packet->header.size << ", ";
         std::cout << "scene_index: " << packet->scene_index << std::endl;
 
-        cppsocket_server_send_pause(_server, connection, packet->scene_index, (uint16_t)packet_result::ok);
+        cppsocket_struct_server_send_pause data{};
+        data.scene_index = packet->scene_index;
+        data.result = (uint16_t)packet_result::ok;
+
+        cppsocket_server_send_pause(_server, connection, data);
 
         delete packet;
     }
@@ -75,7 +87,11 @@ void callback_data_connection_server(void* data, void* connection)
         std::cout << "packet size: " << packet->header.size << ", ";
         std::cout << "scene_index: " << packet->scene_index << std::endl;
 
-        cppsocket_server_send_stop(_server, connection, packet->scene_index, (uint16_t)packet_result::ok);
+        cppsocket_struct_server_send_stop data{};
+        data.scene_index = packet->scene_index;
+        data.result = (uint16_t)packet_result::ok;
+
+        cppsocket_server_send_stop(_server, connection, data);
 
         delete packet;
     }
@@ -95,7 +111,11 @@ void callback_data_connection_server(void* data, void* connection)
         std::cout << "packet size: " << packet->header.size << ", ";
         std::cout << "scene_index: " << packet->scene_index << std::endl;
 
-        cppsocket_server_send_jump_forward(_server, connection, packet->scene_index, (uint16_t)packet_result::ok);
+        cppsocket_struct_server_send_jump_forward data{};
+        data.scene_index = packet->scene_index;
+        data.result = (uint16_t)packet_result::ok;
+
+        cppsocket_server_send_jump_forward(_server, connection, data);
 
         delete packet;
     }
@@ -110,7 +130,11 @@ void callback_data_connection_server(void* data, void* connection)
         std::cout << "packet size: " << packet->header.size << ", ";
         std::cout << "scene_index: " << packet->scene_index << std::endl;
 
-        cppsocket_server_send_jump_backwards(_server, connection, packet->scene_index, (uint16_t)packet_result::ok);
+        cppsocket_struct_server_send_jump_backwards data{};
+        data.scene_index = packet->scene_index;
+        data.result = (uint16_t)packet_result::ok;
+
+        cppsocket_server_send_jump_backwards(_server, connection, data);
 
         delete packet;
     }
@@ -135,6 +159,12 @@ void callback_ptr_client(void* data)
         std::cout << "command_type: " << (uint16_t)packet->header.cmd << ", ";
         std::cout << "packet size: " << packet->header.size << ", ";
         std::cout << "scene_index: " << packet->scene_index << ", ";
+        std::cout << "rect.left: " << packet->rect.left << ", ";
+        std::cout << "rect.top: " << packet->rect.top << ", ";
+        std::cout << "rect.right: " << packet->rect.right << ", ";
+        std::cout << "rect.bottom: " << packet->rect.bottom << ", ";
+        std::cout << "url_size: " << packet->url_size << ", ";
+        std::cout << "url: " << packet->url << ", ";
         std::cout << "result: " << (uint16_t)packet->result << std::endl;
 
         delete packet;
@@ -234,6 +264,7 @@ void client_output_messages_step_1()
     std::cout << "3(move) (not implemented)" << std::endl;
     std::cout << "4(jump_forward)" << std::endl;
     std::cout << "5(jump_backwards)" << std::endl;
+    std::cout << "6(seek_repeat_self) (internal command type, not implemented)" << std::endl;
 
     std::cout << std::endl;
     std::cout << "input 99 to stop program" << std::endl;
@@ -370,7 +401,13 @@ int main()
                     {
                         std::this_thread::sleep_for(std::chrono::milliseconds(10));
                     }
-                    cppsocket_client_send_play(_client, rect, _url.c_str(), _url.size());
+
+                    cppsocket_struct_client_send_play data{};
+                    data.rect = rect;
+                    data.url_size = _url.size();
+                    data.url = _url.c_str();
+
+                    cppsocket_client_send_play(_client, data);
 
                     continue;
                 }
@@ -388,7 +425,12 @@ int main()
                     std::string url;
                     std::cin >> rect.left >> rect.top >> rect.right >> rect.bottom >> url;
 
-                    cppsocket_client_send_play(_client, rect, url.c_str(), url.size());
+                    cppsocket_struct_client_send_play data{};
+                    data.rect = rect;
+                    data.url_size = url.size();
+                    data.url = url.c_str();
+
+                    cppsocket_client_send_play(_client, data);
                 }
                 break;
                 case command_type::pause:
@@ -397,7 +439,11 @@ int main()
 
                     uint32_t scene_index;
                     std::cin >> scene_index;
-                    cppsocket_client_send_pause(_client, scene_index);
+
+                    cppsocket_struct_client_send_pause data{};
+                    data.scene_index = scene_index;
+
+                    cppsocket_client_send_pause(_client, data);
                 }
                 break;
                 case command_type::stop:
@@ -406,7 +452,11 @@ int main()
 
                     uint32_t scene_index;
                     std::cin >> scene_index;
-                    cppsocket_client_send_stop(_client, scene_index);
+
+                    cppsocket_struct_client_send_stop data{};
+                    data.scene_index = scene_index;
+
+                    cppsocket_client_send_stop(_client, data);
                 }
                 break;
                 case command_type::move:
@@ -420,7 +470,11 @@ int main()
 
                     uint32_t scene_index;
                     std::cin >> scene_index;
-                    cppsocket_client_send_jump_forward(_client, scene_index);
+
+                    cppsocket_struct_client_send_jump_forward data{};
+                    data.scene_index = scene_index;
+
+                    cppsocket_client_send_jump_forward(_client, data);
                 }
                 break;
                 case command_type::jump_backwards:
@@ -429,7 +483,11 @@ int main()
 
                     uint32_t scene_index;
                     std::cin >> scene_index;
-                    cppsocket_client_send_jump_backwards(_client, scene_index);
+
+                    cppsocket_struct_client_send_jump_backwards data{};
+                    data.scene_index = scene_index;
+
+                    cppsocket_client_send_jump_backwards(_client, data);
                 }
                 break;
                 default:

@@ -1,8 +1,8 @@
 #include "MyClient.h"
 
-bool MyClient::send_play(RECT rect, const char * url, uint16_t url_size)
+bool MyClient::send_play(cppsocket_struct_client_send_play data)
 {
-    if (url_size > 260)
+    if (data.url_size > 260)
     {
         return false;
     }
@@ -13,9 +13,9 @@ bool MyClient::send_play(RECT rect, const char * url, uint16_t url_size)
 
     packet_play_from_client packet{};
     packet.header = header;
-    packet.rect = rect;
-    packet.url_size = url_size;
-    memcpy(packet.url, url, url_size);
+    packet.rect = data.rect;
+    packet.url_size = data.url_size;
+    memcpy(packet.url, data.url, data.url_size);
 
     std::shared_ptr<Packet> play_packet = std::make_shared<Packet>(PacketType::structured_data_from_client);
     *play_packet << (void*)&packet;
@@ -24,7 +24,7 @@ bool MyClient::send_play(RECT rect, const char * url, uint16_t url_size)
     return true;
 }
 
-bool MyClient::send_pause(uint32_t scene_index)
+bool MyClient::send_pause(cppsocket_struct_client_send_pause data)
 {
     packet_header header{};
     header.cmd = command_type::pause;
@@ -32,7 +32,7 @@ bool MyClient::send_pause(uint32_t scene_index)
 
     packet_pause_from_client packet{};
     packet.header = header;
-    packet.scene_index = scene_index;
+    packet.scene_index = data.scene_index;
 
     std::shared_ptr<Packet> pause_packet = std::make_shared<Packet>(PacketType::structured_data_from_client);
     *pause_packet << (void*)&packet;
@@ -41,7 +41,7 @@ bool MyClient::send_pause(uint32_t scene_index)
     return true;
 }
 
-bool MyClient::send_stop(uint32_t scene_index)
+bool MyClient::send_stop(cppsocket_struct_client_send_stop data)
 {
     packet_header header{};
     header.cmd = command_type::stop;
@@ -49,7 +49,7 @@ bool MyClient::send_stop(uint32_t scene_index)
 
     packet_stop_from_client packet{};
     packet.header = header;
-    packet.scene_index = scene_index;
+    packet.scene_index = data.scene_index;
 
     std::shared_ptr<Packet> stop_packet = std::make_shared<Packet>(PacketType::structured_data_from_client);
     *stop_packet << (void*)&packet;
@@ -58,7 +58,7 @@ bool MyClient::send_stop(uint32_t scene_index)
     return true;
 }
 
-bool MyClient::send_move(uint32_t scene_index, RECT rect)
+bool MyClient::send_move(cppsocket_struct_client_send_move data)
 {
     packet_header header{};
     header.cmd = command_type::move;
@@ -66,8 +66,8 @@ bool MyClient::send_move(uint32_t scene_index, RECT rect)
 
     packet_move_from_client packet{};
     packet.header = header;
-    packet.scene_index = scene_index;
-    packet.rect = rect;
+    packet.scene_index = data.scene_index;
+    packet.rect = data.rect;
 
     std::shared_ptr<Packet> move_packet = std::make_shared<Packet>(PacketType::structured_data_from_client);
     *move_packet << (void*)&packet;
@@ -76,7 +76,7 @@ bool MyClient::send_move(uint32_t scene_index, RECT rect)
     return true;
 }
 
-bool MyClient::send_forward(uint32_t scene_index)
+bool MyClient::send_forward(cppsocket_struct_client_send_jump_forward data)
 {
     packet_header header{};
     header.cmd = command_type::jump_forward;
@@ -84,7 +84,7 @@ bool MyClient::send_forward(uint32_t scene_index)
 
     packet_jump_forward_from_client packet{};
     packet.header = header;
-    packet.scene_index = scene_index;
+    packet.scene_index = data.scene_index;
 
     std::shared_ptr<Packet> jump_forward_packet = std::make_shared<Packet>(PacketType::structured_data_from_client);
     *jump_forward_packet << (void*)&packet;
@@ -93,7 +93,7 @@ bool MyClient::send_forward(uint32_t scene_index)
     return true;
 }
 
-bool MyClient::send_backwards(uint32_t scene_index)
+bool MyClient::send_backwards(cppsocket_struct_client_send_jump_backwards data)
 {
     packet_header header{};
     header.cmd = command_type::jump_backwards;
@@ -101,7 +101,7 @@ bool MyClient::send_backwards(uint32_t scene_index)
 
     packet_jump_backwards_from_client packet{};
     packet.header = header;
-    packet.scene_index = scene_index;
+    packet.scene_index = data.scene_index;
 
     std::shared_ptr<Packet> jump_backwards_packet = std::make_shared<Packet>(PacketType::structured_data_from_client);
     *jump_backwards_packet << (void*)&packet;

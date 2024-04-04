@@ -5,16 +5,18 @@
 
 #include "CallbackTypes.h"
 
+#include "ApiFunctionStructures.h"
+
 class MyServer : public Server
 {
 public:
-    bool send_play(TcpConnection* connection, uint32_t scene_index, uint16_t result);
-    bool send_pause(TcpConnection* connection, uint32_t scene_index, uint16_t result);
-    bool send_stop(TcpConnection* connection, uint32_t scene_index, uint16_t result);
-    bool send_move(TcpConnection* connection, uint32_t scene_index, uint16_t result);
+    bool send_play(TcpConnection* connection, cppsocket_struct_server_send_play data);
+    bool send_pause(TcpConnection* connection, cppsocket_struct_server_send_pause data);
+    bool send_stop(TcpConnection* connection, cppsocket_struct_server_send_stop data);
+    bool send_move(TcpConnection* connection, cppsocket_struct_server_send_move data);
 
-    bool send_jump_forward(TcpConnection* connection, uint32_t scene_index, uint16_t result);
-    bool send_jump_backwards(TcpConnection* connection, uint32_t scene_index, uint16_t result);
+    bool send_jump_forward(TcpConnection* connection, cppsocket_struct_server_send_jump_forward data);
+    bool send_jump_backwards(TcpConnection* connection, cppsocket_struct_server_send_jump_backwards data);
 
     void set_callback_data_connection(CALLBACK_DATA_CONNECTION cb) { callback_data_connection = cb; }
 
