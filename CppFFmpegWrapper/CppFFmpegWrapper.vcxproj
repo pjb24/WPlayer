@@ -107,6 +107,7 @@
   <ItemGroup>
     <ClInclude Include="CallbackType.h" />
     <ClInclude Include="CommonHeaders.h" />
+    <ClInclude Include="CppFFmpegWrapperCallbackStruct.h" />
     <ClInclude Include="ErrorTypes.h" />
     <ClInclude Include="CppFFmpegWrapperAPI.h" />
     <ClInclude Include="FFmpegCore.h" />

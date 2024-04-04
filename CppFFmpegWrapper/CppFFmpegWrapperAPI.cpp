@@ -16,7 +16,7 @@ void cpp_ffmpeg_wrapper_delete(void * instance)
     delete core;
 }
 
-bool cpp_ffmpeg_wrapper_initialize(void * instance, CALLBACK_UINT32_UINT16_PTR_UINT16 cb)
+bool cpp_ffmpeg_wrapper_initialize(void * instance, CALLBACK_PTR cb)
 {
     FFmpegCore* core = (FFmpegCore*)instance;
     return core->initialize(cb);

@@ -2,7 +2,7 @@
 
 #include "FFmpegCore.h"
 
-bool FFmpegCore::initialize(CALLBACK_UINT32_UINT16_PTR_UINT16 cb)
+bool FFmpegCore::initialize(CALLBACK_PTR cb)
 {
     u32 packet_index = 0;
     u32 frame_index = 0;
@@ -147,7 +147,15 @@ void FFmpegCore::play_pause(void* connection)
         result = packet_result::pause;
     }
 
-    _callback_ffmpeg(_scene_index, (uint16_t)command_type::pause, connection, (uint16_t)result);
+    ffmpeg_wrapper_callback_data* data = new ffmpeg_wrapper_callback_data();
+    data->scene_index = _scene_index;
+    data->command = (u16)command_type::pause;
+    data->connection = connection;
+    data->result = (u16)result;
+
+    _callback_ffmpeg(data);
+
+    delete data;
 }
 
 void FFmpegCore::play_stop(void* connection)
@@ -176,7 +184,15 @@ void FFmpegCore::play_stop(void* connection)
         _decode_thread.join();
     }
 
-    _callback_ffmpeg(_scene_index, (uint16_t)command_type::stop, connection, (uint16_t)packet_result::ok);
+    ffmpeg_wrapper_callback_data* data = new ffmpeg_wrapper_callback_data();
+    data->scene_index = _scene_index;
+    data->command = (u16)command_type::stop;
+    data->connection = connection;
+    data->result = (u16)packet_result::ok;
+
+    _callback_ffmpeg(data);
+
+    delete data;
 }
 
 void FFmpegCore::jump_forward(void* connection)
@@ -196,7 +212,15 @@ void FFmpegCore::jump_forward(void* connection)
 
     seek_pts(pts);
 
-    _callback_ffmpeg(_scene_index, (uint16_t)command_type::jump_forward, connection, (uint16_t)packet_result::ok);
+    ffmpeg_wrapper_callback_data* data = new ffmpeg_wrapper_callback_data();
+    data->scene_index = _scene_index;
+    data->command = (u16)command_type::jump_forward;
+    data->connection = connection;
+    data->result = (u16)packet_result::ok;
+
+    _callback_ffmpeg(data);
+
+    delete data;
 }
 
 void FFmpegCore::jump_backwards(void* connection)
@@ -216,7 +240,15 @@ void FFmpegCore::jump_backwards(void* connection)
 
     seek_pts(pts);
 
-    _callback_ffmpeg(_scene_index, (uint16_t)command_type::jump_backwards, connection, (uint16_t)packet_result::ok);
+    ffmpeg_wrapper_callback_data* data = new ffmpeg_wrapper_callback_data();
+    data->scene_index = _scene_index;
+    data->command = (u16)command_type::jump_backwards;
+    data->connection = connection;
+    data->result = (u16)packet_result::ok;
+
+    _callback_ffmpeg(data);
+
+    delete data;
 }
 
 s32 FFmpegCore::get_frame(AVFrame *& frame)
@@ -499,7 +531,22 @@ void FFmpegCore::decode()
                 {
                     _first_decode = false;
 
-                    _callback_ffmpeg(_scene_index, (uint16_t)command_type::play, _connection_play_start, (uint16_t)packet_result::ok);
+                    ffmpeg_wrapper_callback_data* data = new ffmpeg_wrapper_callback_data();
+                    data->scene_index = _scene_index;
+                    data->command = (u16)command_type::play;
+                    data->connection = _connection_play_start;
+                    data->result = (u16)packet_result::ok;
+
+                    data->rect = _rect;
+                    memcpy(data->url, _file_path.c_str(), _file_path.size());
+                    data->url_size = _file_path.size();
+
+                    data->sync_group_index = _sync_group_index;
+                    data->sync_group_count = _sync_group_count;
+
+                    _callback_ffmpeg(data);
+
+                    delete data;
                     
                     _duration_frame = frame->duration;
                     _duration_frame_half = _duration_frame * _time_base_d * 1'000.0f / 2;

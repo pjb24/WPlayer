@@ -5,7 +5,7 @@
 class FFmpegCore
 {
 public:
-    bool initialize(CALLBACK_UINT32_UINT16_PTR_UINT16 cb);
+    bool initialize(CALLBACK_PTR cb);
     void shutdown();
 
     int open_file();
@@ -21,6 +21,9 @@ public:
     s32 frame_to_next();
 
     void scene_index(u32 scene_index) { _scene_index = scene_index; }
+    void rect(RECT rect) { _rect = rect; }
+    void sync_group_index(u32 sync_group_index) { _sync_group_index = sync_group_index; }
+    void sync_group_count(u16 sync_group_count) { _sync_group_count = sync_group_count; }
     void file_path(std::string path) { _file_path = path; }
 
     void seek_pts(s64 pts);
@@ -103,8 +106,12 @@ private:
     std::mutex          _play_mutex;
 
 
-    CALLBACK_UINT32_UINT16_PTR_UINT16 _callback_ffmpeg = nullptr;
-    u32 _scene_index = 0;
+    CALLBACK_PTR _callback_ffmpeg = nullptr;
+    u32 _scene_index = u32_invalid_id;
+    RECT _rect = { 0, 0, 0, 0 };
+    u32 _sync_group_index = u32_invalid_id;
+    u16 _sync_group_count = u16_invalid_id;
+    u16 _url_size = 0;
 
 #pragma region Scale
     void scale(AVFrame* frame);

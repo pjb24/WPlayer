@@ -24,3 +24,5 @@ constexpr u32 _jump_length = 5000;  // milliseconds
 constexpr u32 _sleep_time = 10;
 
 #include "ErrorTypes.h"
+
+#include "CppFFmpegWrapperCallbackStruct.h"

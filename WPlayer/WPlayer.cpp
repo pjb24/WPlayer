@@ -12,6 +12,7 @@
 #pragma comment(lib, "CppSocket.lib")
 
 #include "CppFFmpegWrapperAPI.h"
+#include "CppFFmpegWrapperCallbackStruct.h"
 #pragma comment(lib, "CppFFmpegWrapper.lib")
 
 #include "nvapi.h"
@@ -309,13 +310,7 @@ void callback_data_connection_server(void* data, void* connection);
 
 
 #pragma region FFmpegWrapper
-struct FFmpegProcessingCommand
-{
-    u32 scene_index = u32_invalid_id;
-    u16 command;
-    void* connection = nullptr;
-    u16 result = (u16)packet_result::ok;
-};
+using FFmpegProcessingCommand = ffmpeg_wrapper_callback_data;
 
 // CppFFmpegWrapper의 콜백 명령 저장 큐
 std::deque<FFmpegProcessingCommand> _ffmpeg_processing_command_queue;
@@ -329,7 +324,7 @@ bool _ffmpeg_processing_flag = true;
 std::mutex _ffmpeg_data_mutex;  // _ffmpeg_data_map의 mutex
 
 void ffmpeg_processing_thread();
-void callback_ffmpeg_wrapper_uint32_uint16_ptr_uint16(u32 scene_index, u16 command, void* connection, u16 result);
+void callback_ffmpeg_wrapper_ptr(void* param);
 
 void delete_ffmpeg_instances();
 #pragma endregion
@@ -359,6 +354,8 @@ void ffmpeg_processing_thread()
         {
         case command_type::play:
         {
+            // Decoding이 완료되면 수신함.
+
             for (auto it = _graphics_insert_list.begin(); it != _graphics_insert_list.end();)
             {
                 if ((*it)->scene_index == data_command.scene_index)
@@ -460,7 +457,7 @@ void tcp_processing_thread()
             packet_play_from_client* packet = (packet_play_from_client*)data_pair.first;
             ffmpeg_instance = cpp_ffmpeg_wrapper_create();
 
-            cpp_ffmpeg_wrapper_initialize(ffmpeg_instance, callback_ffmpeg_wrapper_uint32_uint16_ptr_uint16);
+            cpp_ffmpeg_wrapper_initialize(ffmpeg_instance, callback_ffmpeg_wrapper_ptr);
             cpp_ffmpeg_wrapper_set_file_path(ffmpeg_instance, packet->url);
             if (cpp_ffmpeg_wrapper_open_file(ffmpeg_instance) != 0)
             {
@@ -1597,7 +1594,7 @@ u32 create_vertex_buffer(graphics_data* data, s32 vertex_index, NormalizedRect n
 
     ID3D12Resource* vertex_buffer = nullptr;
     ID3D12Resource* vertex_upload_buffer = nullptr;
-    D3D12_VERTEX_BUFFER_VIEW vertex_buffer_view;
+    D3D12_VERTEX_BUFFER_VIEW vertex_buffer_view{};
 
     Vertex vertices[] = 
     {
@@ -2141,7 +2138,7 @@ u32 populate_command_list(graphics_data* data)
                     // eof
                     if (_repeat_play_flag == true)
                     {
-                        packet_seek_repeat_self temp_packet;
+                        packet_seek_repeat_self temp_packet{};
                         temp_packet.scene_index = scene->scene_index;
                         temp_packet.header.cmd = command_type::seek_repeat_self;
                         temp_packet.header.size = sizeof(packet_seek_repeat_self);
@@ -3024,9 +3021,31 @@ void server_thread()
 /// 
 /// </summary>
 /// <param name="index"> scene index </param>
-void callback_ffmpeg_wrapper_uint32_uint16_ptr_uint16(u32 scene_index, u16 command, void* connection, u16 result)
+void callback_ffmpeg_wrapper_ptr(void* param)
 {
-    _ffmpeg_processing_command_queue.push_back({ scene_index, command, connection, result });
+    // decode 된 상태인지 확인하는 ffmpeg wrapper api
+    // command가 play인 param이 오면 디코딩이 완료된 것
+
+    ffmpeg_wrapper_callback_data* param_data = (ffmpeg_wrapper_callback_data*)param;
+
+    FFmpegProcessingCommand data{};
+
+    data.scene_index = param_data->scene_index;
+    data.command = param_data->command;
+    data.connection = param_data->connection;
+    data.result = param_data->result;
+
+    data.rect = param_data->rect;
+    if (param_data->url_size != u16_invalid_id)
+    {
+        memcpy(data.url, param_data->url, param_data->url_size);
+    }
+    data.url_size = param_data->url_size;
+
+    data.sync_group_index = param_data->sync_group_index;
+    data.sync_group_count = param_data->sync_group_count;
+
+    _ffmpeg_processing_command_queue.push_back(data);
 }
 
 void delete_ffmpeg_instances()
@@ -3556,7 +3575,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 //
 ATOM MyRegisterClass(HINSTANCE hInstance)
 {
-    WNDCLASSEXW wcex;
+    WNDCLASSEXW wcex{};
 
     wcex.cbSize = sizeof(WNDCLASSEX);
 
