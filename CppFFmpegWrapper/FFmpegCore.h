@@ -27,7 +27,12 @@ public:
     void sync_group_time_started() { _time_started = 0.0f; }
     void file_path(std::string path) { _file_path = path; }
 
+    void sync_group_repeat_pause() { _sync_group_repeat_pause = true; _sync_group_repeat_pause_check = true; }
+    void sync_group_repeat_continue() { _sync_group_repeat_pause = false; }
+
     void seek_pts(s64 pts);
+
+    void check_sync_group_repeat();
 
 private:
 
@@ -113,6 +118,9 @@ private:
     u32 _sync_group_index = u32_invalid_id;
     u16 _sync_group_count = 0;
     u16 _url_size = 0;
+
+    bool _sync_group_repeat_pause = false;
+    bool _sync_group_repeat_pause_check = false;
 
 #pragma region Scale
     void scale(AVFrame* frame);

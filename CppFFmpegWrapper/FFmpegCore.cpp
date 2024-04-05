@@ -274,6 +274,11 @@ s32 FFmpegCore::get_frame(AVFrame *& frame)
 
 s32 FFmpegCore::frame_to_next()
 {
+    if (_sync_group_repeat_pause == true)
+    {
+        return error_type::use_previous_frame;
+    }
+
     std::lock_guard<std::mutex> lock(_frame_mutex);
 
     if (is_empty_frame_queue())
@@ -561,6 +566,27 @@ void FFmpegCore::decode()
                     _duration_frame_half = _duration_frame * _time_base_d * 1'000.0f / 2;
                 }
 
+                if (_sync_group_repeat_pause == true)
+                {
+                    if (_sync_group_repeat_pause_check == true)
+                    {
+                        _sync_group_repeat_pause_check = false;
+
+                        ffmpeg_wrapper_callback_data* data = new ffmpeg_wrapper_callback_data();
+                        data->scene_index = _scene_index;
+                        data->command = (u16)command_type::seek_repeat_self_sync_group;
+                        data->connection = _connection_play_start;
+                        data->result = (u16)packet_result::ok;
+
+                        data->sync_group_index = _sync_group_index;
+                        data->sync_group_count = _sync_group_count;
+
+                        _callback_ffmpeg(data);
+
+                        delete data;
+                    }
+                }
+
                 while (true)
                 {
                     result = input_frame(frame);
@@ -708,6 +734,16 @@ void FFmpegCore::seek_pts(s64 pts)
 
     _seek_condition_reader.notify_one();
     _seek_condition_decoder.notify_one();
+}
+
+void FFmpegCore::check_sync_group_repeat()
+{
+    if (_sync_group_index == u32_invalid_id)
+    {
+        return;
+    }
+
+    sync_group_repeat_pause();
 }
 
 void FFmpegCore::set_timestamp(s64 pts)
