@@ -478,8 +478,8 @@ void ffmpeg_processing_thread()
             }
             else
             {
+                it->second.sync_group_input_count++;
                 sync_group_counter = it->second;
-                sync_group_counter.sync_group_input_count++;
             }
 
             if (sync_group_counter.sync_group_count == sync_group_counter.sync_group_input_count)
@@ -512,6 +512,7 @@ void ffmpeg_processing_thread()
                 data.result = data_command.result;
                 data.rect = data_command.rect;
                 data.sync_group_index = data_command.sync_group_index;
+                data.sync_group_count = sync_group_counter.sync_group_input_count;
                 data.url_size = data_command.url_size;
                 memcpy(data.url, data_command.url, data_command.url_size);
 
