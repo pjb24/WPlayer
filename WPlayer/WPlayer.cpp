@@ -349,6 +349,7 @@ struct SyncGroupCounter
 
 std::map<u32, SyncGroupCounter> _sync_group_counter_map_play;
 std::map<u32, SyncGroupCounter> _sync_group_counter_map_repeat;
+std::map<u32, SyncGroupCounter> _sync_group_counter_map_stop;
 #pragma endregion
 
 void config_setting();
@@ -536,14 +537,51 @@ void ffmpeg_processing_thread()
         break;
         case command_type::stop_sync_group:
         {
+            SyncGroupCounter sync_group_counter{};
 
-            if (data_command.connection != nullptr)
+            std::map<u32, SyncGroupCounter>::iterator it = _sync_group_counter_map_stop.find(data_command.sync_group_index);
+            if (it == _sync_group_counter_map_stop.end())
             {
-                cppsocket_struct_server_send_stop_sync_group data{};
-                data.result = data_command.result;
-                data.sync_group_index = data_command.sync_group_index;
+                break;
+            }
+            
+            it->second.sync_group_input_count++;
+            sync_group_counter = it->second;
 
-                cppsocket_server_send_stop_sync_group(_server, data_command.connection, data);
+            if (sync_group_counter.sync_group_count == sync_group_counter.sync_group_input_count)
+            {
+                if (data_command.connection != nullptr)
+                {
+                    cppsocket_struct_server_send_stop_sync_group data{};
+                    data.result = data_command.result;
+                    data.sync_group_index = data_command.sync_group_index;
+
+                    cppsocket_server_send_stop_sync_group(_server, data_command.connection, data);
+                }
+
+                void* ffmpeg_instance = nullptr;
+                {
+                    std::lock_guard<std::mutex> lock(_ffmpeg_data_mutex);
+
+                    auto it = _ffmpeg_data_map.begin();
+                    for (; it != _ffmpeg_data_map.end();)
+                    {
+                        if (it->second.sync_group_index == data_command.sync_group_index)
+                        {
+                            ffmpeg_instance = it->second.ffmpeg_instance;
+                            cpp_ffmpeg_wrapper_shutdown(ffmpeg_instance);
+                            cpp_ffmpeg_wrapper_delete(ffmpeg_instance);
+                            delete_scene_data(it->first);
+                            it = _ffmpeg_data_map.erase(it);
+                        }
+                        else
+                        {
+                            it++;
+                        }
+                    }
+                }
+
+                _sync_group_counter_map_stop.erase(data_command.sync_group_index);
             }
         }
         break;
@@ -823,7 +861,39 @@ void tcp_processing_thread()
         break;
         case command_type::stop_sync_group:
         {
+            std::lock_guard<std::mutex> lock(_ffmpeg_data_mutex);
 
+            packet_stop_sync_group_from_client* packet = (packet_stop_sync_group_from_client*)data_pair.first;
+
+            SyncGroupCounter sync_group_counter{};
+
+            auto it = _ffmpeg_data_map.begin();
+            for (; it != _ffmpeg_data_map.end(); it++)
+            {
+                if (it->second.sync_group_index == packet->sync_group_index)
+                {
+                    auto it_sync_group_stop = _sync_group_counter_map_stop.find(packet->sync_group_index);
+                    if (it_sync_group_stop == _sync_group_counter_map_stop.end())
+                    {
+                        sync_group_counter.sync_group_count = it->second.sync_group_count;
+                        _sync_group_counter_map_stop.insert({ packet->sync_group_index, sync_group_counter });
+                    }
+                    
+                    ffmpeg_instance = it->second.ffmpeg_instance;
+
+                    cpp_ffmpeg_wrapper_play_stop(ffmpeg_instance, data_pair.second);
+                }
+            }
+
+            if (sync_group_counter.sync_group_count == 0)
+            {
+                cppsocket_struct_server_send_stop_sync_group data{};
+                data.sync_group_index = packet->sync_group_index;
+                data.result = (u16)packet_result::fail;
+
+                cppsocket_server_send_stop_sync_group(_server, data_pair.second, data);
+                break;
+            }
         }
         break;
         default:

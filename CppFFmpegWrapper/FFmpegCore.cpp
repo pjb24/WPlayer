@@ -186,7 +186,18 @@ void FFmpegCore::play_stop(void* connection)
 
     ffmpeg_wrapper_callback_data* data = new ffmpeg_wrapper_callback_data();
     data->scene_index = _scene_index;
-    data->command = (u16)command_type::stop;
+
+    if (_sync_group_index != u32_invalid_id)
+    {
+        data->command = (u16)command_type::stop_sync_group;
+        data->sync_group_index = _sync_group_index;
+        data->sync_group_count = _sync_group_count;
+    }
+    else
+    {
+        data->command = (u16)command_type::stop;
+    }
+
     data->connection = connection;
     data->result = (u16)packet_result::ok;
 
