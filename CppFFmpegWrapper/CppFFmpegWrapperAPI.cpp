@@ -70,6 +70,12 @@ void cpp_ffmpeg_wrapper_set_sync_group_repeat_continue(void* instance)
     core->sync_group_repeat_continue();
 }
 
+void cpp_ffmpeg_wrapper_set_sync_group_frame_numbering(void* instance)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->sync_group_frame_numbering();
+}
+
 void cpp_ffmpeg_wrapper_set_file_path(void * instance, char * url)
 {
     FFmpegCore* core = (FFmpegCore*)instance;
@@ -132,4 +138,10 @@ void cpp_ffmpeg_wrapper_jump_backwards(void * instance, void* connection)
 {
     FFmpegCore* core = (FFmpegCore*)instance;
     core->jump_backwards(connection);
+}
+
+void cpp_ffmpeg_wrapper_frame_numbering(void* instance)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->frame_numbering();
 }

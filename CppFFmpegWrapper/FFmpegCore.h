@@ -30,9 +30,12 @@ public:
     void sync_group_repeat_pause() { _sync_group_repeat_pause = true; _sync_group_repeat_pause_check = true; }
     void sync_group_repeat_continue() { _sync_group_repeat_pause = false; }
 
+    void sync_group_frame_numbering();
+
     void seek_pts(s64 pts);
 
     void check_sync_group_repeat();
+    void frame_numbering();
 
 private:
 
@@ -48,6 +51,11 @@ private:
     bool    _first_decode = false;
     int64_t _previous_frame_pts = 0;
     double _time_started = 0.0f;
+    
+    bool _sync_group_frame_numbering = false;
+
+    uint32_t _frame_numbering = 0;  // sync_group_frame_numbering 호출되면 올라감
+    uint32_t _frame_count = 0;  // 다음 frame으로 이동할 때 올라감
 
 #pragma region Read
     void read();

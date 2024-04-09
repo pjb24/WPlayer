@@ -52,6 +52,9 @@ int _create_one_swapchain_for_each_adapter_without_control_output_excluded_windo
 int _create_one_swapchain_for_each_adapter_without_control_output_excluded_window_right = 0;
 int _create_one_swapchain_for_each_adapter_without_control_output_excluded_window_bottom = 0;
 
+// play_sync_group 명령을 수행할 때 Frame의 번호를 맞추어서 재생하도록 하는 Flag. 0: 사용 안함, 1 : 사용함
+bool _sync_group_frame_numbering = false;
+
 std::string _ip;
 uint16_t _port;
 
@@ -351,6 +354,14 @@ struct SyncGroupCounter
 std::map<u32, SyncGroupCounter> _sync_group_counter_map_play;
 std::map<u32, SyncGroupCounter> _sync_group_counter_map_repeat;
 std::map<u32, SyncGroupCounter> _sync_group_counter_map_stop;
+
+struct FrameSyncData
+{
+    std::map<u32, u32> inner_map;   // key: scene_index, value: scene에 대한 frame 번호
+    u32 frame_number = 0;   // sync_group에 대한 번호
+};
+
+std::map<u32, FrameSyncData> _sync_group_counter_map_frame_numbering;   // key: sync_group_index
 #pragma endregion
 
 void config_setting();
@@ -630,6 +641,59 @@ void ffmpeg_processing_thread()
             }
         }
         break;
+        case command_type::sync_group_frame_numbering:
+        {
+            std::map<u32, FrameSyncData>::iterator it = _sync_group_counter_map_frame_numbering.find(data_command.sync_group_index);
+            if (it == _sync_group_counter_map_frame_numbering.end())
+            {
+                FrameSyncData frame_sync_data;
+                frame_sync_data.frame_number = 0;
+                frame_sync_data.inner_map.insert({ data_command.scene_index, 0 });
+                _sync_group_counter_map_frame_numbering.insert({ data_command.sync_group_index, frame_sync_data });
+            }
+            else
+            {
+                FrameSyncData* frame_sync_data = &it->second;
+                std::map<u32, u32>::iterator it_inner_map = frame_sync_data->inner_map.find(data_command.scene_index);
+                if (it_inner_map == frame_sync_data->inner_map.end())
+                {
+                    frame_sync_data->inner_map.insert({ data_command.scene_index, 0 });
+                }
+                else
+                {
+                    it_inner_map->second++;
+                }
+
+                u32 temp_count = 0;
+
+                // key: scene_index, value: scene에 대한 frame 번호
+                auto it_counter = frame_sync_data->inner_map.begin();
+                for (; it_counter != frame_sync_data->inner_map.end(); it_counter++)
+                {
+                    if (frame_sync_data->frame_number <= it_counter->second)
+                    {
+                        temp_count++;
+                    }
+                }
+
+                if (temp_count == data_command.sync_group_count)
+                {
+                    frame_sync_data->frame_number++;
+
+                    std::lock_guard<std::mutex> lock(_ffmpeg_data_mutex);
+
+                    auto it_ffmpeg_data = _ffmpeg_data_map.begin();
+                    for (; it_ffmpeg_data != _ffmpeg_data_map.end(); it_ffmpeg_data++)
+                    {
+                        if (it_ffmpeg_data->second.sync_group_index == data_command.sync_group_index)
+                        {
+                            cpp_ffmpeg_wrapper_frame_numbering(it_ffmpeg_data->second.ffmpeg_instance);
+                        }
+                    }
+                }
+            }
+        }
+        break;
         default:
             break;
         }
@@ -865,6 +929,11 @@ void tcp_processing_thread()
             cpp_ffmpeg_wrapper_set_rect(ffmpeg_instance, packet->rect);
             cpp_ffmpeg_wrapper_set_sync_group_index(ffmpeg_instance, packet->sync_group_index);
             cpp_ffmpeg_wrapper_set_sync_group_count(ffmpeg_instance, packet->sync_group_count);
+
+            if (_sync_group_frame_numbering == true)
+            {
+                cpp_ffmpeg_wrapper_set_sync_group_frame_numbering(ffmpeg_instance);
+            }
 
             cpp_ffmpeg_wrapper_play_start(ffmpeg_instance, data_pair.second);
         }
@@ -3657,6 +3726,10 @@ void config_setting()
     GetPrivateProfileString(L"WPlayer", L"create_one_swapchain_for_each_adapter_without_control_output_excluded_window_bottom", L"0", result_w, 255, str_ini_path_w.c_str());
     result_i = _ttoi(result_w);
     _create_one_swapchain_for_each_adapter_without_control_output_excluded_window_bottom = result_i;
+
+    GetPrivateProfileString(L"WPlayer", L"sync_group_frame_numbering", L"0", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _sync_group_frame_numbering = result_i == 0 ? false : true;
 }
 
 #define MAX_LOADSTRING 100

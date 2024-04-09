@@ -35,6 +35,8 @@ enum class command_type : uint16_t
     stop_sync_group,    // 9
     seek_repeat_self_sync_group,    // 10
 
+    sync_group_frame_numbering,     // 11
+
     invalid = u16_invalid_id
 };
 

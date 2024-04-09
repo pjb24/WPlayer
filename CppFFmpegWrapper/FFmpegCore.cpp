@@ -290,6 +290,14 @@ s32 FFmpegCore::frame_to_next()
         return error_type::use_previous_frame;
     }
 
+    if (_sync_group_frame_numbering == true && _sync_group_index != u32_invalid_id)
+    {
+        if (_frame_numbering < _frame_count)
+        {
+            return error_type::use_previous_frame;
+        }
+    }
+
     std::lock_guard<std::mutex> lock(_frame_mutex);
 
     if (is_empty_frame_queue())
@@ -333,6 +341,11 @@ s32 FFmpegCore::frame_to_next()
 
     av_frame_unref(_frame_queue[_output_frame_index]);
     _output_frame_index = (_output_frame_index + 1) % _frame_queue_size;
+
+    if (_sync_group_frame_numbering == true && _sync_group_index != u32_invalid_id)
+    {
+        _frame_count++;
+    }
 
     return error_type::ok;
 }
@@ -603,6 +616,22 @@ void FFmpegCore::decode()
                     result = input_frame(frame);
                     if (result == error_type::ok)
                     {
+                        if (_sync_group_frame_numbering == true && _sync_group_index != u32_invalid_id)
+                        {
+                            ffmpeg_wrapper_callback_data* data = new ffmpeg_wrapper_callback_data();
+                            data->scene_index = _scene_index;
+                            data->command = (u16)command_type::sync_group_frame_numbering;
+                            data->connection = _connection_play_start;
+                            data->result = (u16)packet_result::ok;
+
+                            data->sync_group_index = _sync_group_index;
+                            data->sync_group_count = _sync_group_count;
+
+                            _callback_ffmpeg(data);
+
+                            delete data;
+                        }
+
                         break;
                     }
                     else if (_seek_flag)
@@ -694,6 +723,11 @@ void FFmpegCore::play_continue()
     _pause_flag = false;
 }
 
+void FFmpegCore::sync_group_frame_numbering()
+{
+    _sync_group_frame_numbering = true;
+}
+
 void FFmpegCore::seek_pts(s64 pts)
 {
     if (_read_flag == false && _decode_flag == false)
@@ -755,6 +789,11 @@ void FFmpegCore::check_sync_group_repeat()
     }
 
     sync_group_repeat_pause();
+}
+
+void FFmpegCore::frame_numbering()
+{
+    _frame_numbering++;
 }
 
 void FFmpegCore::set_timestamp(s64 pts)
