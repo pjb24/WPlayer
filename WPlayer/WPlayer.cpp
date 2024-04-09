@@ -354,6 +354,7 @@ struct SyncGroupCounter
 std::map<u32, SyncGroupCounter> _sync_group_counter_map_play;
 std::map<u32, SyncGroupCounter> _sync_group_counter_map_repeat;
 std::map<u32, SyncGroupCounter> _sync_group_counter_map_stop;
+std::mutex  _sync_group_counter_mutex_stop;
 
 struct FrameSyncData
 {
@@ -556,6 +557,8 @@ void ffmpeg_processing_thread()
         break;
         case command_type::stop_sync_group:
         {
+            std::lock_guard<std::mutex> lk(_sync_group_counter_mutex_stop);
+
             SyncGroupCounter sync_group_counter{};
 
             std::map<u32, SyncGroupCounter>::iterator it = _sync_group_counter_map_stop.find(data_command.sync_group_index);
@@ -956,6 +959,8 @@ void tcp_processing_thread()
             {
                 if (it->second.sync_group_index == packet->sync_group_index)
                 {
+                    std::lock_guard<std::mutex> lk(_sync_group_counter_mutex_stop);
+
                     auto it_sync_group_stop = _sync_group_counter_map_stop.find(packet->sync_group_index);
                     if (it_sync_group_stop == _sync_group_counter_map_stop.end())
                     {
