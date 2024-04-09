@@ -327,6 +327,7 @@ struct FFmpegInstanceData
 
 // CppFFmpegWrapper의 콜백 명령 저장 큐
 std::deque<FFmpegProcessingCommand> _ffmpeg_processing_command_queue;
+std::mutex _ffmpeg_processing_mutex;    // _ffmpeg_processing_command_queue의 mutex
 
 constexpr u32 _sleep_time_ffmpeg_processing = 10;
 
@@ -359,7 +360,14 @@ void ffmpeg_processing_thread()
 {
     while (_ffmpeg_processing_flag)
     {
-        if (_ffmpeg_processing_command_queue.empty())
+        bool ffmpeg_processing_command_queue_is_empty = false;
+
+        {
+            std::lock_guard<std::mutex> lk(_ffmpeg_processing_mutex);
+            ffmpeg_processing_command_queue_is_empty = _ffmpeg_processing_command_queue.empty();
+        }
+
+        if (ffmpeg_processing_command_queue_is_empty)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time_ffmpeg_processing));
             continue;
@@ -367,7 +375,7 @@ void ffmpeg_processing_thread()
 
         FFmpegProcessingCommand data_command;
         {
-            std::lock_guard<std::mutex> lk(_ffmpeg_data_mutex);
+            std::lock_guard<std::mutex> lk(_ffmpeg_processing_mutex);
             data_command = _ffmpeg_processing_command_queue.front();
             _ffmpeg_processing_command_queue.pop_front();
         }
