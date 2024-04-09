@@ -641,7 +641,14 @@ void tcp_processing_thread()
 {
     while (_tcp_processing_flag)
     {
-        if (_tcp_processing_command_queue.empty())
+
+        bool tcp_processing_command_is_empty = false;
+        {
+            std::lock_guard<std::mutex> lk(_tcp_processing_mutex);
+            tcp_processing_command_is_empty = _tcp_processing_command_queue.empty();
+        }
+
+        if (tcp_processing_command_is_empty)
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time_tcp_processing));
             continue;
