@@ -58,18 +58,6 @@ void cpp_ffmpeg_wrapper_set_sync_group_time_started(void* instance)
     core->sync_group_time_started();
 }
 
-void cpp_ffmpeg_wrapper_set_sync_group_repeat_pause(void* instance)
-{
-    FFmpegCore* core = (FFmpegCore*)instance;
-    core->sync_group_repeat_pause();
-}
-
-void cpp_ffmpeg_wrapper_set_sync_group_repeat_continue(void* instance)
-{
-    FFmpegCore* core = (FFmpegCore*)instance;
-    core->sync_group_repeat_continue();
-}
-
 void cpp_ffmpeg_wrapper_set_sync_group_frame_numbering(void* instance)
 {
     FFmpegCore* core = (FFmpegCore*)instance;
@@ -124,7 +112,6 @@ int32_t cpp_ffmpeg_wrapper_frame_to_next(void * instance)
 void cpp_ffmpeg_wrapper_seek_pts(void * instance, int64_t pts)
 {
     FFmpegCore* core = (FFmpegCore*)instance;
-    core->check_sync_group_repeat();
     core->seek_pts(pts);
 }
 

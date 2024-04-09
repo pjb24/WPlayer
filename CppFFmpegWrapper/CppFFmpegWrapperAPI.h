@@ -35,9 +35,6 @@ EXPORT void cpp_ffmpeg_wrapper_set_sync_group_count(void* instance, uint16_t syn
 
 EXPORT void cpp_ffmpeg_wrapper_set_sync_group_time_started(void* instance);
 
-EXPORT void cpp_ffmpeg_wrapper_set_sync_group_repeat_pause(void* instance);
-EXPORT void cpp_ffmpeg_wrapper_set_sync_group_repeat_continue(void* instance);
-
 EXPORT void cpp_ffmpeg_wrapper_set_sync_group_frame_numbering(void* instance);
 
 EXPORT void cpp_ffmpeg_wrapper_set_file_path(void* instance, char* url);

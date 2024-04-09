@@ -33,7 +33,6 @@ enum class command_type : uint16_t
     play_sync_group,    // 7
     pause_sync_group,   // 8
     stop_sync_group,    // 9
-    seek_repeat_self_sync_group,    // 10
 
     sync_group_frame_numbering,     // 11
 

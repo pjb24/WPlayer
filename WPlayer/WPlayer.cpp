@@ -326,6 +326,7 @@ struct FFmpegInstanceData
     uint32_t sync_group_index = u32_invalid_id;
     uint16_t sync_group_count = 0;
     bool render_ready = false;
+    bool repeat_command_send_flag = false;
 };
 
 // CppFFmpegWrapper의 콜백 명령 저장 큐
@@ -607,43 +608,6 @@ void ffmpeg_processing_thread()
             }
         }
         break;
-        case command_type::seek_repeat_self_sync_group:
-        {
-            SyncGroupCounter sync_group_counter{};
-
-            std::map<u32, SyncGroupCounter>::iterator it = _sync_group_counter_map_repeat.find(data_command.sync_group_index);
-            if (it == _sync_group_counter_map_repeat.end())
-            {
-                sync_group_counter.sync_group_count = data_command.sync_group_count;
-                sync_group_counter.sync_group_input_count++;
-
-                _sync_group_counter_map_repeat.insert({ data_command.sync_group_index, sync_group_counter });
-            }
-            else
-            {
-                it->second.sync_group_input_count++;
-                sync_group_counter = it->second;
-            }
-
-            if (sync_group_counter.sync_group_count == sync_group_counter.sync_group_input_count)
-            {
-                for (auto it = _graphics_scene_list.begin(); it != _graphics_scene_list.end();)
-                {
-                    if ((*it)->sync_group_index == data_command.sync_group_index)
-                    {
-                        std::lock_guard<std::mutex> lock(_ffmpeg_data_mutex);
-
-                        void* ffmpeg_instance = _ffmpeg_data_map.find((*it)->scene_index)->second.ffmpeg_instance;
-                        cpp_ffmpeg_wrapper_set_sync_group_repeat_continue(ffmpeg_instance);
-                    }
-                    
-                    it++;
-                }
-
-                _sync_group_counter_map_repeat.erase(data_command.sync_group_index);
-            }
-        }
-        break;
         case command_type::sync_group_frame_numbering:
         {
             std::map<u32, FrameSyncData>::iterator it = _sync_group_counter_map_frame_numbering.find(data_command.sync_group_index);
@@ -883,9 +847,48 @@ void tcp_processing_thread()
                 break;
             }
 
-            ffmpeg_instance = it->second.ffmpeg_instance;
+            if (it->second.sync_group_index != u32_invalid_id)
+            {
+                SyncGroupCounter sync_group_counter{};
 
-            cpp_ffmpeg_wrapper_seek_pts(ffmpeg_instance, 0);
+                std::map<u32, SyncGroupCounter>::iterator it_sync_group_repeat = _sync_group_counter_map_repeat.find(it->second.sync_group_index);
+                if (it_sync_group_repeat == _sync_group_counter_map_repeat.end())
+                {
+                    sync_group_counter.sync_group_count = it->second.sync_group_count;
+                    sync_group_counter.sync_group_input_count++;
+
+                    _sync_group_counter_map_repeat.insert({ it->second.sync_group_index, sync_group_counter });
+                }
+                else
+                {
+                    it_sync_group_repeat->second.sync_group_input_count++;
+                    sync_group_counter = it_sync_group_repeat->second;
+                }
+
+                if (sync_group_counter.sync_group_input_count == sync_group_counter.sync_group_count)
+                {
+                    auto it_ffmpeg_data = _ffmpeg_data_map.begin();
+                    for (; it_ffmpeg_data != _ffmpeg_data_map.end(); it_ffmpeg_data++)
+                    {
+                        if (it_ffmpeg_data->second.sync_group_index == it->second.sync_group_index)
+                        {
+                            cpp_ffmpeg_wrapper_seek_pts(it_ffmpeg_data->second.ffmpeg_instance, 0);
+
+                            it_ffmpeg_data->second.repeat_command_send_flag = false;
+                        }
+                    }
+
+                    _sync_group_counter_map_repeat.erase(it->second.sync_group_index);
+                }
+            }
+            else
+            {
+                ffmpeg_instance = it->second.ffmpeg_instance;
+
+                cpp_ffmpeg_wrapper_seek_pts(ffmpeg_instance, 0);
+
+                it->second.repeat_command_send_flag = false;
+            }
         }
         break;
         case command_type::play_sync_group:
@@ -2550,17 +2553,22 @@ u32 populate_command_list(graphics_data* data)
                     // eof
                     if (_repeat_play_flag == true)
                     {
-                        packet_seek_repeat_self temp_packet{};
-                        temp_packet.scene_index = scene->scene_index;
-                        temp_packet.header.cmd = command_type::seek_repeat_self;
-                        temp_packet.header.size = sizeof(packet_seek_repeat_self);
-
-                        void* packet = new char[temp_packet.header.size];
-                        memcpy(packet, &temp_packet, temp_packet.header.size);
-
+                        if (it_ffmpeg_data->second.repeat_command_send_flag == false)
                         {
-                            std::lock_guard<std::mutex> lk(_tcp_processing_mutex);
-                            _tcp_processing_command_queue.push_back(std::pair<void*, void*>(packet, nullptr));
+                            it_ffmpeg_data->second.repeat_command_send_flag = true;
+
+                            packet_seek_repeat_self temp_packet{};
+                            temp_packet.scene_index = scene->scene_index;
+                            temp_packet.header.cmd = command_type::seek_repeat_self;
+                            temp_packet.header.size = sizeof(packet_seek_repeat_self);
+
+                            void* packet = new char[temp_packet.header.size];
+                            memcpy(packet, &temp_packet, temp_packet.header.size);
+
+                            {
+                                std::lock_guard<std::mutex> lk(_tcp_processing_mutex);
+                                _tcp_processing_command_queue.push_back(std::pair<void*, void*>(packet, nullptr));
+                            }
                         }
                     }
                 }

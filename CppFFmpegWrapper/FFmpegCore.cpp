@@ -271,7 +271,8 @@ s32 FFmpegCore::get_frame(AVFrame *& frame)
     result = output_frame(frame, index);
     if (result != error_type::ok)
     {
-        if (_eof_read == true)
+        //if (_eof_read == true)
+        if (_eof_read2 == true)
         {
             return -2;
         }
@@ -285,11 +286,6 @@ s32 FFmpegCore::get_frame(AVFrame *& frame)
 
 s32 FFmpegCore::frame_to_next()
 {
-    if (_sync_group_repeat_pause == true)
-    {
-        return error_type::use_previous_frame;
-    }
-
     if (_sync_group_frame_numbering == true && _sync_group_index != u32_invalid_id)
     {
         if (_frame_numbering < _frame_count)
@@ -536,6 +532,12 @@ void FFmpegCore::decode()
                 {
                     // queue_is_empty
                     std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time));
+
+                    if (_eof_read == true)
+                    {
+                        _eof_read2 = true;
+                    }
+
                     if (_eof_decode)
                     {
                         break;
@@ -588,27 +590,6 @@ void FFmpegCore::decode()
                     
                     _duration_frame = frame->duration;
                     _duration_frame_half = _duration_frame * _time_base_d * 1'000.0f / 2;
-                }
-
-                if (_sync_group_repeat_pause == true)
-                {
-                    if (_sync_group_repeat_pause_check == true)
-                    {
-                        _sync_group_repeat_pause_check = false;
-
-                        ffmpeg_wrapper_callback_data* data = new ffmpeg_wrapper_callback_data();
-                        data->scene_index = _scene_index;
-                        data->command = (u16)command_type::seek_repeat_self_sync_group;
-                        data->connection = _connection_play_start;
-                        data->result = (u16)packet_result::ok;
-
-                        data->sync_group_index = _sync_group_index;
-                        data->sync_group_count = _sync_group_count;
-
-                        _callback_ffmpeg(data);
-
-                        delete data;
-                    }
                 }
 
                 while (true)
@@ -749,6 +730,9 @@ void FFmpegCore::seek_pts(s64 pts)
         std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time));
     }
 
+    _frame_count = 0;
+    _frame_numbering = 0;
+
     _time_started = 0.0f;
 
     // 코덱 버퍼 클리어
@@ -766,6 +750,11 @@ void FFmpegCore::seek_pts(s64 pts)
         _eof_read = false;
     }
 
+    if (_eof_read2 == true)
+    {
+        _eof_read2 = false;
+    }
+
     if (_eof_decode == true)
     {
         _eof_decode = false;
@@ -779,16 +768,6 @@ void FFmpegCore::seek_pts(s64 pts)
 
     _seek_condition_reader.notify_one();
     _seek_condition_decoder.notify_one();
-}
-
-void FFmpegCore::check_sync_group_repeat()
-{
-    if (_sync_group_index == u32_invalid_id)
-    {
-        return;
-    }
-
-    sync_group_repeat_pause();
 }
 
 void FFmpegCore::frame_numbering()
