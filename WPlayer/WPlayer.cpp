@@ -3355,9 +3355,6 @@ void server_thread()
 /// <param name="index"> scene index </param>
 void callback_ffmpeg_wrapper_ptr(void* param)
 {
-    // decode 된 상태인지 확인하는 ffmpeg wrapper api
-    // command가 play인 param이 오면 디코딩이 완료된 것
-
     ffmpeg_wrapper_callback_data* param_data = (ffmpeg_wrapper_callback_data*)param;
 
     FFmpegProcessingCommand data{};
@@ -3377,6 +3374,7 @@ void callback_ffmpeg_wrapper_ptr(void* param)
     data.sync_group_index = param_data->sync_group_index;
     data.sync_group_count = param_data->sync_group_count;
 
+    std::lock_guard<std::mutex> lk(_ffmpeg_processing_mutex);
     _ffmpeg_processing_command_queue.push_back(data);
 }
 
