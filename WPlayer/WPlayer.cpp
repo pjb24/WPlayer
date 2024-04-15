@@ -416,7 +416,10 @@ void ffmpeg_processing_thread()
                 cppsocket_struct_server_send_play data{};
                 data.scene_index = data_command.scene_index;
                 data.result = data_command.result;
-                data.rect = data_command.rect;
+                data.left = data_command.left;
+                data.top = data_command.top;
+                data.width = data_command.width;
+                data.height = data_command.height;
                 data.url_size = data_command.url_size;
                 memcpy(data.url, data_command.url, data_command.url_size);
 
@@ -533,7 +536,10 @@ void ffmpeg_processing_thread()
                 cppsocket_struct_server_send_play_sync_group data{};
                 data.scene_index = data_command.scene_index;
                 data.result = data_command.result;
-                data.rect = data_command.rect;
+                data.left = data_command.left;
+                data.top = data_command.top;
+                data.width = data_command.width;
+                data.height = data_command.height;
                 data.sync_group_index = data_command.sync_group_index;
                 data.sync_group_count = sync_group_counter.sync_group_input_count;
                 data.url_size = data_command.url_size;
@@ -718,7 +724,10 @@ void tcp_processing_thread()
                 cppsocket_struct_server_send_play data{};
                 data.scene_index = u32_invalid_id;
                 data.result = (u16)packet_result::fail;
-                data.rect = packet->rect;
+                data.left = packet->left;
+                data.top = packet->top;
+                data.width = packet->width;
+                data.height = packet->height;
                 data.url_size = packet->url_size;
                 memcpy(data.url, packet->url, packet->url_size);
 
@@ -726,7 +735,9 @@ void tcp_processing_thread()
                 break;
             }
 
-            u32 scene_index = create_scene_data(packet->rect);
+            RECT rect = { packet->left, packet->top, packet->left + packet->width, packet->top + packet->height };
+
+            u32 scene_index = create_scene_data(rect);
 
             FFmpegInstanceData ffmpeg_instance_data;
             ffmpeg_instance_data.ffmpeg_instance = ffmpeg_instance;
@@ -734,7 +745,7 @@ void tcp_processing_thread()
             _ffmpeg_data_map.insert({ scene_index, ffmpeg_instance_data });
             cpp_ffmpeg_wrapper_set_scene_index(ffmpeg_instance, scene_index);
 
-            cpp_ffmpeg_wrapper_set_rect(ffmpeg_instance, packet->rect);
+            cpp_ffmpeg_wrapper_set_rect(ffmpeg_instance, rect);
 
             cpp_ffmpeg_wrapper_play_start(ffmpeg_instance, data_pair.second);
         }
@@ -910,7 +921,10 @@ void tcp_processing_thread()
                 cppsocket_struct_server_send_play_sync_group data{};
                 data.scene_index = u32_invalid_id;
                 data.result = (u16)packet_result::fail;
-                data.rect = packet->rect;
+                data.left = packet->left;
+                data.top = packet->top;
+                data.width = packet->width;
+                data.height = packet->height;
                 data.url_size = packet->url_size;
                 memcpy(data.url, packet->url, packet->url_size);
 
@@ -921,7 +935,9 @@ void tcp_processing_thread()
                 break;
             }
 
-            u32 scene_index = create_scene_data(packet->rect, packet->sync_group_index, packet->sync_group_count);
+            RECT rect = { packet->left, packet->top, packet->left + packet->width, packet->top + packet->height };
+
+            u32 scene_index = create_scene_data(rect, packet->sync_group_index, packet->sync_group_count);
 
             FFmpegInstanceData ffmpeg_instance_data;
             ffmpeg_instance_data.ffmpeg_instance = ffmpeg_instance;
@@ -932,7 +948,7 @@ void tcp_processing_thread()
             cpp_ffmpeg_wrapper_set_scene_index(ffmpeg_instance, scene_index);
 
             // client에 돌려주기 위한 정보를 cpp_ffmpeg_wrapper에 세팅
-            cpp_ffmpeg_wrapper_set_rect(ffmpeg_instance, packet->rect);
+            cpp_ffmpeg_wrapper_set_rect(ffmpeg_instance, rect);
             cpp_ffmpeg_wrapper_set_sync_group_index(ffmpeg_instance, packet->sync_group_index);
             cpp_ffmpeg_wrapper_set_sync_group_count(ffmpeg_instance, packet->sync_group_count);
 
@@ -3453,7 +3469,10 @@ void callback_ffmpeg_wrapper_ptr(void* param)
     data.connection = param_data->connection;
     data.result = param_data->result;
 
-    data.rect = param_data->rect;
+    data.left = param_data->left;
+    data.top = param_data->top;
+    data.width = param_data->width;
+    data.height = param_data->height;
     if (param_data->url_size != u16_invalid_id)
     {
         memcpy(data.url, param_data->url, param_data->url_size);

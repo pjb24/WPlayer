@@ -10,7 +10,10 @@ bool MyServer::send_play(TcpConnection * connection, cppsocket_struct_server_sen
     out_packet.header = header;
     out_packet.result = packet_result(data.result);
     out_packet.scene_index = data.scene_index;
-    out_packet.rect = data.rect;
+    out_packet.left = data.left;
+    out_packet.top = data.top;
+    out_packet.width = data.width;
+    out_packet.height = data.height;    
     out_packet.url_size = data.url_size;
     memcpy(out_packet.url, data.url, data.url_size);
 
@@ -121,7 +124,10 @@ bool MyServer::send_play_sync_group(TcpConnection* connection, cppsocket_struct_
     out_packet.header = header;
     out_packet.result = (packet_result)data.result;
     out_packet.scene_index = data.scene_index;
-    out_packet.rect = data.rect;
+    out_packet.left = data.left;
+    out_packet.top = data.top;
+    out_packet.width = data.width;
+    out_packet.height = data.height;
     out_packet.sync_group_index = data.sync_group_index;
     out_packet.sync_group_count = data.sync_group_count;
     out_packet.url_size = data.url_size;

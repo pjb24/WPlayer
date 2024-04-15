@@ -20,8 +20,8 @@ std::string _ip;
 uint16_t _port = 0;
 int _left = 0;
 int _top = 0;
-int _right = 0;
-int _bottom = 0;
+int _width = 0;
+int _height = 0;
 std::string _url;
 
 
@@ -39,17 +39,20 @@ void callback_data_connection_server(void* data, void* connection)
         std::cout << "play" << ", ";
         std::cout << "command_type: " << (uint16_t)packet->header.cmd << ", ";
         std::cout << "packet size: " << packet->header.size << ", ";
-        std::cout << "rect.left: " << packet->rect.left << ", ";
-        std::cout << "rect.top: " << packet->rect.top << ", ";
-        std::cout << "rect.right: " << packet->rect.right << ", ";
-        std::cout << "rect.bottom: " << packet->rect.bottom << ", ";
+        std::cout << "left: " << packet->left << ", ";
+        std::cout << "top: " << packet->top << ", ";
+        std::cout << "width: " << packet->width << ", ";
+        std::cout << "height: " << packet->height << ", ";
         std::cout << "url_size: " << packet->url_size << ", ";
         std::cout << "url: " << packet->url << std::endl;
 
         cppsocket_struct_server_send_play data{};
         data.scene_index = 0;
         data.result = (uint16_t)packet_result::ok;
-        data.rect = packet->rect;
+        data.left = packet->left;
+        data.top = packet->top;
+        data.width = packet->width;
+        data.height = packet->height;
         data.url_size = packet->url_size;
         memcpy(data.url, packet->url, packet->url_size);
 
@@ -159,10 +162,10 @@ void callback_ptr_client(void* data)
         std::cout << "command_type: " << (uint16_t)packet->header.cmd << ", ";
         std::cout << "packet size: " << packet->header.size << ", ";
         std::cout << "scene_index: " << packet->scene_index << ", ";
-        std::cout << "rect.left: " << packet->rect.left << ", ";
-        std::cout << "rect.top: " << packet->rect.top << ", ";
-        std::cout << "rect.right: " << packet->rect.right << ", ";
-        std::cout << "rect.bottom: " << packet->rect.bottom << ", ";
+        std::cout << "left: " << packet->left << ", ";
+        std::cout << "top: " << packet->top << ", ";
+        std::cout << "width: " << packet->width << ", ";
+        std::cout << "height: " << packet->height << ", ";
         std::cout << "url_size: " << packet->url_size << ", ";
         std::cout << "url: " << packet->url << ", ";
         std::cout << "result: " << (uint16_t)packet->result << std::endl;
@@ -240,10 +243,10 @@ void callback_ptr_client(void* data)
         std::cout << "command_type: " << (uint16_t)packet->header.cmd << ", ";
         std::cout << "packet size: " << packet->header.size << ", ";
         std::cout << "scene_index: " << packet->scene_index << ", ";
-        std::cout << "rect.left: " << packet->rect.left << ", ";
-        std::cout << "rect.top: " << packet->rect.top << ", ";
-        std::cout << "rect.right: " << packet->rect.right << ", ";
-        std::cout << "rect.bottom: " << packet->rect.bottom << ", ";
+        std::cout << "left: " << packet->left << ", ";
+        std::cout << "top: " << packet->top << ", ";
+        std::cout << "width: " << packet->width << ", ";
+        std::cout << "height: " << packet->height << ", ";
         std::cout << "sync_group_index: " << packet->sync_group_index << ", ";
         std::cout << "sync_group_count: " << packet->sync_group_count << ", ";
         std::cout << "url_size: " << packet->url_size << ", ";
@@ -354,17 +357,17 @@ void config_setting()
     GetPrivateProfileString(L"TestDllConsole", L"PORT", L"0", result_w, 255, str_ini_path_w.c_str());
     _port = _ttoi(result_w);
 
-    GetPrivateProfileString(L"TestDllConsole", L"LEFT", L"0", result_w, 255, str_ini_path_w.c_str());
+    GetPrivateProfileString(L"TestDllConsole", L"Left", L"0", result_w, 255, str_ini_path_w.c_str());
     _left = _ttoi(result_w);
 
-    GetPrivateProfileString(L"TestDllConsole", L"TOP", L"0", result_w, 255, str_ini_path_w.c_str());
+    GetPrivateProfileString(L"TestDllConsole", L"Top", L"0", result_w, 255, str_ini_path_w.c_str());
     _top = _ttoi(result_w);
 
-    GetPrivateProfileString(L"TestDllConsole", L"RIGHT", L"0", result_w, 255, str_ini_path_w.c_str());
-    _right = _ttoi(result_w);
+    GetPrivateProfileString(L"TestDllConsole", L"Width", L"0", result_w, 255, str_ini_path_w.c_str());
+    _width = _ttoi(result_w);
 
-    GetPrivateProfileString(L"TestDllConsole", L"BOTTOM", L"0", result_w, 255, str_ini_path_w.c_str());
-    _bottom = _ttoi(result_w);
+    GetPrivateProfileString(L"TestDllConsole", L"Height", L"0", result_w, 255, str_ini_path_w.c_str());
+    _height = _ttoi(result_w);
     
     GetPrivateProfileStringA("TestDllConsole", "URL", "", result_a, 255, str_ini_path_a.c_str());
     _url = result_a;
@@ -431,7 +434,7 @@ int main()
 
             bool auto_play = false;
 
-            if (!(_left == 0 && _top == 0 && _right == 0 && _bottom == 0) && _use_ini_setting == true)
+            if (!(_left == 0 && _top == 0 && _width == 0 && _height == 0) && _use_ini_setting == true)
             {
                 auto_play = true;
             }
@@ -444,8 +447,6 @@ int main()
                 {
                     auto_play = false;
 
-                    RECT rect{ _left, _top, _right, _bottom };
-
                     while (!_client)
                     {
                         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -456,7 +457,10 @@ int main()
                     }
 
                     cppsocket_struct_client_send_play data{};
-                    data.rect = rect;
+                    data.left = _left;
+                    data.top = _top;
+                    data.width = _width;
+                    data.height = _height;
                     data.url_size = _url.size();
                     data.url = _url.c_str();
 
@@ -472,14 +476,20 @@ int main()
                 {
                 case command_type::play:
                 {
-                    std::cout << "play, Input rect.left rect.top rect.right rect.bottom url" << std::endl;
+                    std::cout << "play, Input left top width height url" << std::endl;
 
-                    RECT rect;
+                    int left;
+                    int top;
+                    int width;
+                    int height;
                     std::string url;
-                    std::cin >> rect.left >> rect.top >> rect.right >> rect.bottom >> url;
+                    std::cin >> left >> top >> width >> height >> url;
 
                     cppsocket_struct_client_send_play data{};
-                    data.rect = rect;
+                    data.left = left;
+                    data.top = top;
+                    data.width = width;
+                    data.height = height;
                     data.url_size = url.size();
                     data.url = url.c_str();
 
@@ -545,18 +555,24 @@ int main()
                 break;
                 case command_type::play_sync_group:
                 {
-                    std::cout << "play, Input rect.left rect.top rect.right rect.bottom url sync_group_index sync_group_count" << std::endl;
+                    std::cout << "play, Input left top width height url sync_group_index sync_group_count" << std::endl;
 
-                    RECT rect;
+                    int left;
+                    int top;
+                    int width;
+                    int height;
                     std::string url;
                     uint32_t sync_group_index;
                     uint16_t sync_group_count;
 
-                    std::cin >> rect.left >> rect.top >> rect.right >> rect.bottom >> url;
+                    std::cin >> left >> top >> width >> height >> url;
                     std::cin >> sync_group_index >> sync_group_count;
 
                     cppsocket_struct_client_send_play_sync_group data{};
-                    data.rect = rect;
+                    data.left = left;
+                    data.top = top;
+                    data.width = width;
+                    data.height = height;
                     data.url_size = url.size();
                     data.url = url.c_str();
                     data.sync_group_index = sync_group_index;

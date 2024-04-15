@@ -12,7 +12,10 @@ struct ffmpeg_wrapper_callback_data
     void* connection = nullptr;
     u16 result = u16_invalid_id;
 
-    RECT rect = { 0, 0, 0, 0 };
+    int left = 0;
+    int top = 0;
+    int width = 0;
+    int height = 0;
     char url[260];
     u16 url_size = u16_invalid_id;
 

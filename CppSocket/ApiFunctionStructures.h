@@ -9,7 +9,10 @@
 
 struct cppsocket_struct_client_send_play
 {
-    RECT rect;
+    int left;
+    int top;
+    int width;
+    int height;
     const char* url;
     uint16_t url_size;
 };
@@ -27,7 +30,10 @@ struct cppsocket_struct_client_send_stop
 struct cppsocket_struct_client_send_move
 {
     uint32_t scene_index;
-    RECT rect;
+    int left;
+    int top;
+    int width;
+    int height;
 };
 
 struct cppsocket_struct_client_send_jump_forward
@@ -42,7 +48,10 @@ struct cppsocket_struct_client_send_jump_backwards
 
 struct cppsocket_struct_client_send_play_sync_group
 {
-    RECT rect;
+    int left;
+    int top;
+    int width;
+    int height;
     const char* url;
     uint16_t url_size;
     uint32_t sync_group_index;
@@ -67,7 +76,10 @@ struct cppsocket_struct_server_send_play
 {
     uint32_t scene_index;
     uint16_t result;
-    RECT rect;
+    int left;
+    int top;
+    int width;
+    int height;
     char url[260];
     uint16_t url_size;
 };
@@ -106,7 +118,10 @@ struct cppsocket_struct_server_send_play_sync_group
 {
     uint32_t scene_index;
     uint16_t result;
-    RECT rect;
+    int left;
+    int top;
+    int width;
+    int height;
     char url[260];
     uint16_t url_size;
     uint32_t sync_group_index;

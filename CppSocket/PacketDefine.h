@@ -49,7 +49,10 @@ struct packet_header
 struct packet_play_from_client
 {
     packet_header   header;
-    RECT            rect;       // 좌표
+    int             left;
+    int             top;
+    int             width;
+    int             height;
     uint16_t        url_size;
     char            url[260];   // URL
 };
@@ -59,7 +62,10 @@ struct packet_play_from_server
     packet_header   header;
     packet_result   result;     // 명령 수행 결과
     uint32_t        scene_index;
-    RECT            rect;
+    int             left;
+    int             top;
+    int             width;
+    int             height;
     uint16_t        url_size;
     char            url[260];
 };
@@ -101,7 +107,10 @@ struct packet_move_from_client
 {
     packet_header   header;
     uint32_t        scene_index;
-    RECT            rect;   // 좌표
+    int             left;
+    int             top;
+    int             width;
+    int             height;
 };
 
 struct packet_move_from_server
@@ -155,7 +164,10 @@ struct packet_seek_repeat_self
 struct packet_play_sync_group_from_client
 {
     packet_header   header;
-    RECT            rect;       // 좌표
+    int             left;
+    int             top;
+    int             width;
+    int             height;
     uint32_t        sync_group_index;   // sync group 번호
     uint16_t        sync_group_count;   // sync group index에 해당하는 sync group에 소속될 scene 개수
     uint16_t        url_size;
@@ -167,7 +179,10 @@ struct packet_play_sync_group_from_server
     packet_header   header;
     packet_result   result;     // 명령 수행 결과
     uint32_t        scene_index;
-    RECT            rect;
+    int             left;
+    int             top;
+    int             width;
+    int             height;
     uint32_t        sync_group_index;   // sync group 번호
     uint16_t        sync_group_count;
     uint16_t        url_size;

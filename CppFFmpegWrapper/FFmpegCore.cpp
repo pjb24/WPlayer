@@ -577,7 +577,10 @@ void FFmpegCore::decode()
                     data->connection = _connection_play_start;
                     data->result = (u16)packet_result::ok;
 
-                    data->rect = _rect;
+                    data->left = _rect.left;
+                    data->top = _rect.top;
+                    data->width = _rect.right - _rect.left;
+                    data->height = _rect.bottom - _rect.top;
                     memcpy(data->url, _file_path.c_str(), _file_path.size());
                     data->url_size = _file_path.size();
 

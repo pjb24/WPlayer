@@ -13,7 +13,10 @@ bool MyClient::send_play(cppsocket_struct_client_send_play data)
 
     packet_play_from_client packet{};
     packet.header = header;
-    packet.rect = data.rect;
+    packet.left = data.left;
+    packet.top = data.top;
+    packet.width = data.width;
+    packet.height = data.height;
     packet.url_size = data.url_size;
     memcpy(packet.url, data.url, data.url_size);
 
@@ -67,7 +70,10 @@ bool MyClient::send_move(cppsocket_struct_client_send_move data)
     packet_move_from_client packet{};
     packet.header = header;
     packet.scene_index = data.scene_index;
-    packet.rect = data.rect;
+    packet.left = data.left;
+    packet.top = data.top;
+    packet.width = data.width;
+    packet.height = data.height;
 
     std::shared_ptr<Packet> move_packet = std::make_shared<Packet>(PacketType::structured_data_from_client);
     *move_packet << (void*)&packet;
@@ -118,7 +124,10 @@ bool MyClient::send_play_sync_group(cppsocket_struct_client_send_play_sync_group
 
     packet_play_sync_group_from_client packet{};
     packet.header = header;
-    packet.rect = data.rect;
+    packet.left = data.left;
+    packet.top = data.top;
+    packet.width = data.width;
+    packet.height = data.height;
     packet.sync_group_index = data.sync_group_index;
     packet.sync_group_count = data.sync_group_count;
     packet.url_size = data.url_size;
