@@ -55,6 +55,11 @@ int _create_one_swapchain_for_each_adapter_without_control_output_excluded_windo
 // play_sync_group 명령을 수행할 때 Frame의 번호를 맞추어서 재생하도록 하는 Flag. 0: 사용 안함, 1 : 사용함
 bool _sync_group_frame_numbering = false;
 
+
+// scene을 자른 좌표에 대해서 보정을 수행하는 옵션.
+bool _scene_panel_coordinate_correction = false;
+
+
 std::string _ip;
 uint16_t _port;
 
@@ -3204,7 +3209,14 @@ u32 create_scene_data(RECT rect, u32 sync_group_index, u16 sync_group_count)
                 }
                 else
                 {
-                    panel->rect.left = output->create_one_swapchain_for_each_adapter_rect.left - 1;
+                    if (_scene_panel_coordinate_correction == true)
+                    {
+                        panel->rect.left = output->create_one_swapchain_for_each_adapter_rect.left - 1;
+                    }
+                    else
+                    {
+                        panel->rect.left = output->create_one_swapchain_for_each_adapter_rect.left;
+                    }
                 }
 
                 if (output->create_one_swapchain_for_each_adapter_rect.right > rect.right)
@@ -3213,7 +3225,14 @@ u32 create_scene_data(RECT rect, u32 sync_group_index, u16 sync_group_count)
                 }
                 else
                 {
-                    panel->rect.right = output->create_one_swapchain_for_each_adapter_rect.right + 1;
+                    if (_scene_panel_coordinate_correction == true)
+                    {
+                        panel->rect.right = output->create_one_swapchain_for_each_adapter_rect.right + 1;
+                    }
+                    else
+                    {
+                        panel->rect.right = output->create_one_swapchain_for_each_adapter_rect.right;
+                    }
                 }
 
                 if (output->create_one_swapchain_for_each_adapter_rect.top < rect.top)
@@ -3222,7 +3241,14 @@ u32 create_scene_data(RECT rect, u32 sync_group_index, u16 sync_group_count)
                 }
                 else
                 {
-                    panel->rect.top = output->create_one_swapchain_for_each_adapter_rect.top - 1;
+                    if (_scene_panel_coordinate_correction == true)
+                    {
+                        panel->rect.top = output->create_one_swapchain_for_each_adapter_rect.top - 1;
+                    }
+                    else
+                    {
+                        panel->rect.top = output->create_one_swapchain_for_each_adapter_rect.top;
+                    }
                 }
 
                 if (output->create_one_swapchain_for_each_adapter_rect.bottom > rect.bottom)
@@ -3231,7 +3257,14 @@ u32 create_scene_data(RECT rect, u32 sync_group_index, u16 sync_group_count)
                 }
                 else
                 {
-                    panel->rect.bottom = output->create_one_swapchain_for_each_adapter_rect.bottom + 1;
+                    if (_scene_panel_coordinate_correction == true)
+                    {
+                        panel->rect.bottom = output->create_one_swapchain_for_each_adapter_rect.bottom + 1;
+                    }
+                    else
+                    {
+                        panel->rect.bottom = output->create_one_swapchain_for_each_adapter_rect.bottom;
+                    }
                 }
 
                 normalize_rect(output->create_one_swapchain_for_each_adapter_rect, panel->rect, panel->normalized_rect);
@@ -3244,7 +3277,14 @@ u32 create_scene_data(RECT rect, u32 sync_group_index, u16 sync_group_count)
                 }
                 else
                 {
-                    panel->rect.left = output->create_one_swapchain_for_each_adapter_without_control_output_rect.left - 1;
+                    if (_scene_panel_coordinate_correction == true)
+                    {
+                        panel->rect.left = output->create_one_swapchain_for_each_adapter_without_control_output_rect.left - 1;
+                    }
+                    else
+                    {
+                        panel->rect.left = output->create_one_swapchain_for_each_adapter_without_control_output_rect.left;
+                    }
                 }
 
                 if (output->create_one_swapchain_for_each_adapter_without_control_output_rect.right > rect.right)
@@ -3253,7 +3293,14 @@ u32 create_scene_data(RECT rect, u32 sync_group_index, u16 sync_group_count)
                 }
                 else
                 {
-                    panel->rect.right = output->create_one_swapchain_for_each_adapter_without_control_output_rect.right + 1;
+                    if (_scene_panel_coordinate_correction == true)
+                    {
+                        panel->rect.right = output->create_one_swapchain_for_each_adapter_without_control_output_rect.right + 1;
+                    }
+                    else
+                    {
+                        panel->rect.right = output->create_one_swapchain_for_each_adapter_without_control_output_rect.right;
+                    }
                 }
 
                 if (output->create_one_swapchain_for_each_adapter_without_control_output_rect.top < rect.top)
@@ -3262,7 +3309,15 @@ u32 create_scene_data(RECT rect, u32 sync_group_index, u16 sync_group_count)
                 }
                 else
                 {
-                    panel->rect.top = output->create_one_swapchain_for_each_adapter_without_control_output_rect.top - 1;
+                    if (_scene_panel_coordinate_correction == true)
+                    {
+                        panel->rect.top = output->create_one_swapchain_for_each_adapter_without_control_output_rect.top - 1;
+
+                    }
+                    else
+                    {
+                        panel->rect.top = output->create_one_swapchain_for_each_adapter_without_control_output_rect.top;
+                    }
                 }
 
                 if (output->create_one_swapchain_for_each_adapter_without_control_output_rect.bottom > rect.bottom)
@@ -3271,7 +3326,14 @@ u32 create_scene_data(RECT rect, u32 sync_group_index, u16 sync_group_count)
                 }
                 else
                 {
-                    panel->rect.bottom = output->create_one_swapchain_for_each_adapter_without_control_output_rect.bottom + 1;
+                    if (_scene_panel_coordinate_correction == true)
+                    {
+                        panel->rect.bottom = output->create_one_swapchain_for_each_adapter_without_control_output_rect.bottom + 1;
+                    }
+                    else
+                    {
+                        panel->rect.bottom = output->create_one_swapchain_for_each_adapter_without_control_output_rect.bottom;
+                    }
                 }
 
                 normalize_rect(output->create_one_swapchain_for_each_adapter_without_control_output_rect, panel->rect, panel->normalized_rect);
@@ -3284,7 +3346,14 @@ u32 create_scene_data(RECT rect, u32 sync_group_index, u16 sync_group_count)
                 }
                 else
                 {
-                    panel->rect.left = output->output_desc.DesktopCoordinates.left - 1;
+                    if (_scene_panel_coordinate_correction == true)
+                    {
+                        panel->rect.left = output->output_desc.DesktopCoordinates.left - 1;
+                    }
+                    else
+                    {
+                        panel->rect.left = output->output_desc.DesktopCoordinates.left;
+                    }
                 }
 
                 if (output->output_desc.DesktopCoordinates.right > rect.right)
@@ -3293,7 +3362,14 @@ u32 create_scene_data(RECT rect, u32 sync_group_index, u16 sync_group_count)
                 }
                 else
                 {
-                    panel->rect.right = output->output_desc.DesktopCoordinates.right + 1;
+                    if (_scene_panel_coordinate_correction == true)
+                    {
+                        panel->rect.right = output->output_desc.DesktopCoordinates.right + 1;
+                    }
+                    else
+                    {
+                        panel->rect.right = output->output_desc.DesktopCoordinates.right;
+                    }
                 }
 
                 if (output->output_desc.DesktopCoordinates.top < rect.top)
@@ -3302,7 +3378,14 @@ u32 create_scene_data(RECT rect, u32 sync_group_index, u16 sync_group_count)
                 }
                 else
                 {
-                    panel->rect.top = output->output_desc.DesktopCoordinates.top - 1;
+                    if (_scene_panel_coordinate_correction == true)
+                    {
+                        panel->rect.top = output->output_desc.DesktopCoordinates.top - 1;
+                    }
+                    else
+                    {
+                        panel->rect.top = output->output_desc.DesktopCoordinates.top;
+                    }
                 }
 
                 if (output->output_desc.DesktopCoordinates.bottom > rect.bottom)
@@ -3311,7 +3394,14 @@ u32 create_scene_data(RECT rect, u32 sync_group_index, u16 sync_group_count)
                 }
                 else
                 {
-                    panel->rect.bottom = output->output_desc.DesktopCoordinates.bottom + 1;
+                    if (_scene_panel_coordinate_correction == true)
+                    {
+                        panel->rect.bottom = output->output_desc.DesktopCoordinates.bottom + 1;
+                    }
+                    else
+                    {
+                        panel->rect.bottom = output->output_desc.DesktopCoordinates.bottom;
+                    }
                 }
 
                 normalize_rect(output->output_desc.DesktopCoordinates, panel->rect, panel->normalized_rect);
@@ -3782,6 +3872,10 @@ void config_setting()
     GetPrivateProfileString(L"WPlayer", L"sync_group_frame_numbering", L"0", result_w, 255, str_ini_path_w.c_str());
     result_i = _ttoi(result_w);
     _sync_group_frame_numbering = result_i == 0 ? false : true;
+
+    GetPrivateProfileString(L"WPlayer", L"scene_panel_coordinate_correction", L"0", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _scene_panel_coordinate_correction = result_i == 0 ? false : true;
 }
 
 #define MAX_LOADSTRING 100
