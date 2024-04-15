@@ -3333,8 +3333,28 @@ u32 normalize_rect(RECT base_rect, RECT target_rect, NormalizedRect& normalized_
 {
     normalized_rect.left = normalize_min_max(base_rect.left, base_rect.right, target_rect.left, -1, 1);
     normalized_rect.right = normalize_min_max(base_rect.left, base_rect.right, target_rect.right, -1, 1);
-    normalized_rect.top = normalize_min_max(base_rect.top, base_rect.bottom, target_rect.top, 1, -1);
-    normalized_rect.bottom = normalize_min_max(base_rect.top, base_rect.bottom, target_rect.bottom, 1, -1);
+    normalized_rect.top = normalize_min_max(base_rect.bottom, base_rect.top, target_rect.top, -1, 1);
+    normalized_rect.bottom = normalize_min_max(base_rect.bottom, base_rect.top, target_rect.bottom, -1, 1);
+
+    if (normalized_rect.left < -1.0f)
+    {
+        normalized_rect.left = -1.0f;
+    }
+
+    if (normalized_rect.top > 1.0f)
+    {
+        normalized_rect.top = 1.0f;
+    }
+
+    if (normalized_rect.right > 1.0f)
+    {
+        normalized_rect.right = 1.0f;
+    }
+
+    if (normalized_rect.bottom < -1.0f)
+    {
+        normalized_rect.bottom = -1.0f;
+    }
 
     return u32();
 }
