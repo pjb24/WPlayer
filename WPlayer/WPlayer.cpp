@@ -4074,6 +4074,11 @@ void d3d_memory_check()
     HMODULE dxgidebugdll = GetModuleHandleW(L"dxgidebug.dll");
     decltype(&DXGIGetDebugInterface) GetDebugInterface = reinterpret_cast<decltype(&DXGIGetDebugInterface)>(GetProcAddress(dxgidebugdll, "DXGIGetDebugInterface"));
 
+    if (GetDebugInterface == nullptr)
+    {
+        return;
+    }
+
     IDXGIDebug* debug;
 
     GetDebugInterface(IID_PPV_ARGS(&debug));
