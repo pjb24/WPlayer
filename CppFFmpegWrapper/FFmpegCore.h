@@ -2,6 +2,9 @@
 
 #include "MediaHeaders.h"
 
+static enum AVPixelFormat get_hw_format(AVCodecContext* ctx, const enum AVPixelFormat* pix_fmts);
+static AVPixelFormat _hw_pix_fmt;
+
 class FFmpegCore
 {
 public:
@@ -33,6 +36,9 @@ public:
 
     void frame_numbering();
 
+    void hw_decode(bool hw_decode) { _hw_decode = hw_decode; }
+    void hw_device_type(int hw_device_type) { _hw_device_type = (AVHWDeviceType)hw_device_type; }
+
 private:
 
     const int _thread_count_fhd = 4;
@@ -52,6 +58,14 @@ private:
 
     uint32_t _frame_numbering = 0;  // sync_group_frame_numbering 호출되면 올라감
     uint32_t _frame_count = 0;  // 다음 frame으로 이동할 때 올라감
+
+#pragma region HW_Decode
+    bool _hw_decode = false;
+    AVHWDeviceType _hw_device_type = AVHWDeviceType::AV_HWDEVICE_TYPE_NONE;
+    AVBufferRef* _hw_device_ctx = nullptr;
+
+    AVFrame* _hw_frame = nullptr;
+#pragma endregion
 
 #pragma region Read
     void read();
@@ -90,6 +104,8 @@ private:
     AVFormatContext*    _format_ctx = nullptr;
     AVCodecContext*     _codec_ctx = nullptr;
     s32                 _stream_index = -1;
+
+    const AVCodec*      _codec = nullptr;
 
     std::string         _file_path;
 

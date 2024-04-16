@@ -24,13 +24,13 @@ bool FFmpegCore::initialize(CALLBACK_PTR cb)
 
     _format_ctx = avformat_alloc_context();
 
-    _codec_ctx = avcodec_alloc_context3(nullptr);
-    if (!_codec_ctx)
-    {
-        failed_free_frame_queue(frame_index);
-        failed_free_packet_queue(packet_index);
-        return false;
-    }
+    //_codec_ctx = avcodec_alloc_context3(nullptr);
+    //if (!_codec_ctx)
+    //{
+    //    failed_free_frame_queue(frame_index);
+    //    failed_free_packet_queue(packet_index);
+    //    return false;
+    //}
 
     _first_decode = true;
 
@@ -43,18 +43,26 @@ bool FFmpegCore::initialize(CALLBACK_PTR cb)
 
     _scale_frame = av_frame_alloc();
     
+    _hw_frame = av_frame_alloc();
+
     return true;
 }
 
 void FFmpegCore::shutdown()
 {
+    av_frame_free(&_hw_frame);
+    _hw_frame = nullptr;
+
     av_frame_free(&_scale_frame);
     _scale_frame = nullptr;
 
     sws_freeContext(_sws_ctx);
     _sws_ctx = nullptr;
 
-    avcodec_free_context(&_codec_ctx);
+    if (_codec_ctx != nullptr)
+    {
+        avcodec_free_context(&_codec_ctx);
+    }
 
     avformat_close_input(&_format_ctx);
 
@@ -101,7 +109,7 @@ int FFmpegCore::open_file()
     }
     */
 
-    _stream_index = av_find_best_stream(_format_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
+    _stream_index = av_find_best_stream(_format_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &_codec, 0);
 
     _time_base = _format_ctx->streams[_stream_index]->time_base;
     _time_base_d = av_q2d(_time_base);
@@ -451,39 +459,84 @@ void FFmpegCore::open_codec()
 
     int result = 0;
 
-    result = avcodec_parameters_to_context(_codec_ctx, _format_ctx->streams[_stream_index]->codecpar);
-    if (result < 0)
+    if (_hw_decode == true)
     {
-        // TODO: error_type::open_codec_fail;
-        return;
-    }
+        for (int i = 0;; i++)
+        {
+            const AVCodecHWConfig* config = avcodec_get_hw_config(_codec, i);
+            if (!config)
+            {
+                fprintf(stderr, "Decoder %s does not support device type %s.\n",
+                    _codec->name, av_hwdevice_get_type_name(_hw_device_type));
+                // return -1;
+                return;
+            }
+            if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX &&
+                config->device_type == _hw_device_type)
+            {
+                _hw_pix_fmt = config->pix_fmt;
+                break;
+            }
+        }
 
-    const AVCodec* codec = avcodec_find_decoder(_codec_ctx->codec_id);
+        _codec_ctx = avcodec_alloc_context3(_codec);
 
-    if (_codec_ctx->width * _codec_ctx->height <= 1920 * 1080)
-    {
-        // FHD 사이즈 이하
-        _codec_ctx->thread_count = _thread_count_fhd;
-    }
-    else if (_codec_ctx->width * _codec_ctx->height <= 3840 * 2160)
-    {
-        // 4K 사이즈 이하
-        _codec_ctx->thread_count = _thread_count_4k;
+        result = avcodec_parameters_to_context(_codec_ctx, _format_ctx->streams[_stream_index]->codecpar);
+        if (result < 0)
+        {
+            // TODO: error_type::open_codec_fail;
+            return;
+        }
+
+        _codec_ctx->get_format = get_hw_format;
+
+        result = av_hwdevice_ctx_create(&_hw_device_ctx, _hw_device_type, NULL, NULL, 0);
+        if (result < 0)
+        {
+            // TODO:
+            // HW Device 생성 실패
+            return;
+        }
+        _codec_ctx->hw_device_ctx = av_buffer_ref(_hw_device_ctx);
     }
     else
     {
-        // 4K 사이즈 초과
-        _codec_ctx->thread_count = _thread_count_4k_higher;
+        _codec_ctx = avcodec_alloc_context3(nullptr);
+
+        result = avcodec_parameters_to_context(_codec_ctx, _format_ctx->streams[_stream_index]->codecpar);
+        if (result < 0)
+        {
+            // TODO: error_type::open_codec_fail;
+            return;
+        }
+
+        _codec = avcodec_find_decoder(_codec_ctx->codec_id);
+
+        if (_codec_ctx->width * _codec_ctx->height <= 1920 * 1080)
+        {
+            // FHD 사이즈 이하
+            _codec_ctx->thread_count = _thread_count_fhd;
+        }
+        else if (_codec_ctx->width * _codec_ctx->height <= 3840 * 2160)
+        {
+            // 4K 사이즈 이하
+            _codec_ctx->thread_count = _thread_count_4k;
+        }
+        else
+        {
+            // 4K 사이즈 초과
+            _codec_ctx->thread_count = _thread_count_4k_higher;
+        }
+
+        if (_codec_ctx->thread_count > _logical_processor_count_half)
+        {
+            _codec_ctx->thread_count = _logical_processor_count_half;
+        }
+
+        _codec_ctx->thread_type = FF_THREAD_SLICE;
     }
 
-    if (_codec_ctx->thread_count > _logical_processor_count_half)
-    {
-        _codec_ctx->thread_count = _logical_processor_count_half;
-    }
-
-    _codec_ctx->thread_type = FF_THREAD_SLICE;
-
-    result = avcodec_open2(_codec_ctx, codec, nullptr);
+    result = avcodec_open2(_codec_ctx, _codec, nullptr);
     if (result != 0)
     {
         // TODO: error_type::open_codec_fail;
@@ -553,9 +606,23 @@ void FFmpegCore::decode()
                 }
             }
 
-            result = decode_internal(packet, frame);
+            if (_hw_decode == true)
+            {
+                result = decode_internal(packet, _hw_frame);
+            }
+            else
+            {
+                result = decode_internal(packet, frame);
+            }
             if (result == error_type::ok)
             {
+                if (_hw_decode == true)
+                {
+                    av_hwframe_transfer_data(frame, _hw_frame, 0);
+                    av_frame_copy_props(frame, _hw_frame);
+                    av_frame_unref(_hw_frame);
+                }
+
                 scale(frame);
 
                 if (_first_decode)
@@ -776,6 +843,19 @@ void FFmpegCore::seek_pts(s64 pts)
 void FFmpegCore::frame_numbering()
 {
     _frame_numbering++;
+}
+
+static AVPixelFormat get_hw_format(AVCodecContext* ctx, const AVPixelFormat* pix_fmts)
+{
+    const enum AVPixelFormat* p;
+
+    for (p = pix_fmts; *p != -1; p++) {
+        if (*p == _hw_pix_fmt)
+            return *p;
+    }
+
+    fprintf(stderr, "Failed to get HW surface format.\n");
+    return AV_PIX_FMT_NONE;
 }
 
 void FFmpegCore::set_timestamp(s64 pts)

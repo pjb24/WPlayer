@@ -132,3 +132,15 @@ void cpp_ffmpeg_wrapper_frame_numbering(void* instance)
     FFmpegCore* core = (FFmpegCore*)instance;
     core->frame_numbering();
 }
+
+void cpp_ffmpeg_wrapper_set_hw_decode(void* instance)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->hw_decode(true);
+}
+
+void cpp_ffmpeg_wrapper_set_hw_device_type(void* instance, int hw_device_type)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->hw_device_type(hw_device_type);
+}

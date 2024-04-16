@@ -55,6 +55,11 @@ int _create_one_swapchain_for_each_adapter_without_control_output_excluded_windo
 // play_sync_group 명령을 수행할 때 Frame의 번호를 맞추어서 재생하도록 하는 Flag. 0: 사용 안함, 1 : 사용함
 bool _sync_group_frame_numbering = false;
 
+// 하드웨어 가속 디코딩 사용 옵션. 0: 사용 안함, 1: 사용함
+bool _hw_accel = false;
+// 하드웨어 가속 디코딩에 사용할 HWDeviceType. 2: CUDA, 4: DXVA2, 5: QSV, 7: D3D11VA
+int _hw_accel_device_type = 0;
+
 
 // scene을 자른 좌표에 대해서 보정을 수행하는 옵션.
 bool _scene_panel_coordinate_correction = false;
@@ -716,6 +721,13 @@ void tcp_processing_thread()
             ffmpeg_instance = cpp_ffmpeg_wrapper_create();
 
             cpp_ffmpeg_wrapper_initialize(ffmpeg_instance, callback_ffmpeg_wrapper_ptr);
+
+            if (_hw_accel == true)
+            {
+                cpp_ffmpeg_wrapper_set_hw_decode(ffmpeg_instance);
+                cpp_ffmpeg_wrapper_set_hw_device_type(ffmpeg_instance, _hw_accel_device_type);
+            }
+
             cpp_ffmpeg_wrapper_set_file_path(ffmpeg_instance, packet->url);
             if (cpp_ffmpeg_wrapper_open_file(ffmpeg_instance) != 0)
             {
@@ -913,6 +925,13 @@ void tcp_processing_thread()
             ffmpeg_instance = cpp_ffmpeg_wrapper_create();
 
             cpp_ffmpeg_wrapper_initialize(ffmpeg_instance, callback_ffmpeg_wrapper_ptr);
+
+            if (_hw_accel == true)
+            {
+                cpp_ffmpeg_wrapper_set_hw_decode(ffmpeg_instance);
+                cpp_ffmpeg_wrapper_set_hw_device_type(ffmpeg_instance, _hw_accel_device_type);
+            }
+
             cpp_ffmpeg_wrapper_set_file_path(ffmpeg_instance, packet->url);
             if (cpp_ffmpeg_wrapper_open_file(ffmpeg_instance) != 0)
             {
@@ -3872,6 +3891,14 @@ void config_setting()
     GetPrivateProfileString(L"WPlayer", L"sync_group_frame_numbering", L"0", result_w, 255, str_ini_path_w.c_str());
     result_i = _ttoi(result_w);
     _sync_group_frame_numbering = result_i == 0 ? false : true;
+
+    GetPrivateProfileString(L"WPlayer", L"hw_accel", L"0", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _hw_accel = result_i == 0 ? false : true;
+
+    GetPrivateProfileString(L"WPlayer", L"hw_accel_device_type", L"0", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _hw_accel_device_type = result_i;
 
     GetPrivateProfileString(L"WPlayer", L"scene_panel_coordinate_correction", L"0", result_w, 255, str_ini_path_w.c_str());
     result_i = _ttoi(result_w);

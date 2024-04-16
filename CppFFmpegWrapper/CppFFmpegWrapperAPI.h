@@ -58,3 +58,7 @@ EXPORT void cpp_ffmpeg_wrapper_jump_forward(void * instance, void* connection);
 EXPORT void cpp_ffmpeg_wrapper_jump_backwards(void * instance, void* connection);
 
 EXPORT void cpp_ffmpeg_wrapper_frame_numbering(void* instance);
+
+EXPORT void cpp_ffmpeg_wrapper_set_hw_decode(void* instance);
+
+EXPORT void cpp_ffmpeg_wrapper_set_hw_device_type(void* instance, int hw_device_type);
