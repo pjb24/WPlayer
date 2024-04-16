@@ -27,7 +27,7 @@ public:
     void rect(RECT rect) { _rect = rect; }
     void sync_group_index(u32 sync_group_index) { _sync_group_index = sync_group_index; }
     void sync_group_count(u16 sync_group_count) { _sync_group_count = sync_group_count; }
-    void sync_group_time_started() { _time_started = 0.0f; }
+    void sync_group_time_started() { _time_started = 0.0; }
     void file_path(std::string path) { _file_path = path; }
 
     void sync_group_frame_numbering();
@@ -52,7 +52,7 @@ private:
 
     bool    _first_decode = false;
     int64_t _previous_frame_pts = 0;
-    double _time_started = 0.0f;
+    double _time_started = 0.0;
     
     bool _sync_group_frame_numbering = false;
 
@@ -115,7 +115,7 @@ private:
     double              _time_base_d = 0.0f;
     s64                 _duration = 0;  // 스트림 총 길이
     s64                 _duration_frame = 0; // 1 Frame의 길이
-    double              _duration_frame_half = 0.0f;    // 1 Frame의 길이 절반
+    double              _duration_frame_half = 0.0;    // 1 Frame의 길이 절반
     s64                 _start_time = 0;
 
     bool                _read_flag = false;

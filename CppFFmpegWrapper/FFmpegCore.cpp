@@ -308,7 +308,7 @@ s32 FFmpegCore::frame_to_next()
     {
         if (_pause_flag)
         {
-            _time_started = 0.0f;
+            _time_started = 0.0;
         }
         return error_type::queue_is_empty;
     }
@@ -318,7 +318,7 @@ s32 FFmpegCore::frame_to_next()
     double time_now = av_gettime_relative() / 1'000.0;  // millisecond
     double previous_frame_pts = _frame_queue[_output_frame_index]->pts * _time_base_d * 1'000.0;
 
-    if (_time_started == 0.0f)
+    if (_time_started == 0.0)
     {
         _time_started = time_now - previous_frame_pts;
     }
@@ -567,7 +567,7 @@ void FFmpegCore::decode()
                 break;
             }
 
-            _time_started = 0.0f;
+            _time_started = 0.0;
 
             std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time));
         }
@@ -659,7 +659,7 @@ void FFmpegCore::decode()
                     delete data;
                     
                     _duration_frame = frame->duration;
-                    _duration_frame_half = _duration_frame * _time_base_d * 1'000.0f / 2;
+                    _duration_frame_half = _duration_frame * _time_base_d * 1'000.0 / 2;
                 }
 
                 while (true)
@@ -803,7 +803,7 @@ void FFmpegCore::seek_pts(s64 pts)
     _frame_count = 0;
     _frame_numbering = 0;
 
-    _time_started = 0.0f;
+    _time_started = 0.0;
 
     // 코덱 버퍼 클리어
     flush_codec();
