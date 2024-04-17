@@ -374,6 +374,7 @@ struct FrameSyncData
 };
 
 std::map<u32, FrameSyncData> _sync_group_counter_map_frame_numbering;   // key: sync_group_index
+std::mutex  _sync_group_counter_mutex_frame_numbering;
 #pragma endregion
 
 void config_setting();
@@ -626,6 +627,8 @@ void ffmpeg_processing_thread()
         break;
         case command_type::sync_group_frame_numbering:
         {
+            std::lock_guard<std::mutex> lk(_sync_group_counter_mutex_frame_numbering);
+
             std::map<u32, FrameSyncData>::iterator it = _sync_group_counter_map_frame_numbering.find(data_command.sync_group_index);
             if (it == _sync_group_counter_map_frame_numbering.end())
             {
@@ -895,6 +898,11 @@ void tcp_processing_thread()
 
                 if (sync_group_counter.sync_group_input_count == sync_group_counter.sync_group_count)
                 {
+                    {
+                        std::lock_guard<std::mutex> lk(_sync_group_counter_mutex_frame_numbering);
+                        _sync_group_counter_map_frame_numbering.erase(it->second.sync_group_index);
+                    }
+
                     auto it_ffmpeg_data = _ffmpeg_data_map.begin();
                     for (; it_ffmpeg_data != _ffmpeg_data_map.end(); it_ffmpeg_data++)
                     {
