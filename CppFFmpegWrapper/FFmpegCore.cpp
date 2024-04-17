@@ -282,8 +282,14 @@ s32 FFmpegCore::get_frame(AVFrame *& frame)
         //if (_eof_read == true)
         if (_eof_read2 == true)
         {
+            if (_repeat_flag == true)
+            {
+                return -3;
+            }
+
             return -2;
         }
+
         return -1;
     }
 
@@ -555,6 +561,8 @@ void FFmpegCore::decode()
     AVFrame* frame = nullptr;
     frame = av_frame_alloc();
 
+    bool repeat_sync_group_send = false;
+
     while (_decode_flag)
     {
         while (_pause_flag || _seek_flag)
@@ -664,6 +672,35 @@ void FFmpegCore::decode()
 
                 while (true)
                 {
+                    if (_repeat_flag == true)
+                    {
+                        if (repeat_sync_group_send == false)
+                        {
+                            repeat_sync_group_send = true;
+
+                            ffmpeg_wrapper_callback_data* data = new ffmpeg_wrapper_callback_data();
+                            data->scene_index = _scene_index;
+
+                            data->command = (u16)command_type::seek_repeat_self_sync_group;
+
+                            data->result = (u16)packet_result::ok;
+
+                            data->sync_group_index = _sync_group_index;
+                            data->sync_group_count = _sync_group_count;
+
+                            _callback_ffmpeg(data);
+
+                            delete data;
+                        }
+
+                        std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time));
+                        continue;
+                    }
+                    else
+                    {
+                        repeat_sync_group_send = false;
+                    }
+
                     result = input_frame(frame);
                     if (result == error_type::ok)
                     {
@@ -838,11 +875,87 @@ void FFmpegCore::seek_pts(s64 pts)
 
     _seek_condition_reader.notify_one();
     _seek_condition_decoder.notify_one();
+
+    if (_repeat_flag == true)
+    {
+        _repeat_flag = false;
+    }
 }
 
 void FFmpegCore::frame_numbering()
 {
     _frame_numbering++;
+}
+
+void FFmpegCore::set_repeat_flag()
+{
+    _repeat_flag = true;
+}
+
+void FFmpegCore::unset_repeat_flag()
+{
+    _repeat_flag = false;
+}
+
+void FFmpegCore::repeat_sync_group()
+{
+    if (_read_flag == false && _decode_flag == false)
+    {
+        return;
+    }
+
+    if (_seek_flag == true)
+    {
+        return;
+    }
+
+    // 재생 일시정지
+    _seek_flag = true;
+
+    // 정지할 때까지 대기
+    while (!(_seek_ready_flag_reader && _seek_ready_flag_decoder))
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time));
+    }
+
+    _frame_count = 0;
+    _frame_numbering = 0;
+
+    _time_started = 0.0;
+
+    // 코덱 버퍼 클리어
+    flush_codec();
+
+    // 큐 클리어
+    clear_packet_queue();
+    clear_frame_queue();
+
+    // 위치 이동
+    set_timestamp(0);
+
+    if (_eof_read == true)
+    {
+        _eof_read = false;
+    }
+
+    if (_eof_read2 == true)
+    {
+        _eof_read2 = false;
+    }
+
+    if (_eof_decode == true)
+    {
+        _eof_decode = false;
+    }
+
+    // 재생 시작
+    _seek_flag = false;
+
+    _seek_ready_flag_reader = false;
+    _seek_ready_flag_decoder = false;
+
+    _seek_condition_reader.notify_one();
+    _seek_condition_decoder.notify_one();
 }
 
 static AVPixelFormat get_hw_format(AVCodecContext* ctx, const AVPixelFormat* pix_fmts)

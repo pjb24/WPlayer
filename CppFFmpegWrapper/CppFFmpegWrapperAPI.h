@@ -62,3 +62,10 @@ EXPORT void cpp_ffmpeg_wrapper_frame_numbering(void* instance);
 EXPORT void cpp_ffmpeg_wrapper_set_hw_decode(void* instance);
 
 EXPORT void cpp_ffmpeg_wrapper_set_hw_device_type(void* instance, int hw_device_type);
+
+EXPORT void cpp_ffmpeg_wrapper_set_repeat_flag(void* instance);
+
+EXPORT void cpp_ffmpeg_wrapper_repeat_sync_group(void* instance);
+
+EXPORT void cpp_ffmpeg_wrapper_unset_repeat_flag(void* instance);
+

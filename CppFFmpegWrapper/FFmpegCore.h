@@ -39,6 +39,11 @@ public:
     void hw_decode(bool hw_decode) { _hw_decode = hw_decode; }
     void hw_device_type(int hw_device_type) { _hw_device_type = (AVHWDeviceType)hw_device_type; }
 
+    void set_repeat_flag();
+    void unset_repeat_flag();
+
+    void repeat_sync_group();
+
 private:
 
     const int _thread_count_fhd = 4;
@@ -58,6 +63,8 @@ private:
 
     uint32_t _frame_numbering = 0;  // sync_group_frame_numbering 호출되면 올라감
     uint32_t _frame_count = 0;  // 다음 frame으로 이동할 때 올라감
+
+    bool _repeat_flag = false;
 
 #pragma region HW_Decode
     bool _hw_decode = false;

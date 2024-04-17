@@ -144,3 +144,22 @@ void cpp_ffmpeg_wrapper_set_hw_device_type(void* instance, int hw_device_type)
     FFmpegCore* core = (FFmpegCore*)instance;
     core->hw_device_type(hw_device_type);
 }
+
+void cpp_ffmpeg_wrapper_set_repeat_flag(void* instance)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->set_repeat_flag();
+}
+
+void cpp_ffmpeg_wrapper_repeat_sync_group(void* instance)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->repeat_sync_group();
+}
+
+void cpp_ffmpeg_wrapper_unset_repeat_flag(void* instance)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->unset_repeat_flag();
+}
+
