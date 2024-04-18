@@ -69,3 +69,5 @@ EXPORT void cpp_ffmpeg_wrapper_repeat_sync_group(void* instance);
 
 EXPORT void cpp_ffmpeg_wrapper_unset_repeat_flag(void* instance);
 
+EXPORT int32_t cpp_ffmpeg_wrapper_check_frame_to_next_sync_group(void* instance);
+

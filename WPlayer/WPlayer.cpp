@@ -708,6 +708,7 @@ void ffmpeg_processing_thread()
                 {
                     if (it_ffmpeg_data->second.sync_group_index == data_command.sync_group_index)
                     {
+                        cpp_ffmpeg_wrapper_set_sync_group_time_started(it_ffmpeg_data->second.ffmpeg_instance);
                         cpp_ffmpeg_wrapper_unset_repeat_flag(it_ffmpeg_data->second.ffmpeg_instance);
                     }
                 }
@@ -3108,6 +3109,9 @@ u32 render()
 
     {
         std::lock_guard<std::mutex> lock(_ffmpeg_data_mutex);
+
+        std::map<u32, SyncGroupCounter> frame_to_next_sync_group_map;
+
         for (auto scene : _graphics_scene_list)
         {
             if (scene->using_flag == false)
@@ -3128,9 +3132,51 @@ u32 render()
             auto it_ffmpeg_data = _ffmpeg_data_map.find(scene->scene_index);
             if (it_ffmpeg_data != _ffmpeg_data_map.end())
             {
+                if (scene->sync_group_index != u32_invalid_id)
+                {
+                    s32 ret = cpp_ffmpeg_wrapper_check_frame_to_next_sync_group(it_ffmpeg_data->second.ffmpeg_instance);
+                    if (ret == 0)
+                    {
+                        SyncGroupCounter sync_group_counter;
+
+                        auto it_sync_group_counter = frame_to_next_sync_group_map.find(scene->sync_group_index);
+                        if (it_sync_group_counter == frame_to_next_sync_group_map.end())
+                        {
+                            sync_group_counter.sync_group_count = scene->sync_group_count;
+                            sync_group_counter.sync_group_input_count++;
+
+                            frame_to_next_sync_group_map.insert({ scene->sync_group_index, sync_group_counter });
+                        }
+                        else
+                        {
+                            it_sync_group_counter->second.sync_group_input_count++;
+                        }
+                    }
+
+                    continue;
+                }
+
                 cpp_ffmpeg_wrapper_frame_to_next(it_ffmpeg_data->second.ffmpeg_instance);
             }
         }
+
+        std::map<u32, SyncGroupCounter>::iterator it_frame_to_next_sync_group = frame_to_next_sync_group_map.begin();
+        for (; it_frame_to_next_sync_group != frame_to_next_sync_group_map.end(); it_frame_to_next_sync_group++)
+        {
+            if (it_frame_to_next_sync_group->second.sync_group_count == it_frame_to_next_sync_group->second.sync_group_input_count)
+            {
+                auto it_ffmpeg_data = _ffmpeg_data_map.begin();
+                for (; it_ffmpeg_data != _ffmpeg_data_map.end(); it_ffmpeg_data++)
+                {
+                    if (it_ffmpeg_data->second.sync_group_index == it_frame_to_next_sync_group->first)
+                    {
+                        cpp_ffmpeg_wrapper_frame_to_next(it_ffmpeg_data->second.ffmpeg_instance);
+                    }
+                }
+            }
+        }
+
+        frame_to_next_sync_group_map.clear();
     }
 
     return u32();

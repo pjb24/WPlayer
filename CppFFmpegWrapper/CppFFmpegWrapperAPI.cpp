@@ -163,3 +163,9 @@ void cpp_ffmpeg_wrapper_unset_repeat_flag(void* instance)
     core->unset_repeat_flag();
 }
 
+int32_t cpp_ffmpeg_wrapper_check_frame_to_next_sync_group(void* instance)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    return core->check_frame_to_next_sync_group();
+}
+

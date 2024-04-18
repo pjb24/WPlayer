@@ -22,6 +22,7 @@ public:
 
     s32 get_frame(AVFrame*& frame);
     s32 frame_to_next();
+    s32 check_frame_to_next_sync_group();
 
     void scene_index(u32 scene_index) { _scene_index = scene_index; }
     void rect(RECT rect) { _rect = rect; }
