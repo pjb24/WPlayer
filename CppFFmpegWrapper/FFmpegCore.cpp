@@ -322,7 +322,12 @@ s32 FFmpegCore::frame_to_next()
     int frame_queue_size = get_frame_queue_size();
 
     double time_now = av_gettime_relative() / 1'000.0;  // millisecond
-    double previous_frame_pts = _frame_queue[_output_frame_index]->pts * _time_base_d * 1'000.0;
+
+    double previous_frame_pts = 0;
+    if (_frame_queue[_output_frame_index]->pts > 0)
+    {
+        previous_frame_pts = _frame_queue[_output_frame_index]->pts * _time_base_d * 1'000.0;
+    }
 
     if (_time_started == 0.0)
     {
