@@ -624,6 +624,11 @@ void ffmpeg_processing_thread()
 
                 _sync_group_counter_map_stop.erase(data_command.sync_group_index);
             }
+
+            {
+                std::lock_guard<std::mutex> lk(_sync_group_counter_mutex_frame_numbering);
+                _sync_group_counter_map_frame_numbering.erase(data_command.sync_group_index);
+            }
         }
         break;
         case command_type::sync_group_frame_numbering:
@@ -1061,11 +1066,6 @@ void tcp_processing_thread()
                     ffmpeg_instance = it->second.ffmpeg_instance;
 
                     cpp_ffmpeg_wrapper_play_stop(ffmpeg_instance, data_pair.second);
-
-                    {
-                        std::lock_guard<std::mutex> lk(_sync_group_counter_mutex_frame_numbering);
-                        _sync_group_counter_map_frame_numbering.erase(it->second.sync_group_index);
-                    }
                 }
             }
 
