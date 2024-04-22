@@ -145,6 +145,12 @@ void cpp_ffmpeg_wrapper_set_hw_device_type(void* instance, int hw_device_type)
     core->hw_device_type(hw_device_type);
 }
 
+void cpp_ffmpeg_wrapper_set_hw_decode_adapter_index(void* instance, int hw_decode_adapter_index)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->hw_decode_adapter_index(hw_decode_adapter_index);
+}
+
 void cpp_ffmpeg_wrapper_set_repeat_flag(void* instance)
 {
     FFmpegCore* core = (FFmpegCore*)instance;

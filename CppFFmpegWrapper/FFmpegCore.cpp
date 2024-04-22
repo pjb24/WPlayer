@@ -549,7 +549,7 @@ void FFmpegCore::open_codec()
 
         _codec_ctx->get_format = get_hw_format;
 
-        result = av_hwdevice_ctx_create(&_hw_device_ctx, _hw_device_type, NULL, NULL, 0);
+        result = av_hwdevice_ctx_create(&_hw_device_ctx, _hw_device_type, std::to_string(_hw_decode_adapter_index).c_str(), NULL, 0);
         if (result < 0)
         {
             // TODO:
@@ -938,6 +938,16 @@ void FFmpegCore::seek_pts(s64 pts)
 void FFmpegCore::frame_numbering()
 {
     _frame_numbering++;
+}
+
+void FFmpegCore::hw_decode_adapter_index(int hw_decode_adapter_index)
+{
+    if (hw_decode_adapter_index < 0)
+    {
+        return;
+    }
+
+    _hw_decode_adapter_index = hw_decode_adapter_index;
 }
 
 void FFmpegCore::set_repeat_flag()
