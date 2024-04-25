@@ -691,7 +691,10 @@ void FFmpegCore::decode()
                     av_frame_unref(_hw_frame);
                 }
 
-                scale(frame);
+                if (_scale == true)
+                {
+                    scale(frame);
+                }
 
                 if (_first_decode)
                 {
@@ -1026,6 +1029,11 @@ void FFmpegCore::repeat_sync_group()
 
     _seek_condition_reader.notify_one();
     _seek_condition_decoder.notify_one();
+}
+
+void FFmpegCore::set_scale(bool scale)
+{
+    _scale = scale;
 }
 
 static AVPixelFormat get_hw_format(AVCodecContext* ctx, const AVPixelFormat* pix_fmts)

@@ -46,6 +46,8 @@ public:
 
     void repeat_sync_group();
 
+    void set_scale(bool scale);
+
 private:
 
     const int _thread_count_fhd = 4;
@@ -158,6 +160,8 @@ private:
     SwsContext*         _sws_ctx = nullptr;
 
     int                 _scale_alloc_size = 0;
+
+    bool                _scale = true;
 #pragma endregion
 
 #pragma region circular queue

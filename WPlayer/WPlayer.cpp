@@ -65,6 +65,9 @@ int _hw_accel_adapter_index = -1;
 // scene을 자른 좌표에 대해서 보정을 수행하는 옵션.
 bool _scene_panel_coordinate_correction = false;
 
+// scale On/Off 옵션. 0: 사용 안함, 1: 사용함
+bool _scale_option = false;
+
 
 std::string _ip;
 uint16_t _port;
@@ -775,6 +778,8 @@ void tcp_processing_thread()
                 cpp_ffmpeg_wrapper_set_hw_decode_adapter_index(ffmpeg_instance, _hw_accel_adapter_index);
             }
 
+            cpp_ffmpeg_wrapper_set_scale(ffmpeg_instance, _scale_option);
+
             cpp_ffmpeg_wrapper_set_file_path(ffmpeg_instance, packet->url);
             if (cpp_ffmpeg_wrapper_open_file(ffmpeg_instance) != 0)
             {
@@ -986,6 +991,8 @@ void tcp_processing_thread()
                 cpp_ffmpeg_wrapper_set_hw_device_type(ffmpeg_instance, _hw_accel_device_type);
                 cpp_ffmpeg_wrapper_set_hw_decode_adapter_index(ffmpeg_instance, _hw_accel_adapter_index);
             }
+
+            cpp_ffmpeg_wrapper_set_scale(ffmpeg_instance, _scale_option);
 
             cpp_ffmpeg_wrapper_set_file_path(ffmpeg_instance, packet->url);
             if (cpp_ffmpeg_wrapper_open_file(ffmpeg_instance) != 0)
@@ -4013,6 +4020,10 @@ void config_setting()
     GetPrivateProfileString(L"WPlayer", L"scene_panel_coordinate_correction", L"0", result_w, 255, str_ini_path_w.c_str());
     result_i = _ttoi(result_w);
     _scene_panel_coordinate_correction = result_i == 0 ? false : true;
+
+    GetPrivateProfileString(L"WPlayer", L"scale_option", L"1", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _scale_option = result_i == 0 ? false : true;
 }
 
 #define MAX_LOADSTRING 100

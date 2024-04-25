@@ -37,6 +37,8 @@ EXPORT void cpp_ffmpeg_wrapper_set_sync_group_time_started(void* instance);
 
 EXPORT void cpp_ffmpeg_wrapper_set_sync_group_frame_numbering(void* instance);
 
+EXPORT void cpp_ffmpeg_wrapper_set_scale(void* instance, bool scale);
+
 EXPORT void cpp_ffmpeg_wrapper_set_file_path(void* instance, char* url);
 
 EXPORT int cpp_ffmpeg_wrapper_open_file(void* instance);

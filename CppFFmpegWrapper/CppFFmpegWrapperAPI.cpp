@@ -64,6 +64,12 @@ void cpp_ffmpeg_wrapper_set_sync_group_frame_numbering(void* instance)
     core->sync_group_frame_numbering();
 }
 
+void cpp_ffmpeg_wrapper_set_scale(void* instance, bool scale)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->set_scale(scale);
+}
+
 void cpp_ffmpeg_wrapper_set_file_path(void * instance, char * url)
 {
     FFmpegCore* core = (FFmpegCore*)instance;
