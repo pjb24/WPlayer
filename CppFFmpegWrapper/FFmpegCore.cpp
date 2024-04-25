@@ -549,7 +549,14 @@ void FFmpegCore::open_codec()
 
         _codec_ctx->get_format = get_hw_format;
 
-        result = av_hwdevice_ctx_create(&_hw_device_ctx, _hw_device_type, std::to_string(_hw_decode_adapter_index).c_str(), NULL, 0);
+        if (_hw_decode_adapter_index == -1)
+        {
+            result = av_hwdevice_ctx_create(&_hw_device_ctx, _hw_device_type, NULL, NULL, 0);
+        }
+        else
+        {
+            result = av_hwdevice_ctx_create(&_hw_device_ctx, _hw_device_type, std::to_string(_hw_decode_adapter_index).c_str(), NULL, 0);
+        }
         if (result < 0)
         {
             // TODO:

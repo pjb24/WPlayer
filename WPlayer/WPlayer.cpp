@@ -60,7 +60,7 @@ bool _hw_accel = false;
 // 하드웨어 가속 디코딩에 사용할 HWDeviceType. 2: CUDA, 4: DXVA2, 5: QSV, 7: D3D11VA
 int _hw_accel_device_type = 0;
 // 하드웨어 가속 디코딩에 사용할 Adapter의 번호.
-int _hw_accel_adapter_index = 0;
+int _hw_accel_adapter_index = -1;
 
 // scene을 자른 좌표에 대해서 보정을 수행하는 옵션.
 bool _scene_panel_coordinate_correction = false;
@@ -772,6 +772,7 @@ void tcp_processing_thread()
             {
                 cpp_ffmpeg_wrapper_set_hw_decode(ffmpeg_instance);
                 cpp_ffmpeg_wrapper_set_hw_device_type(ffmpeg_instance, _hw_accel_device_type);
+                cpp_ffmpeg_wrapper_set_hw_decode_adapter_index(ffmpeg_instance, _hw_accel_adapter_index);
             }
 
             cpp_ffmpeg_wrapper_set_file_path(ffmpeg_instance, packet->url);
@@ -1148,7 +1149,7 @@ u32 enum_adapters()
         }
     }
 
-    size_t adapter_count = _graphics_data_list.size();
+    int adapter_count = _graphics_data_list.size();
     if (_hw_accel_adapter_index > adapter_count)
     {
         _hw_accel_adapter_index = adapter_count;
@@ -4005,7 +4006,7 @@ void config_setting()
     result_i = _ttoi(result_w);
     _hw_accel_device_type = result_i;
 
-    GetPrivateProfileString(L"WPlayer", L"hw_accel_adapter_index", L"0", result_w, 255, str_ini_path_w.c_str());
+    GetPrivateProfileString(L"WPlayer", L"hw_accel_adapter_index", L"-1", result_w, 255, str_ini_path_w.c_str());
     result_i = _ttoi(result_w);
     _hw_accel_adapter_index = result_i;
 

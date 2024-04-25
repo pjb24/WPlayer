@@ -72,7 +72,7 @@ private:
     bool _hw_decode = false;
     AVHWDeviceType _hw_device_type = AVHWDeviceType::AV_HWDEVICE_TYPE_NONE;
     AVBufferRef* _hw_device_ctx = nullptr;
-    int _hw_decode_adapter_index = 0;
+    int _hw_decode_adapter_index = -1;
 
     AVFrame* _hw_frame = nullptr;
 #pragma endregion
