@@ -30,6 +30,7 @@ bool _disable_present_barrier = true;
 
 constexpr u32 frame_buffer_count = 3;
 constexpr u32 texture_resource_count = 3;
+constexpr u32 texture_resource_count_nv12 = 2;
 
 int _test_window_count = 0;    // 0이면 기본 사용, 0이 아니면 개수만큼 window 생성
 
@@ -68,6 +69,11 @@ bool _scene_panel_coordinate_correction = false;
 // scale On/Off 옵션. 0: 사용 안함, 1: 사용함
 bool _scale_option = false;
 
+// NV12 형식의 텍스처를 사용하는 옵션 0: YUV 형식 사용, 1: NV12 형식 사용
+bool _nv12_texture_option = false;
+
+// NV12 형식의 텍스처를 Upload 하는 방식을 설정하는 옵션. 0: UpdateSubresources 방식, 1: Map/Unmap과 CopyTextureRegion 방식
+int _nv12_texture_upload_type = 0;
 
 std::string _ip;
 uint16_t _port;
@@ -171,6 +177,10 @@ enum class deferred_type : s32
     upload_texture_y = 5,
     upload_texture_u = 6,
     upload_texture_v = 7,
+
+    texture_nv12 = 8,
+    upload_texture_luminance = 9,
+    upload_texture_chrominance = 10,
 };
 
 struct deferred_free_object
@@ -179,6 +189,21 @@ struct deferred_free_object
     s32 index = -1;
     deferred_type type;
     bool free_flag = false;
+};
+
+
+struct footprints
+{
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout{};
+    UINT numRows = 0;
+    UINT64 rowSizeInBytes = 0;
+    UINT64 totalBytes = 0;
+};
+
+struct upload_resource
+{
+    ID3D12Resource* resource;
+    footprints footprint;
 };
 
 struct graphics_data
@@ -218,6 +243,10 @@ struct graphics_data
     std::map<s32, ID3D12Resource*> upload_texture_map_y[frame_buffer_count];
     std::map<s32, ID3D12Resource*> upload_texture_map_u[frame_buffer_count];
     std::map<s32, ID3D12Resource*> upload_texture_map_v[frame_buffer_count];
+
+    std::map<s32, ID3D12Resource*> texture_map_nv12[frame_buffer_count];
+    std::map<s32, upload_resource*> upload_texture_map_luminance[frame_buffer_count];
+    std::map<s32, upload_resource*> upload_texture_map_chrominance[frame_buffer_count];
 
     bool create_index_buffer_flag = true;
 
@@ -275,6 +304,7 @@ u32 delete_rtv_heaps();
 u32 create_srv_heaps();
 u32 delete_srv_heaps();
 u32 create_root_signatures();
+u32 create_root_signatures_nv12();
 u32 delete_root_signatures();
 u32 create_psos();
 u32 delete_psos();
@@ -285,6 +315,7 @@ u32 delete_index_buffer();
 u32 create_vertex_buffer(graphics_data* data, s32 vertex_index, NormalizedRect normalized_rect, NormalizedRect normalized_uv, u32 scene_index);
 u32 delete_vertex_buffer_list();
 u32 create_texture(graphics_data* data, u32 width, u32 height, s32 texture_index, u32 scene_index);
+u32 create_texture_nv12(graphics_data* data, u32 width, u32 height, s32 texture_index, u32 scene_index);
 u32 delete_textures();
 u32 create_fences();
 u32 delete_fences();
@@ -298,6 +329,7 @@ u32 create_scene_data(RECT rect, u32 sync_group_index = u32_invalid_id, u16 sync
 u32 delete_scene_data(u32 scene_index);
 u32 delete_scene_datas();
 u32 upload_texture(graphics_data* data, AVFrame* frame, s32 target_texture_index, s32 output_frame_index);
+u32 upload_texture_nv12(graphics_data* data, AVFrame* frame, s32 target_texture_index, s32 output_frame_index);
 u32 upload_texture_each_panel(graphics_data* data, AVFrame* frame, s32 output_frame_index, Panel* panel);
 float normalize_min_max(int min, int max, int target, int normalized_min, int normalized_max);
 u32 normalize_rect(RECT base_rect, RECT target_rect, NormalizedRect& normalized_rect);
@@ -1846,17 +1878,77 @@ u32 create_root_signatures()
         CD3DX12_DESCRIPTOR_RANGE1 ranges[frame_buffer_count]{};
         CD3DX12_ROOT_PARAMETER1 root_parameters[frame_buffer_count]{};
 
-        // texture 1
+        // srv 1
         ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
         root_parameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
 
-        // texture 2
+        // srv 2
         ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2);
         root_parameters[1].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL);
 
-        // texture 1
+        // srv 3
         ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3);
         root_parameters[2].InitAsDescriptorTable(1, &ranges[2], D3D12_SHADER_VISIBILITY_PIXEL);
+
+        D3D12_STATIC_SAMPLER_DESC sampler{};
+        sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+        sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+        sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+        sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+        sampler.MipLODBias = 0;
+        sampler.MaxAnisotropy = 0;
+        sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+        sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+        sampler.MinLOD = 0.0f;
+        sampler.MaxLOD = D3D12_FLOAT32_MAX;
+        sampler.ShaderRegister = 0;
+        sampler.RegisterSpace = 0;
+        sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC root_sig_desc{};
+        root_sig_desc.Init_1_1(_countof(root_parameters), root_parameters, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+        ComPtr<ID3DBlob> signature;
+        ComPtr<ID3DBlob> error;
+        hr = D3D12SerializeVersionedRootSignature(&root_sig_desc, &signature, &error);
+        hr = data->device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&data->root_sig));
+
+        NAME_D3D12_OBJECT_INDEXED(data->root_sig, data->adapter_index, L"ID3D12RootSignature");
+    }
+
+    return u32();
+}
+
+u32 create_root_signatures_nv12()
+{
+    if (_graphics_data_list.empty())
+    {
+        return u32();
+    }
+
+    HRESULT hr = S_OK;
+
+    for (auto data : _graphics_data_list)
+    {
+        D3D12_FEATURE_DATA_ROOT_SIGNATURE feature_data{};
+
+        feature_data.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+
+        if (FAILED(data->device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &feature_data, sizeof(feature_data))))
+        {
+            feature_data.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+        }
+
+        CD3DX12_DESCRIPTOR_RANGE1 ranges[texture_resource_count_nv12]{};
+        CD3DX12_ROOT_PARAMETER1 root_parameters[texture_resource_count_nv12]{};
+
+        // srv 1
+        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
+        root_parameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
+
+        // srv 2
+        ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2);
+        root_parameters[1].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL);
 
         D3D12_STATIC_SAMPLER_DESC sampler{};
         sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
@@ -1922,8 +2014,16 @@ u32 create_psos()
     UINT compile_flags = 0;
 #endif
 
-    hr = D3DCompileFromFile(get_asset_full_path(L"shaders.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compile_flags, 0, &vertex_shader, nullptr);
-    hr = D3DCompileFromFile(get_asset_full_path(L"shaders.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compile_flags, 0, &pixel_shader, nullptr);
+    if (_nv12_texture_option == true)
+    {
+        hr = D3DCompileFromFile(get_asset_full_path(L"shaders_nv12.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compile_flags, 0, &vertex_shader, nullptr);
+        hr = D3DCompileFromFile(get_asset_full_path(L"shaders_nv12.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compile_flags, 0, &pixel_shader, nullptr);
+    }
+    else
+    {
+        hr = D3DCompileFromFile(get_asset_full_path(L"shaders.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compile_flags, 0, &vertex_shader, nullptr);
+        hr = D3DCompileFromFile(get_asset_full_path(L"shaders.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compile_flags, 0, &pixel_shader, nullptr);
+    }
 
     D3D12_INPUT_ELEMENT_DESC input_element_descs[] =
     {
@@ -2404,6 +2504,159 @@ u32 create_texture(graphics_data* data, u32 width, u32 height, s32 texture_index
     return u32();
 }
 
+u32 create_texture_nv12(graphics_data* data, u32 width, u32 height, s32 texture_index, u32 scene_index)
+{
+    if (_graphics_data_list.empty())
+    {
+        return u32();
+    }
+
+    HRESULT hr = S_OK;
+
+    //----------------------------------------------------------------------------------------------------------------
+    // create nv12 texture
+    // create luminance, chrominance uplaod texture
+
+    D3D12_RESOURCE_DESC texture_desc{};
+    texture_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    texture_desc.Alignment = 0;
+    texture_desc.Width = width;
+    texture_desc.Height = height;
+    texture_desc.DepthOrArraySize = 1;
+    texture_desc.MipLevels = 1;
+    texture_desc.Format = DXGI_FORMAT_NV12;
+    texture_desc.SampleDesc.Count = 1;
+    texture_desc.SampleDesc.Quality = 0;
+    texture_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    texture_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    CD3DX12_HEAP_PROPERTIES texture_properties(D3D12_HEAP_TYPE_DEFAULT);
+
+    for (u32 i = 0; i < frame_buffer_count; i++)
+    {
+        ID3D12Resource* texture_nv12 = nullptr;
+        hr = data->device->CreateCommittedResource(
+            &texture_properties,
+            D3D12_HEAP_FLAG_NONE,
+            &texture_desc,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+            nullptr,
+            IID_PPV_ARGS(&texture_nv12)
+        );
+        data->texture_map_nv12[i].insert({ texture_index, texture_nv12 });
+
+        NAME_D3D12_OBJECT_INDEXED_2(texture_nv12, scene_index, i, L"ID3D12Resource_texture_nv12");
+    }
+
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout_luminance{};
+    UINT numRows_luminance = 0;
+    UINT64 rowSizeInBytes_luminance = 0;
+    UINT64 totalBytes_luminance = 0;
+
+    data->device->GetCopyableFootprints(&texture_desc, 0, 1, 0, &layout_luminance, &numRows_luminance, &rowSizeInBytes_luminance, &totalBytes_luminance);
+
+    D3D12_RESOURCE_DESC upload_desc{};
+    upload_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    upload_desc.Alignment = 0;
+    upload_desc.Width = totalBytes_luminance;
+    upload_desc.Height = 1;
+    upload_desc.DepthOrArraySize = 1;
+    upload_desc.MipLevels = 1;
+    upload_desc.Format = DXGI_FORMAT_UNKNOWN;
+    upload_desc.SampleDesc.Count = 1;
+    upload_desc.SampleDesc.Quality = 0;
+    upload_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    upload_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    CD3DX12_HEAP_PROPERTIES texture_upload_heap_properties(D3D12_HEAP_TYPE_UPLOAD);
+
+    for (u32 i = 0; i < frame_buffer_count; i++)
+    {
+        upload_resource* resource_luminance = new upload_resource();
+        resource_luminance->footprint.layout = layout_luminance;
+        resource_luminance->footprint.numRows = numRows_luminance;
+        resource_luminance->footprint.rowSizeInBytes = rowSizeInBytes_luminance;
+        resource_luminance->footprint.totalBytes = totalBytes_luminance;
+
+        ID3D12Resource* upload_texture_luminance= nullptr;
+        hr = data->device->CreateCommittedResource(
+            &texture_upload_heap_properties,
+            D3D12_HEAP_FLAG_NONE,
+            &upload_desc,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&upload_texture_luminance)
+        );
+        resource_luminance->resource = upload_texture_luminance;
+        data->upload_texture_map_luminance[i].insert({ texture_index, resource_luminance });
+
+        NAME_D3D12_OBJECT_INDEXED_2(upload_texture_luminance, scene_index, i, L"ID3D12Resource_upload_texture_luminance");
+    }
+
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout_chrominance{};
+    UINT numRows_chrominance = 0;
+    UINT64 rowSizeInBytes_chrominance = 0;
+    UINT64 totalBytes_chrominance = 0;
+
+    data->device->GetCopyableFootprints(&texture_desc, 1, 1, 0, &layout_chrominance, &numRows_chrominance, &rowSizeInBytes_chrominance, &totalBytes_chrominance);
+
+    upload_desc.Width = totalBytes_chrominance;
+
+    for (u32 i = 0; i < frame_buffer_count; i++)
+    {
+        upload_resource* resource_chrominance = new upload_resource();
+        resource_chrominance->footprint.layout = layout_chrominance;
+        resource_chrominance->footprint.numRows = numRows_chrominance;
+        resource_chrominance->footprint.rowSizeInBytes = rowSizeInBytes_chrominance;
+        resource_chrominance->footprint.totalBytes = totalBytes_chrominance;
+
+        ID3D12Resource* upload_texture_chrominance = nullptr;
+        hr = data->device->CreateCommittedResource(
+            &texture_upload_heap_properties,
+            D3D12_HEAP_FLAG_NONE,
+            &upload_desc,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&upload_texture_chrominance)
+        );
+        resource_chrominance->resource = upload_texture_chrominance;
+        data->upload_texture_map_chrominance[i].insert({ texture_index, resource_chrominance });
+
+        NAME_D3D12_OBJECT_INDEXED_2(upload_texture_chrominance, scene_index, i, L"ID3D12Resource_upload_texture_chrominance");
+    }
+
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc{};
+    srv_desc.Format = DXGI_FORMAT_R8_UNORM;
+    srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srv_desc.Texture2D.MostDetailedMip = 0;
+    srv_desc.Texture2D.MipLevels = 1;
+    srv_desc.Texture2D.PlaneSlice = 0;
+    srv_desc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+    const u32 srv_descriptor_size = data->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    D3D12_CPU_DESCRIPTOR_HANDLE srv_handle(data->srv_heaps->GetCPUDescriptorHandleForHeapStart());
+    srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size * (frame_buffer_count * texture_resource_count_nv12 * texture_index)));
+
+    for (u32 i = 0; i < frame_buffer_count; i++)
+    {
+        ID3D12Resource* texture_nv12 = data->texture_map_nv12[i][texture_index];
+
+        srv_desc.Format = DXGI_FORMAT_R8_UNORM;
+        srv_desc.Texture2D.PlaneSlice = 0;
+        data->device->CreateShaderResourceView(texture_nv12, &srv_desc, srv_handle);
+        srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size));
+
+        srv_desc.Format = DXGI_FORMAT_R8G8_UNORM;
+        srv_desc.Texture2D.PlaneSlice = 1;
+        data->device->CreateShaderResourceView(texture_nv12, &srv_desc, srv_handle);
+        srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size));
+    }
+
+    return u32();
+}
+
 u32 delete_textures()
 {
     if (_graphics_data_list.empty())
@@ -2415,6 +2668,9 @@ u32 delete_textures()
     {
         for (u32 i = 0; i < frame_buffer_count; i++)
         {
+            // ----------------------------------------------------------------
+            // texture
+
             for (auto it = data->texture_map_y[i].begin(); it != data->texture_map_y[i].end();)
             {
                 ID3D12Resource* o = it->second;
@@ -2442,6 +2698,18 @@ u32 delete_textures()
                 it = data->texture_map_v[i].erase(it);
             }
 
+            for (auto it = data->texture_map_nv12[i].begin(); it != data->texture_map_nv12[i].end();)
+            {
+                ID3D12Resource* o = it->second;
+                o->Release();
+                o = nullptr;
+
+                it = data->texture_map_nv12[i].erase(it);
+            }
+
+            // ----------------------------------------------------------------
+            // upload texture
+
             for (auto it = data->upload_texture_map_y[i].begin(); it != data->upload_texture_map_y[i].end();)
             {
                 ID3D12Resource* o = it->second;
@@ -2467,6 +2735,28 @@ u32 delete_textures()
                 o = nullptr;
 
                 it = data->upload_texture_map_v[i].erase(it);
+            }
+
+            for (auto it = data->upload_texture_map_luminance[i].begin(); it != data->upload_texture_map_luminance[i].end();)
+            {
+                ID3D12Resource* o = it->second->resource;
+                o->Release();
+                o = nullptr;
+
+                delete it->second;
+
+                it = data->upload_texture_map_luminance[i].erase(it);
+            }
+
+            for (auto it = data->upload_texture_map_chrominance[i].begin(); it != data->upload_texture_map_chrominance[i].end();)
+            {
+                ID3D12Resource* o = it->second->resource;
+                o->Release();
+                o = nullptr;
+
+                delete it->second;
+
+                it = data->upload_texture_map_chrominance[i].erase(it);
             }
         }
     }
@@ -2700,9 +2990,19 @@ u32 populate_command_list(graphics_data* data)
 
             if (_texture_create_each_panel == false)
             {
-                if (data->texture_map_y[0].find(panel->texture_index) == data->texture_map_y[0].end())
+                if (_nv12_texture_option == true)
                 {
-                    create_texture(data, frame->width, frame->height, panel->texture_index, scene->scene_index);
+                    if (data->texture_map_nv12[0].find(panel->texture_index) == data->texture_map_nv12[0].end())
+                    {
+                        create_texture_nv12(data, frame->width, frame->height, panel->texture_index, scene->scene_index);
+                    }
+                }
+                else
+                {
+                    if (data->texture_map_y[0].find(panel->texture_index) == data->texture_map_y[0].end())
+                    {
+                        create_texture(data, frame->width, frame->height, panel->texture_index, scene->scene_index);
+                    }
                 }
             }
 
@@ -2725,9 +3025,19 @@ u32 populate_command_list(graphics_data* data)
 
                 if (_texture_create_each_panel == true)
                 {
-                    if (data->texture_map_y[0].find(panel->texture_index) == data->texture_map_y[0].end())
+                    if (_nv12_texture_option == true)
                     {
-                        create_texture(data, frame->width * (panel->normalized_uv.right - panel->normalized_uv.left), frame->height * (panel->normalized_uv.bottom - panel->normalized_uv.top), panel->texture_index, scene->scene_index);
+                        if (data->texture_map_nv12[0].find(panel->texture_index) == data->texture_map_nv12[0].end())
+                        {
+                            create_texture_nv12(data, frame->width* (panel->normalized_uv.right - panel->normalized_uv.left), frame->height * (panel->normalized_uv.bottom - panel->normalized_uv.top), panel->texture_index, scene->scene_index);
+                        }
+                    }
+                    else
+                    {
+                        if (data->texture_map_y[0].find(panel->texture_index) == data->texture_map_y[0].end())
+                        {
+                            create_texture(data, frame->width * (panel->normalized_uv.right - panel->normalized_uv.left), frame->height * (panel->normalized_uv.bottom - panel->normalized_uv.top), panel->texture_index, scene->scene_index);
+                        }
                     }
                 }
             }
@@ -2745,7 +3055,14 @@ u32 populate_command_list(graphics_data* data)
                     {
                         if (it_upload_flag->second == false)
                         {
-                            upload_texture(data, frame, panel->texture_index, output_frame_index);
+                            if (_nv12_texture_option == true)
+                            {
+                                upload_texture_nv12(data, frame, panel->texture_index, output_frame_index);
+                            }
+                            else
+                            {
+                                upload_texture(data, frame, panel->texture_index, output_frame_index);
+                            }
                             it_upload_flag->second = true;
                         }
                     }
@@ -2847,6 +3164,9 @@ u32 populate_command_list(graphics_data* data)
                     {
                         for (u32 i = 0; i < frame_buffer_count; i++)
                         {
+                            // ----------------------------------------------------------------
+                            // texture
+
                             auto it_texture_y = data->texture_map_y[i].find(panel->texture_index);
                             if (it_texture_y != data->texture_map_y[i].end())
                             {
@@ -2882,6 +3202,9 @@ u32 populate_command_list(graphics_data* data)
 
                                 data->texture_map_v[i].erase(panel->texture_index);
                             }
+
+                            // ----------------------------------------------------------------
+                            // upload texture
 
                             auto it_upload_texture_y = data->upload_texture_map_y[i].find(panel->texture_index);
                             if (it_upload_texture_y != data->upload_texture_map_y[i].end())
@@ -2922,6 +3245,62 @@ u32 populate_command_list(graphics_data* data)
                                 data->deferred_free_object_list[current_back_buffer_index].push_back(object);
 
                                 data->upload_texture_map_v[i].erase(panel->texture_index);
+                            }
+                        }
+                    }
+
+                    if (data->texture_map_nv12[0].find(panel->texture_index) != data->texture_map_nv12[0].end())
+                    {
+                        // ----------------------------------------------------------------
+                        // texture
+                        for (u32 i = 0; i < frame_buffer_count; i++)
+                        {
+                            auto it_texture_nv12= data->texture_map_nv12[i].find(panel->texture_index);
+                            if (it_texture_nv12!= data->texture_map_nv12[i].end())
+                            {
+                                deferred_free_object object;
+                                object.resource = (*it_texture_nv12).second;
+                                object.index = (*it_texture_nv12).first;
+                                object.type = deferred_type::texture_nv12;
+                                data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+
+                                data->texture_map_nv12[i].erase(panel->texture_index);
+                            }
+
+                            // ----------------------------------------------------------------
+                            // upload texture
+
+                            auto it_upload_texture_luminance = data->upload_texture_map_luminance[i].find(panel->texture_index);
+                            if (it_upload_texture_luminance != data->upload_texture_map_luminance[i].end())
+                            {
+                                deferred_free_object object;
+                                object.resource = (*it_upload_texture_luminance).second->resource;
+                                object.index = (*it_upload_texture_luminance).first;
+                                object.type = deferred_type::upload_texture_luminance;
+                                data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+
+                                delete it_upload_texture_luminance->second;
+
+                                data->upload_texture_map_luminance[i].erase(panel->texture_index);
+                            }
+
+                            auto it_upload_texture_chrominance = data->upload_texture_map_chrominance[i].find(panel->texture_index);
+                            if (it_upload_texture_chrominance != data->upload_texture_map_chrominance[i].end())
+                            {
+                                deferred_free_object object;
+                                object.resource = (*it_upload_texture_chrominance).second->resource;
+                                object.index = (*it_upload_texture_chrominance).first;
+                                object.type = deferred_type::upload_texture_chrominance;
+                                if (i == frame_buffer_count - 1)
+                                {
+                                    object.free_flag = true;
+                                }
+
+                                data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+
+                                delete it_upload_texture_chrominance->second;
+
+                                data->upload_texture_map_chrominance[i].erase(panel->texture_index);
                             }
                         }
                     }
@@ -3016,15 +3395,26 @@ u32 populate_command_list(graphics_data* data)
                 }
 
                 D3D12_GPU_DESCRIPTOR_HANDLE srv_handle = data->srv_heaps->GetGPUDescriptorHandleForHeapStart();
-                srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size * (frame_buffer_count * texture_resource_count * panel->texture_index)));
-                srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size * (texture_resource_count * panel->output_frame_index)));
+                if (_nv12_texture_option == true)
+                {
+                    srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size * (frame_buffer_count * texture_resource_count_nv12 * panel->texture_index)));
+                    srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size * (texture_resource_count_nv12 * panel->output_frame_index)));
+                }
+                else
+                {
+                    srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size * (frame_buffer_count * texture_resource_count * panel->texture_index)));
+                    srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size * (texture_resource_count * panel->output_frame_index)));
+                }
 
                 data->cmd_list->SetGraphicsRootDescriptorTable(0, srv_handle);
                 srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size));
                 data->cmd_list->SetGraphicsRootDescriptorTable(1, srv_handle);
                 srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size));
-                data->cmd_list->SetGraphicsRootDescriptorTable(2, srv_handle);
-                srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size));
+                if (_nv12_texture_option == false)
+                {
+                    data->cmd_list->SetGraphicsRootDescriptorTable(2, srv_handle);
+                    srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size));
+                }
 
                 data->cmd_list->IASetVertexBuffers(0, 1, &data->vertex_buffer_view_map[panel->vertex_index]);
                 data->cmd_list->DrawIndexedInstanced(data->index_count, 1, 0, 0, 0);
@@ -3781,6 +4171,104 @@ u32 upload_texture(graphics_data* data, AVFrame* frame, s32 target_texture_index
     return u32();
 }
 
+u32 upload_texture_nv12(graphics_data* data, AVFrame* frame, s32 target_texture_index, s32 output_frame_index)
+{
+    // frame -> luminance, chrominance upload texture -> nv12 texture
+
+    switch (_nv12_texture_upload_type)
+    {
+    case 0: // UpdateSubresources 방식
+    {
+        D3D12_SUBRESOURCE_DATA texture_data_luminance{};
+        texture_data_luminance.pData = frame->data[0];
+        texture_data_luminance.RowPitch = frame->linesize[0];
+        texture_data_luminance.SlicePitch = texture_data_luminance.RowPitch * frame->height;
+
+        D3D12_SUBRESOURCE_DATA texture_data_chrominance{};
+        texture_data_chrominance.pData = frame->data[1];
+        texture_data_chrominance.RowPitch = frame->linesize[1];
+        texture_data_chrominance.SlicePitch = texture_data_chrominance.RowPitch * frame->height / 2;
+
+
+        CD3DX12_RESOURCE_BARRIER transition_barrier_nv12 = CD3DX12_RESOURCE_BARRIER::Transition(data->texture_map_nv12[output_frame_index][target_texture_index], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+        data->cmd_list->ResourceBarrier(1, &transition_barrier_nv12);
+
+        UpdateSubresources(data->cmd_list, data->texture_map_nv12[output_frame_index][target_texture_index], data->upload_texture_map_luminance[output_frame_index][target_texture_index]->resource, 0, 0, 1, &texture_data_luminance);
+        UpdateSubresources(data->cmd_list, data->texture_map_nv12[output_frame_index][target_texture_index], data->upload_texture_map_chrominance[output_frame_index][target_texture_index]->resource, 0, 1, 1, &texture_data_chrominance);
+
+        transition_barrier_nv12 = CD3DX12_RESOURCE_BARRIER::Transition(data->texture_map_nv12[output_frame_index][target_texture_index], D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        data->cmd_list->ResourceBarrier(1, &transition_barrier_nv12);
+    }
+    break;
+    case 1: // Map/Unmap과 CopyTextureRegion 방식
+    {
+        D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout_luminance = data->upload_texture_map_luminance[output_frame_index][target_texture_index]->footprint.layout;
+        UINT rowPitch_luminance = data->upload_texture_map_luminance[output_frame_index][target_texture_index]->footprint.layout.Footprint.RowPitch;
+        UINT64 totalBytes_luminance = data->upload_texture_map_luminance[output_frame_index][target_texture_index]->footprint.totalBytes;
+
+        BYTE* pData_luminance = nullptr;
+        BYTE* pDataTemp_luminance = nullptr;
+        data->upload_texture_map_luminance[output_frame_index][target_texture_index]->resource->Map(0, nullptr, reinterpret_cast<void**>(&pData_luminance));
+        pDataTemp_luminance = pData_luminance;
+        for (size_t i = 0; i < frame->height; i++)
+        {
+            memcpy(pDataTemp_luminance, frame->data[0] + frame->linesize[0] * i, frame->linesize[0]);
+            pDataTemp_luminance += rowPitch_luminance;
+        }
+        data->upload_texture_map_luminance[output_frame_index][target_texture_index]->resource->Unmap(0, nullptr);
+
+        D3D12_SUBRESOURCE_DATA texture_data_luminance{};
+        texture_data_luminance.pData = pData_luminance;
+        texture_data_luminance.RowPitch = rowPitch_luminance;
+        texture_data_luminance.SlicePitch = totalBytes_luminance;
+
+
+        D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout_chrominance = data->upload_texture_map_chrominance[output_frame_index][target_texture_index]->footprint.layout;
+        UINT rowPitch_chrominance = data->upload_texture_map_chrominance[output_frame_index][target_texture_index]->footprint.layout.Footprint.RowPitch;
+        UINT64 totalBytes_chrominance = data->upload_texture_map_chrominance[output_frame_index][target_texture_index]->footprint.totalBytes;
+
+        BYTE* pData_chrominance = nullptr;
+        BYTE* pDataTemp_chrominance = nullptr;
+        data->upload_texture_map_chrominance[output_frame_index][target_texture_index]->resource->Map(0, nullptr, reinterpret_cast<void**>(&pData_chrominance));
+        pDataTemp_chrominance = pData_chrominance;
+        for (size_t i = 0; i < frame->height / 2; i++)
+        {
+            memcpy(pDataTemp_chrominance, frame->data[1] + frame->linesize[1] * i, frame->linesize[1]);
+            pDataTemp_chrominance += rowPitch_chrominance;
+        }
+        data->upload_texture_map_chrominance[output_frame_index][target_texture_index]->resource->Unmap(0, nullptr);
+
+        D3D12_SUBRESOURCE_DATA texture_data_chrominance{};
+        texture_data_chrominance.pData = pData_chrominance;
+        texture_data_chrominance.RowPitch = rowPitch_chrominance;
+        texture_data_chrominance.SlicePitch = totalBytes_chrominance;
+
+        CD3DX12_RESOURCE_BARRIER transition_barrier_nv12 = CD3DX12_RESOURCE_BARRIER::Transition(data->texture_map_nv12[output_frame_index][target_texture_index], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+        data->cmd_list->ResourceBarrier(1, &transition_barrier_nv12);
+
+        D3D12_BOX box = {};
+        box.right = frame->width;
+        box.bottom = frame->height;
+        box.back = 1;
+        D3D12_TEXTURE_COPY_LOCATION destLoc_luminance = { data->texture_map_nv12[output_frame_index][target_texture_index], D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX, 0 };
+        D3D12_TEXTURE_COPY_LOCATION srcLoc_luminance = { data->upload_texture_map_luminance[output_frame_index][target_texture_index]->resource, D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT, layout_luminance };
+        data->cmd_list->CopyTextureRegion(&destLoc_luminance, 0, 0, 0, &srcLoc_luminance, &box);
+
+        box.right /= 2;
+        box.bottom /= 2;
+        D3D12_TEXTURE_COPY_LOCATION destLoc_chrominance = { data->texture_map_nv12[output_frame_index][target_texture_index], D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX, 1 };
+        D3D12_TEXTURE_COPY_LOCATION srcLoc_chrominance = { data->upload_texture_map_chrominance[output_frame_index][target_texture_index]->resource, D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT, layout_chrominance };
+        data->cmd_list->CopyTextureRegion(&destLoc_chrominance, 0, 0, 0, &srcLoc_chrominance, &box);
+
+        transition_barrier_nv12 = CD3DX12_RESOURCE_BARRIER::Transition(data->texture_map_nv12[output_frame_index][target_texture_index], D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        data->cmd_list->ResourceBarrier(1, &transition_barrier_nv12);
+    }
+    break;
+    }
+    
+    return u32();
+}
+
 u32 upload_texture_each_panel(graphics_data* data, AVFrame* frame, s32 output_frame_index, Panel* panel)
 {
     if (panel->separated_frame_data_y == nullptr)
@@ -3876,6 +4364,14 @@ u32 deferred_free_processing(u32 back_buffer_index)
             }
             break;
             case deferred_type::upload_texture_v:
+            {
+                if (object.free_flag)
+                {
+                    data->free_texture_queue.push_back(object.index);
+                }
+            }
+            break;
+            case deferred_type::upload_texture_chrominance:
             {
                 if (object.free_flag)
                 {
@@ -4024,6 +4520,14 @@ void config_setting()
     GetPrivateProfileString(L"WPlayer", L"scale_option", L"1", result_w, 255, str_ini_path_w.c_str());
     result_i = _ttoi(result_w);
     _scale_option = result_i == 0 ? false : true;
+
+    GetPrivateProfileString(L"WPlayer", L"nv12_texture_option", L"0", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _nv12_texture_option = result_i == 0 ? false : true;
+
+    GetPrivateProfileString(L"WPlayer", L"nv12_texture_upload_type", L"0", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _nv12_texture_upload_type = result_i;
 }
 
 #define MAX_LOADSTRING 100
@@ -4160,7 +4664,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
     }
 
-    create_root_signatures();
+    if (_nv12_texture_option == true)
+    {
+        create_root_signatures_nv12();
+    }
+    else
+    {
+        create_root_signatures();
+    }
+
     create_psos();
     create_command_lists();
 
