@@ -75,6 +75,9 @@ bool _nv12_texture_option = false;
 // NV12 형식의 텍스처를 Upload 하는 방식을 설정하는 옵션. 0: UpdateSubresources 방식, 1: Map/Unmap과 CopyTextureRegion 방식
 int _nv12_texture_upload_type = 0;
 
+// swap_group, swap_barrier 사용 옵션.
+bool _use_swap_group_and_swap_barrier = false;
+
 std::string _ip;
 uint16_t _port;
 
@@ -143,6 +146,7 @@ struct output_data
     DXGI_OUTPUT_DESC output_desc{};
     HWND handle = nullptr;
     IDXGISwapChain3* swap_chain = nullptr;
+    IDXGISwapChain* swap_chain_0 = nullptr;
     u32 frame_index = 0;    // Current Back Buffer Index
 
     D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle{};
@@ -206,6 +210,7 @@ struct upload_resource
     footprints footprint;
 };
 
+// adapter data
 struct graphics_data
 {
     IDXGIAdapter1* adapter = nullptr;
@@ -262,6 +267,14 @@ struct graphics_data
     std::vector<deferred_free_object> deferred_free_object_list[frame_buffer_count];
 
     bool present_barrier_supported = false;
+
+    NvU32 max_swap_group = 0;
+    NvU32 max_swap_barrier = 0;
+
+    NvU32 selected_swap_group = 0;
+    NvU32 selected_swap_barrier = 0;
+
+    NvAPI_Status nvapi_status = NVAPI_OK;
 };
 
 #pragma region Graphics
@@ -337,6 +350,7 @@ u32 normalize_uv(RECT base_rect, RECT target_rect, NormalizedRect& normalized_uv
 u32 deferred_free_processing(u32 back_buffer_index);
 
 u32 delete_present_barriers();
+u32 delete_swap_group_and_swap_barrier();
 #if _DEBUG
 void d3d_memory_check();
 #endif
@@ -1486,6 +1500,11 @@ u32 delete_devices()
 
     for (auto data : _graphics_data_list)
     {
+        if (_use_swap_group_and_swap_barrier == true)
+        {
+            continue;
+        }
+
         data->device->Release();
         data->device = nullptr;
     }
@@ -1646,6 +1665,11 @@ u32 create_swap_chains()
             hr = _factory->MakeWindowAssociation(output->handle, DXGI_MWA_NO_ALT_ENTER);
             hr = swap_chain->QueryInterface(&output->swap_chain);
 
+            if (_disable_present_barrier == false || _use_swap_group_and_swap_barrier == true)
+            {
+                hr = swap_chain->QueryInterface(&output->swap_chain_0);
+            }
+
             swap_chain->Release();
             swap_chain = nullptr;
 
@@ -1663,7 +1687,7 @@ u32 create_swap_chains()
                     output->present_barrier_client = nullptr;
                 }
 
-                _nvapi_status = NvAPI_D3D12_CreatePresentBarrierClient(data->device, output->swap_chain, &output->present_barrier_client);
+                _nvapi_status = NvAPI_D3D12_CreatePresentBarrierClient(data->device, output->swap_chain_0, &output->present_barrier_client);
             }
 
             output->frame_index = output->swap_chain->GetCurrentBackBufferIndex();
@@ -1691,6 +1715,12 @@ u32 delete_swap_chains()
 
             output->swap_chain->Release();
             output->swap_chain = nullptr;
+
+            if (_disable_present_barrier == false || _use_swap_group_and_swap_barrier == true)
+            {
+                output->swap_chain_0->Release();
+                output->swap_chain_0 = nullptr;
+            }
         }
     }
 
@@ -3460,7 +3490,14 @@ u32 render()
             {
                 continue;
             }
-            hr = output->swap_chain->Present(1, 0);
+            if (_use_swap_group_and_swap_barrier == true)
+            {
+                data->nvapi_status = NvAPI_D3D1x_Present(data->device, output->swap_chain_0, 1, 0);
+            }
+            else
+            {
+                hr = output->swap_chain->Present(1, 0);
+            }
 
             if (_disable_present_barrier == false)
             {
@@ -4426,6 +4463,37 @@ u32 delete_present_barriers()
     return u32();
 }
 
+u32 delete_swap_group_and_swap_barrier()
+{
+    if (_graphics_data_list.empty())
+    {
+        return u32();
+    }
+
+    if (_use_swap_group_and_swap_barrier == true)
+    {
+        for (auto data : _graphics_data_list)
+        {
+            data->nvapi_status = NvAPI_D3D1x_BindSwapBarrier(data->device, data->selected_swap_group, 0);
+
+            for (auto output : data->output_list)
+            {
+                if (output->handle == nullptr)
+                {
+                    continue;
+                }
+
+                data->nvapi_status = NvAPI_D3D1x_JoinSwapGroup(data->device, output->swap_chain_0, 0, false);
+            }
+
+            data->selected_swap_barrier = 0;
+            data->selected_swap_group = 0;
+        }
+    }
+
+    return u32();
+}
+
 void config_setting()
 {
     wchar_t path_w[260] = { 0, };
@@ -4528,6 +4596,10 @@ void config_setting()
     GetPrivateProfileString(L"WPlayer", L"nv12_texture_upload_type", L"0", result_w, 255, str_ini_path_w.c_str());
     result_i = _ttoi(result_w);
     _nv12_texture_upload_type = result_i;
+
+    GetPrivateProfileString(L"WPlayer", L"use_swap_group_and_swap_barrier", L"0", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _use_swap_group_and_swap_barrier = result_i == 0 ? false : true;
 }
 
 #define MAX_LOADSTRING 100
@@ -4612,9 +4684,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     create_devices();
     create_command_queues();
 
-    if (_disable_present_barrier == false)
+    if (_disable_present_barrier == false || _use_swap_group_and_swap_barrier == true)
     {
         _nvapi_status = NvAPI_Initialize();
+    }
+
+    if (_disable_present_barrier == false)
+    {
         // Check whether the system supports present barrier (Quadro + driver with support)
         for (auto data : _graphics_data_list)
         {
@@ -4645,6 +4721,56 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     }
 
     create_swap_chains();
+
+    // 
+    // 1. NvAPI_D3D1x_QueryMaxSwapGroup
+    // 
+    // set
+    // 1. NvAPI_D3D1x_JoinSwapGroup
+    // 2. NvAPI_D3D1x_BindSwapBarrier
+    // 
+    // NvAPI_D3D1x_Present
+    // 
+    // unset
+    // 1. NvAPI_D3D1x_BindSwapBarrier
+    // 2. NvAPI_D3D1x_JoinSwapGroup
+    // 
+    // NvAPI_D3D1x_QueryFrameCount
+    // NvAPI_D3D1x_QuerySwapGroup
+    // NvAPI_D3D1x_ResetFrameCount
+    // 
+
+    if (_use_swap_group_and_swap_barrier == true)
+    {
+        for (auto data : _graphics_data_list)
+        {
+            data->nvapi_status = NvAPI_D3D1x_QueryMaxSwapGroup(data->device, &data->max_swap_group, &data->max_swap_barrier);
+
+            if (data->max_swap_group == 0 && data->max_swap_barrier == 0)
+            {
+                break;
+            }
+
+            NvU32 swap_barrier = 1;
+            NvU32 swap_group = 1;
+
+            for (auto output : data->output_list)
+            {
+                if (output->handle == nullptr)
+                {
+                    continue;
+                }
+
+                data->nvapi_status = NvAPI_D3D1x_JoinSwapGroup(data->device, output->swap_chain_0, swap_group, false);
+            }
+
+            data->nvapi_status = NvAPI_D3D1x_BindSwapBarrier(data->device, swap_group, swap_barrier);
+
+            data->selected_swap_group = swap_group;
+            data->selected_swap_barrier = swap_barrier;
+        }
+    }
+
     create_rtv_heaps();
     create_srv_heaps();
 
@@ -4755,6 +4881,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     delete_present_barriers();
 
+    delete_swap_group_and_swap_barrier();
+
     delete_fences();
 
     delete_command_lists();
@@ -4770,7 +4898,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     delete_adapters();
     delete_factory();
 
-    if (_disable_present_barrier == false)
+    if (_disable_present_barrier == false || _use_swap_group_and_swap_barrier == true)
     {
         _nvapi_status = NvAPI_Unload();
     }
