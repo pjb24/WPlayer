@@ -103,9 +103,9 @@ struct Panel
     s32 texture_index = -1;
     s32 output_index = -1;   // panel이 그려질 output의 index
     s32 output_frame_index = 0; // FFmpeg의 AVFrame 패킷 Index
-    RECT rect;
-    NormalizedRect normalized_rect;
-    NormalizedRect normalized_uv;
+    RECT rect{};
+    NormalizedRect normalized_rect{};
+    NormalizedRect normalized_uv{};
     bool normalize_uv_flag = false;
 
     uint8_t* separated_frame_data_y = nullptr;
@@ -126,7 +126,7 @@ struct Scene
     std::vector<Panel*> panel_list;
     int64_t pts = -1;
 
-    RECT rect;
+    RECT rect{};
     bool using_flag = false;
     std::map<s32, bool> texture_upload_to_adapter_flag_map; // adapter_index, bool
 
@@ -152,19 +152,19 @@ struct output_data
     D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle{};
     std::vector<ID3D12Resource*> rtv_view_list;
 
-    u64 fence_values[frame_buffer_count];
+    u64 fence_values[frame_buffer_count] = {};
     ID3D12Fence* fence = nullptr;
     HANDLE fence_event = nullptr;
 
-    D3D12_VIEWPORT viewport;
-    D3D12_RECT scissor_rect;
+    D3D12_VIEWPORT viewport = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+    D3D12_RECT scissor_rect = { 0, 0, 0, 0 };
 
     s32 output_index = -1;
 
     NvPresentBarrierClientHandle present_barrier_client = nullptr;
     ID3D12Fence* present_barrier_fence = nullptr;
     bool present_barrier_joined = false;
-    _NV_PRESENT_BARRIER_FRAME_STATISTICS present_barrier_frame_stats;
+    _NV_PRESENT_BARRIER_FRAME_STATISTICS present_barrier_frame_stats{};
 
     RECT create_one_swapchain_for_each_adapter_rect = { 0, 0, 0, 0 };
     RECT create_one_swapchain_for_each_adapter_without_control_output_rect = { 0, 0, 0, 0 };
@@ -189,7 +189,7 @@ enum class deferred_type : s32
 
 struct deferred_free_object
 {
-    ID3D12Resource* resource;
+    ID3D12Resource* resource = nullptr;
     s32 index = -1;
     deferred_type type;
     bool free_flag = false;
@@ -206,7 +206,7 @@ struct footprints
 
 struct upload_resource
 {
-    ID3D12Resource* resource;
+    ID3D12Resource* resource = nullptr;
     footprints footprint;
 };
 
@@ -1227,8 +1227,11 @@ u32 delete_adapters()
 
     for (auto data : _graphics_data_list)
     {
-        data->adapter->Release();
-        data->adapter = nullptr;
+        if (data->adapter != nullptr)
+        {
+            data->adapter->Release();
+            data->adapter = nullptr;
+        }
     }
 
     for (auto it = _graphics_data_list.begin(); it != _graphics_data_list.end();)
@@ -1414,8 +1417,11 @@ u32 delete_output_list()
     {
         for (auto output : data->output_list)
         {
-            output->output->Release();
-            output->output = nullptr;
+            if (output->output != nullptr)
+            {
+                output->output->Release();
+                output->output = nullptr;
+            }
         }
 
         for (auto it = data->output_list.begin(); it != data->output_list.end();)
@@ -1512,8 +1518,11 @@ u32 delete_devices()
             continue;
         }
 
-        data->device->Release();
-        data->device = nullptr;
+        if (data->device != nullptr)
+        {
+            data->device->Release();
+            data->device = nullptr;
+        }
     }
 
     return u32();
@@ -1567,8 +1576,11 @@ u32 delete_command_queues()
             continue;
         }
 
-        data->cmd_queue->Release();
-        data->cmd_queue = nullptr;
+        if (data->cmd_queue != nullptr)
+        {
+            data->cmd_queue->Release();
+            data->cmd_queue = nullptr;
+        }
     }
 
     return u32();
@@ -1720,13 +1732,19 @@ u32 delete_swap_chains()
                 continue;
             }
 
-            output->swap_chain->Release();
-            output->swap_chain = nullptr;
+            if (output->swap_chain != nullptr)
+            {
+                output->swap_chain->Release();
+                output->swap_chain = nullptr;
+            }
 
             if (_disable_present_barrier == false || _use_swap_group_and_swap_barrier == true)
             {
-                output->swap_chain_0->Release();
-                output->swap_chain_0 = nullptr;
+                if (output->swap_chain_0 != nullptr)
+                {
+                    output->swap_chain_0->Release();
+                    output->swap_chain_0 = nullptr;
+                }
             }
         }
     }
@@ -1816,13 +1834,19 @@ u32 delete_rtv_heaps()
             continue;
         }
 
-        data->rtv_heaps->Release();
-        data->rtv_heaps = nullptr;
+        if (data->rtv_heaps != nullptr)
+        {
+            data->rtv_heaps->Release();
+            data->rtv_heaps = nullptr;
+        }
 
         for (u32 i = 0; i < frame_buffer_count; i++)
         {
-            data->cmd_allocator_list[i]->Release();
-            data->cmd_allocator_list[i] = nullptr;
+            if (data->cmd_allocator_list[i] != nullptr)
+            {
+                data->cmd_allocator_list[i]->Release();
+                data->cmd_allocator_list[i] = nullptr;
+            }
         }
 
         for (auto o_data : data->output_list)
@@ -1831,10 +1855,14 @@ u32 delete_rtv_heaps()
             {
                 continue;
             }
+
             for (u32 n = 0; n < frame_buffer_count; n++)
             {
-                o_data->rtv_view_list[n]->Release();
-                o_data->rtv_view_list[n] = nullptr;
+                if (o_data->rtv_view_list[n] != nullptr)
+                {
+                    o_data->rtv_view_list[n]->Release();
+                    o_data->rtv_view_list[n] = nullptr;
+                }
             }
         }
     }
@@ -1885,8 +1913,11 @@ u32 delete_srv_heaps()
             continue;
         }
 
-        data->srv_heaps->Release();
-        data->srv_heaps = nullptr;
+        if (data->srv_heaps != nullptr)
+        {
+            data->srv_heaps->Release();
+            data->srv_heaps = nullptr;
+        }
     }
 
     return u32();
@@ -2025,8 +2056,11 @@ u32 delete_root_signatures()
 
     for (auto data : _graphics_data_list)
     {
-        data->root_sig->Release();
-        data->root_sig = nullptr;
+        if (data->root_sig != nullptr)
+        {
+            data->root_sig->Release();
+            data->root_sig = nullptr;
+        }
     }
 
     return u32();
@@ -2102,8 +2136,11 @@ u32 delete_psos()
 
     for (auto data : _graphics_data_list)
     {
-        data->pso->Release();
-        data->pso = nullptr;
+        if (data->pso != nullptr)
+        {
+            data->pso->Release();
+            data->pso = nullptr;
+        }
     }
 
     return u32();
@@ -2147,8 +2184,12 @@ u32 delete_command_lists()
         {
             continue;
         }
-        data->cmd_list->Release();
-        data->cmd_list = nullptr;
+
+        if (data->cmd_list != nullptr)
+        {
+            data->cmd_list->Release();
+            data->cmd_list = nullptr;
+        }
     }
 
     return u32();
@@ -2229,11 +2270,17 @@ u32 delete_index_buffer()
             continue;
         }
 
-        data->index_buffer->Release();
-        data->index_buffer = nullptr;
+        if (data->index_buffer != nullptr)
+        {
+            data->index_buffer->Release();
+            data->index_buffer = nullptr;
+        }
 
-        data->index_upload_buffer->Release();
-        data->index_upload_buffer = nullptr;
+        if (data->index_upload_buffer != nullptr)
+        {
+            data->index_upload_buffer->Release();
+            data->index_upload_buffer = nullptr;
+        }
     }
 
     return u32();
@@ -2856,8 +2903,11 @@ u32 delete_fences()
 
             CloseHandle(output->fence_event);
 
-            output->fence->Release();
-            output->fence = nullptr;
+            if (output->fence != nullptr)
+            {
+                output->fence->Release();
+                output->fence = nullptr;
+            }
         }
     }
 
@@ -3066,7 +3116,7 @@ u32 populate_command_list(graphics_data* data)
                     {
                         if (data->texture_map_nv12[0].find(panel->texture_index) == data->texture_map_nv12[0].end())
                         {
-                            create_texture_nv12(data, frame->width* (panel->normalized_uv.right - panel->normalized_uv.left), frame->height * (panel->normalized_uv.bottom - panel->normalized_uv.top), panel->texture_index, scene->scene_index);
+                            create_texture_nv12(data, frame->width * (panel->normalized_uv.right - panel->normalized_uv.left), frame->height * (panel->normalized_uv.bottom - panel->normalized_uv.top), panel->texture_index, scene->scene_index);
                         }
                     }
                     else
@@ -4399,7 +4449,11 @@ u32 deferred_free_processing(u32 back_buffer_index)
         {
             deferred_free_object object = (*it);
 
-            object.resource->Release();
+            if (object.resource != nullptr)
+            {
+                object.resource->Release();
+                object.resource = nullptr;
+            }
 
             switch (object.type)
             {
@@ -4462,8 +4516,11 @@ u32 delete_present_barriers()
                 _nvapi_status = NvAPI_DestroyPresentBarrierClient(output->present_barrier_client);
                 output->present_barrier_client = nullptr;
 
-                output->present_barrier_fence->Release();
-                output->present_barrier_fence = nullptr;
+                if (output->present_barrier_fence != nullptr)
+                {
+                    output->present_barrier_fence->Release();
+                    output->present_barrier_fence = nullptr;
+                }
             }
         }
     }
