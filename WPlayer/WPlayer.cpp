@@ -78,6 +78,9 @@ int _nv12_texture_upload_type = 0;
 // swap_group, swap_barrier 사용 옵션.
 bool _use_swap_group_and_swap_barrier = false;
 
+// window mode, 영상 하나가 하나의 Window를 생성하는 옵션.
+bool _window_mode = false;
+
 std::string _ip;
 uint16_t _port;
 
@@ -132,6 +135,8 @@ struct Scene
 
     u32 sync_group_index = u32_invalid_id;
     u16 sync_group_count = 0;
+    
+    s32 window_index = -1;
 };
 
 struct Vertex
@@ -180,6 +185,10 @@ struct window_data
     s32 adapter_window_index = -1;
 
     RECT rect{};
+
+    u32 scene_index = u32_invalid_id;
+
+    bool free_flag = false;
 };
 
 enum class deferred_type : s32
@@ -197,6 +206,8 @@ enum class deferred_type : s32
     texture_nv12 = 8,
     upload_texture_luminance = 9,
     upload_texture_chrominance = 10,
+
+    rtv = 11,
 };
 
 struct deferred_free_object
@@ -204,6 +215,16 @@ struct deferred_free_object
     ID3D12Resource* resource = nullptr;
     s32 index = -1;
     deferred_type type;
+    bool free_flag = false;
+};
+
+struct deferred_free_window_object
+{
+    IDXGISwapChain* swapchain = nullptr;
+    IDXGISwapChain* swapchain_0 = nullptr;
+    ID3D12Fence* fence = nullptr;
+    HANDLE fence_event = nullptr;
+    s32 index = -1;
     bool free_flag = false;
 };
 
@@ -280,6 +301,8 @@ struct graphics_data
 
     bool deferred_free_flag[frame_buffer_count];
     std::vector<deferred_free_object> deferred_free_object_list[frame_buffer_count];
+    std::vector<deferred_free_window_object> deferred_free_window_object_list;
+    std::mutex deferred_free_window_object_mutex;
 
     bool present_barrier_supported = false;
 
@@ -296,6 +319,7 @@ struct graphics_data
 std::vector<graphics_data*> _graphics_data_list;
 std::vector<window_data*> _window_data_list;
 
+constexpr u32 rtv_descriptor_count = 4096;
 constexpr u32 srv_descriptor_count = 4096;
 
 IDXGIFactory4*  _factory = nullptr;
@@ -328,12 +352,18 @@ u32 delete_command_queues();
 u32 create_window(WCHAR* window_class, WCHAR* title, HINSTANCE instance, RECT rect, void * data /* = nullptr */, HWND & handle);
 u32 create_swap_chains();
 u32 delete_swap_chains();
+u32 create_swap_chain_window(window_data* window);
+u32 delete_swap_chain_window(window_data* window);
+u32 delete_swap_chains_window();
 u32 create_rtv_heaps();
 u32 delete_rtv_heaps();
 u32 create_command_allocators();
 u32 delete_command_allocators();
 u32 create_rtvs();
 u32 delete_rtvs();
+u32 create_rtv_window(window_data* window);
+u32 delete_rtv_window(window_data* window);
+u32 delete_rtvs_window();
 u32 create_srv_heaps();
 u32 delete_srv_heaps();
 u32 create_root_signatures();
@@ -352,13 +382,21 @@ u32 create_texture_nv12(graphics_data* data, u32 width, u32 height, s32 texture_
 u32 delete_textures();
 u32 create_fences();
 u32 delete_fences();
+u32 create_fence_window(window_data* window);
+u32 delete_fence_window(window_data* window);
+u32 delete_fences_window();
 u32 create_viewports();
+u32 create_viewport_window(window_data* window);
 u32 wait_for_gpu(ID3D12CommandQueue* cmd_queue, window_data* window);
 u32 wait_for_gpus();
 u32 move_to_next_frame(ID3D12CommandQueue* cmd_queue, window_data* window);
 u32 populate_command_list(graphics_data* data);
+u32 populate_command_list_window(graphics_data* data);
 u32 render();
+u32 render_window();
+u32 deferred_free_processing_window();
 u32 create_scene_data(RECT rect, u32 sync_group_index = u32_invalid_id, u16 sync_group_count = 0);
+u32 create_scene_data_window(RECT rect, u32 sync_group_index = u32_invalid_id, u16 sync_group_count = 0);
 u32 delete_scene_data(u32 scene_index);
 u32 delete_scene_datas();
 u32 upload_texture(graphics_data* data, AVFrame* frame, s32 target_texture_index, s32 output_frame_index);
@@ -377,6 +415,8 @@ void d3d_memory_check();
 
 u32 delete_windows();
 
+u32 create_graphics_objects_window(window_data* window);
+void message_processing_window();
 #pragma endregion
 
 #pragma region TCP Server
@@ -820,6 +860,7 @@ void tcp_processing_thread()
 {
     while (_tcp_processing_flag)
     {
+        message_processing_window();
 
         bool tcp_processing_command_is_empty = false;
         {
@@ -889,7 +930,15 @@ void tcp_processing_thread()
 
             RECT rect = { packet->left, packet->top, packet->left + packet->width, packet->top + packet->height };
 
-            u32 scene_index = create_scene_data(rect);
+            u32 scene_index = u32_invalid_id;
+            if (_window_mode == true)
+            {
+                scene_index = create_scene_data_window(rect);
+            }
+            else
+            {
+                scene_index = create_scene_data(rect);
+            }
 
             FFmpegInstanceData ffmpeg_instance_data;
             ffmpeg_instance_data.ffmpeg_instance = ffmpeg_instance;
@@ -1106,7 +1155,15 @@ void tcp_processing_thread()
 
             RECT rect = { packet->left, packet->top, packet->left + packet->width, packet->top + packet->height };
 
-            u32 scene_index = create_scene_data(rect, packet->sync_group_index, packet->sync_group_count);
+            u32 scene_index = u32_invalid_id;
+            if (_window_mode == true)
+            {
+                scene_index = create_scene_data_window(rect, packet->sync_group_index, packet->sync_group_count);
+            }
+            else
+            {
+                scene_index = create_scene_data(rect, packet->sync_group_index, packet->sync_group_count);
+            }
 
             FFmpegInstanceData ffmpeg_instance_data;
             ffmpeg_instance_data.ffmpeg_instance = ffmpeg_instance;
@@ -1787,6 +1844,123 @@ u32 delete_swap_chains()
     return u32();
 }
 
+u32 create_swap_chain_window(window_data* window)
+{
+    if (_graphics_data_list.empty())
+    {
+        return u32();
+    }
+
+    HRESULT hr = S_OK;
+
+    for (auto data : _graphics_data_list)
+    {
+        if (window->adapter_index != data->adapter_index)
+        {
+            continue;
+        }
+
+        DXGI_SWAP_CHAIN_DESC1 desc{};
+
+        desc.Width = window->rect.right - window->rect.left;
+        desc.Height = window->rect.bottom - window->rect.top;
+
+        desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        desc.SampleDesc.Count = 1;
+        desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+        desc.BufferCount = frame_buffer_count;
+        desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+
+        IDXGISwapChain1* swap_chain = nullptr;
+
+        hr = _factory->CreateSwapChainForHwnd(
+            data->cmd_queue,
+            window->handle,
+            &desc,
+            nullptr,
+            nullptr,
+            &swap_chain
+        );
+
+        if (hr != S_OK)
+        {
+            continue;
+        }
+
+        hr = _factory->MakeWindowAssociation(window->handle, DXGI_MWA_NO_ALT_ENTER);
+        hr = swap_chain->QueryInterface(&window->swap_chain);
+
+        if (_disable_present_barrier == false || _use_swap_group_and_swap_barrier == true)
+        {
+            hr = swap_chain->QueryInterface(&window->swap_chain_0);
+        }
+
+        swap_chain->Release();
+        swap_chain = nullptr;
+
+        if (_disable_present_barrier == false)
+        {
+            if (window->present_barrier_client != nullptr)
+            {
+                if (window->present_barrier_joined == true)
+                {
+                    _nvapi_status = NvAPI_LeavePresentBarrier(window->present_barrier_client);
+                    window->present_barrier_joined = false;
+                }
+
+                _nvapi_status = NvAPI_DestroyPresentBarrierClient(window->present_barrier_client);
+                window->present_barrier_client = nullptr;
+            }
+
+            _nvapi_status = NvAPI_D3D12_CreatePresentBarrierClient(data->device, window->swap_chain_0, &window->present_barrier_client);
+        }
+
+        window->frame_index = window->swap_chain->GetCurrentBackBufferIndex();
+    }
+
+    return u32();
+}
+
+u32 delete_swap_chain_window(window_data* window)
+{
+    if (_graphics_data_list.empty())
+    {
+        return u32();
+    }
+
+    if (window->swap_chain != nullptr)
+    {
+        window->swap_chain->Release();
+        window->swap_chain = nullptr;
+    }
+
+    if (_disable_present_barrier == false || _use_swap_group_and_swap_barrier == true)
+    {
+        if (window->swap_chain_0 != nullptr)
+        {
+            window->swap_chain_0->Release();
+            window->swap_chain_0 = nullptr;
+        }
+    }
+
+    return u32();
+}
+
+u32 delete_swap_chains_window()
+{
+    if (_graphics_data_list.empty())
+    {
+        return u32();
+    }
+
+    for (auto window : _window_data_list)
+    {
+        delete_swap_chain_window(window);
+    }
+
+    return u32();
+}
+
 u32 create_rtv_heaps()
 {
     if (_graphics_data_list.empty())
@@ -1805,7 +1979,8 @@ u32 create_rtv_heaps()
 
         D3D12_DESCRIPTOR_HEAP_DESC rtv_heap_desc{};
         rtv_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-        rtv_heap_desc.NumDescriptors = frame_buffer_count * data->output_list.size();
+        // rtv_heap_desc.NumDescriptors = frame_buffer_count * data->output_list.size();
+        rtv_heap_desc.NumDescriptors = rtv_descriptor_count;
         rtv_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
         hr = data->device->CreateDescriptorHeap(&rtv_heap_desc, IID_PPV_ARGS(&data->rtv_heaps));
         data->rtv_descriptor_size = data->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -1964,6 +2139,82 @@ u32 delete_rtvs()
                 window->rtv_view_list[n] = nullptr;
             }
         }
+    }
+
+    return u32();
+}
+
+u32 create_rtv_window(window_data* window)
+{
+    if (_graphics_data_list.empty())
+    {
+        return u32();
+    }
+
+    HRESULT hr = S_OK;
+
+    for (auto data : _graphics_data_list)
+    {
+        if (data->output_list.empty())
+        {
+            continue;
+        }
+
+        if (window->adapter_index != data->adapter_index)
+        {
+            continue;
+        }
+
+        window->rtv_handle = data->rtv_heaps->GetCPUDescriptorHandleForHeapStart();
+
+        window->rtv_handle.ptr = window->rtv_handle.ptr + (window->adapter_window_index * data->rtv_descriptor_size * frame_buffer_count);
+
+        D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle = window->rtv_handle;
+
+        for (u32 j = 0; j < frame_buffer_count; j++)
+        {
+            window->rtv_view_list.emplace_back();
+
+            hr = window->swap_chain->GetBuffer(j, IID_PPV_ARGS(&window->rtv_view_list[j]));
+            data->device->CreateRenderTargetView(window->rtv_view_list[j], nullptr, cpu_handle);
+            cpu_handle.ptr = cpu_handle.ptr + data->rtv_descriptor_size;
+
+            NAME_D3D12_OBJECT_INDEXED_3(window->rtv_view_list[j], data->adapter_index, window->adapter_window_index, j, L"ID3D12Resource_rtv_view");
+        }
+    }
+
+    return u32();
+}
+
+u32 delete_rtv_window(window_data* window)
+{
+    if (_graphics_data_list.empty())
+    {
+        return u32();
+    }
+
+    for (u32 n = 0; n < frame_buffer_count; n++)
+    {
+        if (window->rtv_view_list[n] != nullptr)
+        {
+            window->rtv_view_list[n]->Release();
+            window->rtv_view_list[n] = nullptr;
+        }
+    }
+
+    return u32();
+}
+
+u32 delete_rtvs_window()
+{
+    if (_graphics_data_list.empty())
+    {
+        return u32();
+    }
+
+    for (auto window : _window_data_list)
+    {
+        delete_rtv_window(window);
     }
 
     return u32();
@@ -3005,6 +3256,69 @@ u32 delete_fences()
     return u32();
 }
 
+u32 create_fence_window(window_data* window)
+{
+    if (_graphics_data_list.empty())
+    {
+        return u32();
+    }
+
+    HRESULT hr = S_OK;
+
+    for (auto data : _graphics_data_list)
+    {
+        if (window->adapter_index != data->adapter_index)
+        {
+            continue;
+        }
+
+        hr = data->device->CreateFence(window->fence_values[window->frame_index], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&window->fence));
+
+        NAME_D3D12_OBJECT_INDEXED_2(window->fence, data->adapter_index, window->adapter_window_index, L"ID3D12Fence");
+
+        window->fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+        if (window->fence_event == nullptr)
+        {
+            hr = HRESULT_FROM_WIN32(GetLastError());
+        }
+    }
+
+    return u32();
+}
+
+u32 delete_fence_window(window_data* window)
+{
+    if (_graphics_data_list.empty())
+    {
+        return u32();
+    }
+
+    CloseHandle(window->fence_event);
+
+    if (window->fence != nullptr)
+    {
+        window->fence->Release();
+        window->fence = nullptr;
+    }
+
+    return u32();
+}
+
+u32 delete_fences_window()
+{
+    if (_graphics_data_list.empty())
+    {
+        return u32();
+    }
+
+    for (auto window : _window_data_list)
+    {
+        delete_fence_window(window);
+    }
+
+    return u32();
+}
+
 u32 create_viewports()
 {
     if (_graphics_data_list.empty())
@@ -3046,6 +3360,14 @@ u32 create_viewports()
             }
         }
     }
+
+    return u32();
+}
+
+u32 create_viewport_window(window_data* window)
+{
+    window->viewport = { 0.0f, 0.0f, (f32)window->rect.right - window->rect.left, (f32)window->rect.bottom - window->rect.top };
+    window->scissor_rect = { 0, 0, (s32)window->rect.right - window->rect.left, (s32)window->rect.bottom - window->rect.top };
 
     return u32();
 }
@@ -3623,6 +3945,557 @@ u32 populate_command_list(graphics_data* data)
     return u32();
 }
 
+u32 populate_command_list_window(graphics_data* data)
+{
+    HRESULT hr = S_OK;
+
+    u32 current_back_buffer_index;
+
+    if (_window_data_list.empty())
+    {
+        current_back_buffer_index = 0;
+        return u32();
+    }
+    else
+    {
+        current_back_buffer_index = ((window_data*)*_window_data_list.begin())->frame_index;
+    }
+
+    hr = data->cmd_allocator_list[current_back_buffer_index]->Reset();
+
+    data->cmd_list->Reset(data->cmd_allocator_list[current_back_buffer_index], data->pso);
+
+    if (data->deferred_free_flag[current_back_buffer_index] == true)
+    {
+        data->deferred_free_flag[current_back_buffer_index] = false;
+
+        deferred_free_processing(current_back_buffer_index);
+    }
+
+    AVFrame* frame = av_frame_alloc();
+    // get texture
+    for (auto scene : _graphics_scene_list)
+    {
+        int32_t output_frame_index = -1;
+
+        {
+            std::lock_guard<std::mutex> lock(_ffmpeg_data_mutex);
+            auto it_ffmpeg_data = _ffmpeg_data_map.find(scene->scene_index);
+            if (it_ffmpeg_data != _ffmpeg_data_map.end())
+            {
+                output_frame_index = cpp_ffmpeg_wrapper_get_frame(it_ffmpeg_data->second.ffmpeg_instance, frame);
+
+                if (output_frame_index == -2)
+                {
+                    // eof
+                    if (_repeat_play_flag == true)
+                    {
+                        if (it_ffmpeg_data->second.repeat_command_send_flag == false)
+                        {
+                            it_ffmpeg_data->second.repeat_command_send_flag = true;
+
+                            packet_seek_repeat_self temp_packet{};
+                            temp_packet.scene_index = scene->scene_index;
+                            temp_packet.header.cmd = command_type::seek_repeat_self;
+                            temp_packet.header.size = sizeof(packet_seek_repeat_self);
+
+                            void* packet = new char[temp_packet.header.size];
+                            memcpy(packet, &temp_packet, temp_packet.header.size);
+
+                            {
+                                std::lock_guard<std::mutex> lk(_tcp_processing_mutex);
+                                _tcp_processing_command_queue.push_back(std::pair<void*, void*>(packet, nullptr));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (output_frame_index < 0)
+        {
+            continue;
+        }
+
+        scene->using_flag = true;
+        scene->pts = frame->pts;
+
+        for (auto panel : scene->panel_list)
+        {
+            if (data->adapter_index != panel->adapter_index)
+            {
+                continue;
+            }
+
+            if (_texture_create_each_panel == false)
+            {
+                if (_nv12_texture_option == true)
+                {
+                    if (data->texture_map_nv12[0].find(panel->texture_index) == data->texture_map_nv12[0].end())
+                    {
+                        create_texture_nv12(data, frame->width, frame->height, panel->texture_index, scene->scene_index);
+                    }
+                }
+                else
+                {
+                    if (data->texture_map_y[0].find(panel->texture_index) == data->texture_map_y[0].end())
+                    {
+                        create_texture(data, frame->width, frame->height, panel->texture_index, scene->scene_index);
+                    }
+                }
+            }
+
+            panel->normalized_uv = { 0.0f, 0.0f, 1.0f, 1.0f };
+
+            if (output_frame_index != -1)
+            {
+                if (_texture_create_each_panel == true)
+                {
+                    upload_texture_each_panel(data, frame, output_frame_index, panel);
+                }
+                else
+                {
+                    auto it_upload_flag = scene->texture_upload_to_adapter_flag_map.find(panel->adapter_index);
+                    if (it_upload_flag != scene->texture_upload_to_adapter_flag_map.end())
+                    {
+                        if (it_upload_flag->second == false)
+                        {
+                            if (_nv12_texture_option == true)
+                            {
+                                upload_texture_nv12(data, frame, panel->texture_index, output_frame_index);
+                            }
+                            else
+                            {
+                                upload_texture(data, frame, panel->texture_index, output_frame_index);
+                            }
+                            it_upload_flag->second = true;
+                        }
+                    }
+                }
+
+                panel->output_frame_index = output_frame_index;
+            }
+        }
+
+        av_frame_unref(frame);
+    }
+    av_frame_free(&frame);
+
+    // create vertex
+    for (auto scene : _graphics_scene_list)
+    {
+        for (auto panel : scene->panel_list)
+        {
+            if (data->adapter_index != panel->adapter_index)
+            {
+                continue;
+            }
+
+            if (data->vertex_buffer_map.find(panel->vertex_index) == data->vertex_buffer_map.end())
+            {
+                create_vertex_buffer(data, panel->vertex_index, panel->normalized_rect, panel->normalized_uv, scene->scene_index);
+            }
+        }
+    }
+
+    if (data->create_index_buffer_flag)
+    {
+        data->create_index_buffer_flag = false;
+        create_index_buffer(data);
+    }
+
+    // remove data input to deferred_free_maps
+    {
+        std::lock_guard<std::mutex> lock(_graphics_remove_mutex);
+        for (auto it_remove_scene = _graphics_remove_queue.begin(); it_remove_scene != _graphics_remove_queue.end();)
+        {
+            RemoveScene remove_scene = *it_remove_scene;
+
+            for (auto it_scene = _graphics_scene_list.begin(); it_scene != _graphics_scene_list.end();)
+            {
+                Scene* scene = *it_scene;
+
+                if (scene->scene_index != remove_scene.scene_index)
+                {
+                    it_scene++;
+                    continue;
+                }
+
+                for (auto it_panel = scene->panel_list.begin(); it_panel != scene->panel_list.end();)
+                {
+                    Panel* panel = *it_panel;
+
+                    if (data->adapter_index != panel->adapter_index)
+                    {
+                        it_panel++;
+                        continue;
+                    }
+
+                    // remove vertex
+                    {
+                        auto it_vertex = data->vertex_buffer_map.find(panel->vertex_index);
+                        if (it_vertex != data->vertex_buffer_map.end())
+                        {
+                            deferred_free_object object;
+                            object.resource = (*it_vertex).second;
+                            object.index = (*it_vertex).first;
+                            object.type = deferred_type::vertex_buffer;
+                            data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+
+                            data->vertex_buffer_map.erase(panel->vertex_index);
+                        }
+
+                        auto it_vertex_upload = data->vertex_upload_buffer_map.find(panel->vertex_index);
+                        if (it_vertex_upload != data->vertex_upload_buffer_map.end())
+                        {
+                            deferred_free_object object;
+                            object.resource = (*it_vertex_upload).second;
+                            object.index = (*it_vertex_upload).first;
+                            object.type = deferred_type::vertex_upload_buffer;
+                            data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+
+                            data->vertex_upload_buffer_map.erase(panel->vertex_index);
+                        }
+
+                        auto it_vertex_view = data->vertex_buffer_view_map.find(panel->vertex_index);
+                        if (it_vertex_view != data->vertex_buffer_view_map.end())
+                        {
+                            data->vertex_buffer_view_map.erase(panel->vertex_index);
+                        }
+                    }
+
+                    // remove texture
+                    if (data->texture_map_y[0].find(panel->texture_index) != data->texture_map_y[0].end())
+                    {
+                        for (u32 i = 0; i < frame_buffer_count; i++)
+                        {
+                            // ----------------------------------------------------------------
+                            // texture
+
+                            auto it_texture_y = data->texture_map_y[i].find(panel->texture_index);
+                            if (it_texture_y != data->texture_map_y[i].end())
+                            {
+                                deferred_free_object object;
+                                object.resource = (*it_texture_y).second;
+                                object.index = (*it_texture_y).first;
+                                object.type = deferred_type::texture_y;
+                                data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+
+                                data->texture_map_y[i].erase(panel->texture_index);
+                            }
+
+                            auto it_texture_u = data->texture_map_u[i].find(panel->texture_index);
+                            if (it_texture_u != data->texture_map_u[i].end())
+                            {
+                                deferred_free_object object;
+                                object.resource = (*it_texture_u).second;
+                                object.index = (*it_texture_u).first;
+                                object.type = deferred_type::texture_u;
+                                data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+
+                                data->texture_map_u[i].erase(panel->texture_index);
+                            }
+
+                            auto it_texture_v = data->texture_map_v[i].find(panel->texture_index);
+                            if (it_texture_v != data->texture_map_v[i].end())
+                            {
+                                deferred_free_object object;
+                                object.resource = (*it_texture_v).second;
+                                object.index = (*it_texture_v).first;
+                                object.type = deferred_type::texture_v;
+                                data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+
+                                data->texture_map_v[i].erase(panel->texture_index);
+                            }
+
+                            // ----------------------------------------------------------------
+                            // upload texture
+
+                            auto it_upload_texture_y = data->upload_texture_map_y[i].find(panel->texture_index);
+                            if (it_upload_texture_y != data->upload_texture_map_y[i].end())
+                            {
+                                deferred_free_object object;
+                                object.resource = (*it_upload_texture_y).second;
+                                object.index = (*it_upload_texture_y).first;
+                                object.type = deferred_type::upload_texture_y;
+                                data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+
+                                data->upload_texture_map_y[i].erase(panel->texture_index);
+                            }
+
+                            auto it_upload_texture_u = data->upload_texture_map_u[i].find(panel->texture_index);
+                            if (it_upload_texture_u != data->upload_texture_map_u[i].end())
+                            {
+                                deferred_free_object object;
+                                object.resource = (*it_upload_texture_u).second;
+                                object.index = (*it_upload_texture_u).first;
+                                object.type = deferred_type::upload_texture_u;
+                                data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+
+                                data->upload_texture_map_u[i].erase(panel->texture_index);
+                            }
+
+                            auto it_upload_texture_v = data->upload_texture_map_v[i].find(panel->texture_index);
+                            if (it_upload_texture_v != data->upload_texture_map_v[i].end())
+                            {
+                                deferred_free_object object;
+                                object.resource = (*it_upload_texture_v).second;
+                                object.index = (*it_upload_texture_v).first;
+                                object.type = deferred_type::upload_texture_v;
+                                if (i == frame_buffer_count - 1)
+                                {
+                                    object.free_flag = true;
+                                }
+
+                                data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+
+                                data->upload_texture_map_v[i].erase(panel->texture_index);
+                            }
+                        }
+                    }
+
+                    if (data->texture_map_nv12[0].find(panel->texture_index) != data->texture_map_nv12[0].end())
+                    {
+                        // ----------------------------------------------------------------
+                        // texture
+                        for (u32 i = 0; i < frame_buffer_count; i++)
+                        {
+                            auto it_texture_nv12 = data->texture_map_nv12[i].find(panel->texture_index);
+                            if (it_texture_nv12 != data->texture_map_nv12[i].end())
+                            {
+                                deferred_free_object object;
+                                object.resource = (*it_texture_nv12).second;
+                                object.index = (*it_texture_nv12).first;
+                                object.type = deferred_type::texture_nv12;
+                                data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+
+                                data->texture_map_nv12[i].erase(panel->texture_index);
+                            }
+
+                            // ----------------------------------------------------------------
+                            // upload texture
+
+                            auto it_upload_texture_luminance = data->upload_texture_map_luminance[i].find(panel->texture_index);
+                            if (it_upload_texture_luminance != data->upload_texture_map_luminance[i].end())
+                            {
+                                deferred_free_object object;
+                                object.resource = (*it_upload_texture_luminance).second->resource;
+                                object.index = (*it_upload_texture_luminance).first;
+                                object.type = deferred_type::upload_texture_luminance;
+                                data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+
+                                delete it_upload_texture_luminance->second;
+
+                                data->upload_texture_map_luminance[i].erase(panel->texture_index);
+                            }
+
+                            auto it_upload_texture_chrominance = data->upload_texture_map_chrominance[i].find(panel->texture_index);
+                            if (it_upload_texture_chrominance != data->upload_texture_map_chrominance[i].end())
+                            {
+                                deferred_free_object object;
+                                object.resource = (*it_upload_texture_chrominance).second->resource;
+                                object.index = (*it_upload_texture_chrominance).first;
+                                object.type = deferred_type::upload_texture_chrominance;
+                                if (i == frame_buffer_count - 1)
+                                {
+                                    object.free_flag = true;
+                                }
+
+                                data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+
+                                delete it_upload_texture_chrominance->second;
+
+                                data->upload_texture_map_chrominance[i].erase(panel->texture_index);
+                            }
+                        }
+                    }
+
+                    if (_texture_create_each_panel == true)
+                    {
+                        delete[] panel->separated_frame_data_y;
+                        panel->separated_frame_data_y = nullptr;
+
+                        delete[] panel->separated_frame_data_u;
+                        panel->separated_frame_data_u = nullptr;
+
+                        delete[] panel->separated_frame_data_v;
+                        panel->separated_frame_data_v = nullptr;
+                    }
+
+                    delete panel;
+                    it_panel = scene->panel_list.erase(it_panel);
+                }
+
+                if (scene->panel_list.empty())
+                {
+                    remove_scene.all_panel_removed_flag = true;
+
+                    auto it_window = _window_data_list.begin();
+                    for (; it_window != _window_data_list.end(); it_window++)
+                    {
+                        window_data* window = *it_window;
+
+                        if (window->scene_index != scene->scene_index)
+                        {
+                            continue;
+                        }
+
+                        // rtv
+                        for (u32 n = 0; n < frame_buffer_count; n++)
+                        {
+                            deferred_free_object object;
+                            object.resource = window->rtv_view_list[n];
+                            object.type = deferred_type::rtv;
+                            object.index = window->adapter_window_index;
+
+                            if (n == frame_buffer_count - 1)
+                            {
+                                object.free_flag = true;
+                            }
+
+                            data->deferred_free_object_list[current_back_buffer_index].push_back(object);
+                        }
+
+                        // swapchain, fence, fence_event
+                        {
+                            deferred_free_window_object object;
+                            object.index = window->adapter_window_index;
+
+                            object.swapchain = window->swap_chain;
+                            
+                            if (_disable_present_barrier == false || _use_swap_group_and_swap_barrier == true)
+                            {
+                                object.swapchain_0 = window->swap_chain_0;
+                            }
+
+                            object.fence = window->fence;
+                            object.fence_event = window->fence_event;
+
+                            std::lock_guard<std::mutex> lk(data->deferred_free_window_object_mutex);
+                            data->deferred_free_window_object_list.push_back(object);
+                        }
+
+                        window->free_flag = true;
+                    }
+
+                    delete scene;
+                    it_scene = _graphics_scene_list.erase(it_scene);
+                }
+                else
+                {
+                    it_scene++;
+                }
+            }
+
+            if (remove_scene.all_panel_removed_flag)
+            {
+                data->deferred_free_flag[current_back_buffer_index] = true;
+
+                _free_scene_queue.push_back(remove_scene.scene_index);
+                it_remove_scene = _graphics_remove_queue.erase(it_remove_scene);
+            }
+            else
+            {
+                it_remove_scene++;
+            }
+        }
+    }
+
+    data->cmd_list->SetGraphicsRootSignature(data->root_sig);
+
+    ID3D12DescriptorHeap* pp_heaps[] = { data->srv_heaps };
+    data->cmd_list->SetDescriptorHeaps(_countof(pp_heaps), pp_heaps);
+
+    for (auto window : _window_data_list)
+    {
+        if (window->adapter_index != data->adapter_index)
+        {
+            continue;
+        }
+
+        if (window->free_flag == true)
+        {
+            continue;
+        }
+
+        data->cmd_list->RSSetViewports(1, &window->viewport);
+        data->cmd_list->RSSetScissorRects(1, &window->scissor_rect);
+
+        CD3DX12_RESOURCE_BARRIER transition_barrier_before = CD3DX12_RESOURCE_BARRIER::Transition(window->rtv_view_list[window->frame_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        data->cmd_list->ResourceBarrier(1, &transition_barrier_before);
+
+        D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = data->rtv_heaps->GetCPUDescriptorHandleForHeapStart();
+        rtv_handle.ptr = SIZE_T(INT64(window->rtv_handle.ptr) + INT64(data->rtv_descriptor_size * frame_buffer_count * window->adapter_window_index));
+        rtv_handle.ptr = SIZE_T(INT64(window->rtv_handle.ptr) + INT64(data->rtv_descriptor_size * window->frame_index));
+
+        data->cmd_list->OMSetRenderTargets(1, &rtv_handle, FALSE, nullptr);
+
+        //float clear_color[] = { _clear_color[0] * output->frame_index, _clear_color[1] * output->frame_index, _clear_color[2] * output->frame_index, _clear_color[3] * output->frame_index };
+
+        data->cmd_list->ClearRenderTargetView(rtv_handle, _clear_color, 0, nullptr);
+        //data->cmd_list->ClearRenderTargetView(rtv_handle, clear_color, 0, nullptr);
+        data->cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+
+        const u32 srv_descriptor_size = data->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+        data->cmd_list->IASetIndexBuffer(&data->index_buffer_view);
+
+        for (auto scene : _graphics_scene_list)
+        {
+            if (window->adapter_window_index != scene->window_index)
+            {
+                continue;
+            }
+
+            for (auto panel : scene->panel_list)
+            {
+                if (data->adapter_index != panel->adapter_index)
+                {
+                    continue;
+                }
+
+                if (panel->output_index != window->output_index)
+                {
+                    continue;
+                }
+
+                D3D12_GPU_DESCRIPTOR_HANDLE srv_handle = data->srv_heaps->GetGPUDescriptorHandleForHeapStart();
+                if (_nv12_texture_option == true)
+                {
+                    srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size * (frame_buffer_count * texture_resource_count_nv12 * panel->texture_index)));
+                    srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size * (texture_resource_count_nv12 * panel->output_frame_index)));
+                }
+                else
+                {
+                    srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size * (frame_buffer_count * texture_resource_count * panel->texture_index)));
+                    srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size * (texture_resource_count * panel->output_frame_index)));
+                }
+
+                data->cmd_list->SetGraphicsRootDescriptorTable(0, srv_handle);
+                srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size));
+                data->cmd_list->SetGraphicsRootDescriptorTable(1, srv_handle);
+                srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size));
+                if (_nv12_texture_option == false)
+                {
+                    data->cmd_list->SetGraphicsRootDescriptorTable(2, srv_handle);
+                    srv_handle.ptr = SIZE_T(INT64(srv_handle.ptr) + INT64(srv_descriptor_size));
+                }
+
+                data->cmd_list->IASetVertexBuffers(0, 1, &data->vertex_buffer_view_map[panel->vertex_index]);
+                data->cmd_list->DrawIndexedInstanced(data->index_count, 1, 0, 0, 0);
+            }
+        }
+
+        CD3DX12_RESOURCE_BARRIER transition_barrier_after = CD3DX12_RESOURCE_BARRIER::Transition(window->rtv_view_list[window->frame_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+        data->cmd_list->ResourceBarrier(1, &transition_barrier_after);
+    }
+
+    hr = data->cmd_list->Close();
+
+    return u32();
+}
+
 u32 render()
 {
     HRESULT hr = S_OK;
@@ -3785,6 +4658,243 @@ u32 render()
         }
 
         frame_to_next_sync_group_map.clear();
+    }
+
+    return u32();
+}
+
+u32 render_window()
+{
+    HRESULT hr = S_OK;
+
+    for (auto data : _graphics_data_list)
+    {
+        if (data->output_list.empty())
+        {
+            continue;
+        }
+
+        if (_window_data_list.empty())
+        {
+            break;
+        }
+
+        populate_command_list_window(data);
+
+        ID3D12CommandList* pp_cmd_lists[] = { data->cmd_list };
+        data->cmd_queue->ExecuteCommandLists(_countof(pp_cmd_lists), pp_cmd_lists);
+    }
+
+    for (auto data : _graphics_data_list)
+    {
+        if (data->output_list.empty())
+        {
+            continue;
+        }
+
+        for (auto window : _window_data_list)
+        {
+            if (window->adapter_index != data->adapter_index)
+            {
+                continue;
+            }
+
+            if (_use_swap_group_and_swap_barrier == true)
+            {
+                data->nvapi_status = NvAPI_D3D1x_Present(data->device, window->swap_chain_0, 1, 0);
+            }
+            else
+            {
+                hr = window->swap_chain->Present(1, 0);
+            }
+
+            if (_disable_present_barrier == false)
+            {
+                _nvapi_status = NvAPI_QueryPresentBarrierFrameStatistics(window->present_barrier_client, &window->present_barrier_frame_stats);
+
+                switch (window->present_barrier_frame_stats.SyncMode)
+                {
+                case NV_PRESENT_BARRIER_SYNC_MODE::PRESENT_BARRIER_NOT_JOINED:
+                {
+                    OutputDebugString(L"PRESENT_BARRIER_NOT_JOINED\n");
+                }
+                break;
+                case NV_PRESENT_BARRIER_SYNC_MODE::PRESENT_BARRIER_SYNC_CLIENT:
+                {
+                    OutputDebugString(L"PRESENT_BARRIER_SYNC_CLIENT\n");
+                }
+                break;
+                case NV_PRESENT_BARRIER_SYNC_MODE::PRESENT_BARRIER_SYNC_SYSTEM:
+                {
+                    OutputDebugString(L"PRESENT_BARRIER_SYNC_SYSTEM\n");
+                }
+                break;
+                case NV_PRESENT_BARRIER_SYNC_MODE::PRESENT_BARRIER_SYNC_CLUSTER:
+                {
+                    OutputDebugString(L"PRESENT_BARRIER_SYNC_CLUSTER\n");
+                }
+                break;
+                default:
+                    break;
+                }
+            }
+        }
+    }
+
+    for (auto data : _graphics_data_list)
+    {
+        if (data->output_list.empty())
+        {
+            continue;
+        }
+
+        for (auto window : _window_data_list)
+        {
+            if (window->adapter_index != data->adapter_index)
+            {
+                continue;
+            }
+
+            move_to_next_frame(data->cmd_queue, window);
+        }
+    }
+
+    // 다음 프레임으로 이동
+    {
+        std::lock_guard<std::mutex> lock(_ffmpeg_data_mutex);
+
+        std::map<u32, SyncGroupCounter> frame_to_next_sync_group_map;
+
+        for (auto scene : _graphics_scene_list)
+        {
+            if (scene->using_flag == false)
+            {
+                continue;
+            }
+            else
+            {
+                scene->using_flag = false;
+            }
+
+            for (auto it_upload_flag = scene->texture_upload_to_adapter_flag_map.begin(); it_upload_flag != scene->texture_upload_to_adapter_flag_map.end();)
+            {
+                it_upload_flag->second = false;
+                it_upload_flag++;
+            }
+
+            auto it_ffmpeg_data = _ffmpeg_data_map.find(scene->scene_index);
+            if (it_ffmpeg_data != _ffmpeg_data_map.end())
+            {
+                if (scene->sync_group_index != u32_invalid_id)
+                {
+                    s32 ret = cpp_ffmpeg_wrapper_check_frame_to_next_sync_group(it_ffmpeg_data->second.ffmpeg_instance);
+                    if (ret == 0)
+                    {
+                        SyncGroupCounter sync_group_counter;
+
+                        auto it_sync_group_counter = frame_to_next_sync_group_map.find(scene->sync_group_index);
+                        if (it_sync_group_counter == frame_to_next_sync_group_map.end())
+                        {
+                            sync_group_counter.sync_group_count = scene->sync_group_count;
+                            sync_group_counter.sync_group_input_count++;
+
+                            frame_to_next_sync_group_map.insert({ scene->sync_group_index, sync_group_counter });
+                        }
+                        else
+                        {
+                            it_sync_group_counter->second.sync_group_input_count++;
+                        }
+                    }
+
+                    continue;
+                }
+
+                cpp_ffmpeg_wrapper_frame_to_next(it_ffmpeg_data->second.ffmpeg_instance);
+            }
+        }
+
+        std::map<u32, SyncGroupCounter>::iterator it_frame_to_next_sync_group = frame_to_next_sync_group_map.begin();
+        for (; it_frame_to_next_sync_group != frame_to_next_sync_group_map.end(); it_frame_to_next_sync_group++)
+        {
+            if (it_frame_to_next_sync_group->second.sync_group_count == it_frame_to_next_sync_group->second.sync_group_input_count)
+            {
+                auto it_ffmpeg_data = _ffmpeg_data_map.begin();
+                for (; it_ffmpeg_data != _ffmpeg_data_map.end(); it_ffmpeg_data++)
+                {
+                    if (it_ffmpeg_data->second.sync_group_index == it_frame_to_next_sync_group->first)
+                    {
+                        cpp_ffmpeg_wrapper_frame_to_next(it_ffmpeg_data->second.ffmpeg_instance);
+                    }
+                }
+            }
+        }
+
+        frame_to_next_sync_group_map.clear();
+    }
+
+    return u32();
+}
+
+u32 deferred_free_processing_window()
+{
+    for (auto data : _graphics_data_list)
+    {
+        auto it = data->deferred_free_window_object_list.begin();
+        for (; it != data->deferred_free_window_object_list.end();)
+        {
+            if (it->free_flag == true)
+            {
+                if (it->swapchain != nullptr)
+                {
+                    it->swapchain->Release();
+                    it->swapchain = nullptr;
+                }
+                if (it->swapchain_0 != nullptr)
+                {
+                    it->swapchain_0->Release();
+                    it->swapchain_0 = nullptr;
+                }
+                if (it->fence != nullptr)
+                {
+                    it->fence->Release();
+                    it->fence = nullptr;
+                }
+                if (it->fence_event != nullptr)
+                {
+                    CloseHandle(it->fence_event);
+                    it->fence_event = nullptr;
+                }
+
+                auto it_window = _window_data_list.begin();
+                for (; it_window != _window_data_list.end();)
+                {
+                    window_data* w_data = (window_data*)*it_window;
+
+                    if (w_data->adapter_window_index == it->index)
+                    {
+                        CloseWindow(w_data->handle);
+                        w_data->handle = nullptr;
+
+                        delete w_data;
+
+                        it_window = _window_data_list.erase(it_window);
+
+                        data->free_window_queue.push_back(it->index);
+
+                        break;
+                    }
+
+                    it_window++;
+                }
+
+                std::lock_guard<std::mutex> lk(data->deferred_free_window_object_mutex);
+                it = data->deferred_free_window_object_list.erase(it);
+            }
+            else
+            {
+                it++;
+            }
+        }
     }
 
     return u32();
@@ -4132,6 +5242,120 @@ u32 create_scene_data(RECT rect, u32 sync_group_index, u16 sync_group_count)
             }
         }
     }
+
+    _graphics_insert_list.push_back(scene);
+
+    return scene->scene_index;
+}
+
+u32 create_scene_data_window(RECT rect, u32 sync_group_index, u16 sync_group_count)
+{
+    Scene* scene = new Scene();
+    s32 output_index = -1;
+    u32 adapter_index = 0;
+    s32 window_index = -1;
+
+    scene->rect = rect;
+
+    scene->sync_group_index = sync_group_index;
+    scene->sync_group_count = sync_group_count;
+
+    // scene index
+    if (_free_scene_queue.empty())
+    {
+        scene->scene_index = _next_scene_index;
+        _next_scene_index++;
+    }
+    else
+    {
+        scene->scene_index = _free_scene_queue.front();
+        _free_scene_queue.pop_front();
+    }
+
+    for (auto data : _graphics_data_list)
+    {
+        for (auto output : data->output_list)
+        {
+            if (!(output->output_desc.DesktopCoordinates.right > rect.left &&
+                output->output_desc.DesktopCoordinates.bottom > rect.top &&
+                output->output_desc.DesktopCoordinates.left <= rect.left &&
+                output->output_desc.DesktopCoordinates.top <= rect.top))
+            {
+                continue;
+            }
+
+            scene->texture_upload_to_adapter_flag_map.insert({ data->adapter_index, false });
+
+            Panel* panel = new Panel();
+            scene->panel_list.push_back(panel);
+
+            // adapter index
+            panel->adapter_index = data->adapter_index;
+            adapter_index = data->adapter_index;
+
+            // vertex index
+            if (data->free_vertex_queue.empty())
+            {
+                panel->vertex_index = data->next_vertex_index;
+                data->next_vertex_index++;
+            }
+            else
+            {
+                panel->vertex_index = data->free_vertex_queue.front();
+                data->free_vertex_queue.pop_front();
+            }
+
+            // texture index
+            if (data->free_texture_queue.empty())
+            {
+                panel->texture_index = data->next_texture_index;
+                data->next_texture_index++;
+            }
+            else
+            {
+                panel->texture_index = data->free_texture_queue.front();
+                data->free_texture_queue.pop_front();
+            }
+
+            // window index
+            if (data->free_window_queue.empty())
+            {
+                window_index = data->next_window_index;
+                data->next_window_index++;
+            }
+            else
+            {
+                window_index = data->free_window_queue.front();
+                data->free_window_queue.pop_front();
+            }
+
+            // output index
+            panel->output_index = output->output_index;
+            output_index = output->output_index;
+
+            panel->rect = rect;
+            panel->normalized_rect = { -1.0f, 1.0f, 1.0f, -1.0f };
+        }
+    }
+
+    HWND handle = nullptr;
+
+    create_window(szWindowClass, szTitle, hInst, rect, nullptr, handle);
+
+    window_data* w_data = new window_data();
+
+    w_data->handle = handle;
+    w_data->output_index = output_index;
+    w_data->adapter_index = adapter_index;
+    w_data->adapter_window_index = window_index;
+    w_data->scene_index = scene->scene_index;
+    w_data->rect = rect;
+
+    scene->window_index = window_index;
+
+    create_graphics_objects_window(w_data);
+
+    _window_data_list.push_back(w_data);
 
     _graphics_insert_list.push_back(scene);
 
@@ -4585,6 +5809,25 @@ u32 deferred_free_processing(u32 back_buffer_index)
                 }
             }
             break;
+            case deferred_type::rtv:
+            {
+                if (object.free_flag)
+                {
+                    auto it = data->deferred_free_window_object_list.begin();
+                    for (; it != data->deferred_free_window_object_list.end(); it++)
+                    {
+                        if (object.index != it->index)
+                        {
+                            continue;
+                        }
+
+                        it->free_flag = true;
+
+                        break;
+                    }
+                }
+            }
+            break;
             default:
                 break;
             }
@@ -4764,6 +6007,10 @@ void config_setting()
     GetPrivateProfileString(L"WPlayer", L"use_swap_group_and_swap_barrier", L"0", result_w, 255, str_ini_path_w.c_str());
     result_i = _ttoi(result_w);
     _use_swap_group_and_swap_barrier = result_i == 0 ? false : true;
+
+    GetPrivateProfileString(L"WPlayer", L"window_mode", L"0", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _window_mode = result_i == 0 ? false : true;
 }
 
 
@@ -4805,6 +6052,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         if (data->output_list.empty())
         {
             continue;
+        }
+
+        if (_window_mode == true)
+        {
+            break;
         }
 
         int n = 0;
@@ -4854,7 +6106,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
     }
 
-    create_viewports();
+    if (_window_mode == false)
+    {
+        create_viewports();
+    }
 
     create_devices();
     create_command_queues();
@@ -4890,7 +6145,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
     }
 
-    create_swap_chains();
+    if (_window_mode == false)
+    {
+        create_swap_chains();
+    }
 
     // 
     // 1. NvAPI_D3D1x_QueryMaxSwapGroup
@@ -4942,7 +6200,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     }
 
     create_rtv_heaps();
-    create_rtvs();
+    if (_window_mode == false)
+    {
+        create_rtvs();
+    }
     create_command_allocators();
     create_srv_heaps();
 
@@ -4969,7 +6230,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     create_psos();
     create_command_lists();
 
-    create_fences();
+    if (_window_mode == false)
+    {
+        create_fences();
+    }
 
     if (_disable_present_barrier == false)
     {
@@ -5011,7 +6275,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
         if (ready)
         {
-            render();
+            if (_window_mode == true)
+            {
+                render_window();
+
+                deferred_free_processing_window();
+            }
+            else
+            {
+                render();
+            }
         }
     }
 
@@ -5052,7 +6325,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     delete_swap_group_and_swap_barrier();
 
-    delete_fences();
+    if (_window_mode == true)
+    {
+        delete_fences_window();
+    }
+    else
+    {
+        delete_fences();
+    }
 
     delete_command_lists();
     delete_psos();
@@ -5061,11 +6341,26 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     delete_srv_heaps();
     delete_rtv_heaps();
 
-    delete_rtvs();
+    if (_window_mode == true)
+    {
+        delete_rtvs_window();
+    }
+    else
+    {
+        delete_rtvs();
+    }
 
     delete_command_allocators();
 
-    delete_swap_chains();
+    if (_window_mode == true)
+    {
+        delete_swap_chains_window();
+    }
+    else
+    {
+        delete_swap_chains();
+    }
+
     delete_command_queues();
     delete_devices();
     delete_output_list();
@@ -5185,4 +6480,27 @@ u32 delete_windows()
     _window_data_list.clear();
 
     return u32();
+}
+
+u32 create_graphics_objects_window(window_data* window)
+{
+    create_viewport_window(window);
+
+    create_swap_chain_window(window);
+
+    create_rtv_window(window);
+
+    create_fence_window(window);
+
+    return u32();
+}
+
+void message_processing_window()
+{
+    MSG msg;
+    while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+    {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
 }
