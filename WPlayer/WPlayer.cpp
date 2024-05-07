@@ -144,6 +144,15 @@ struct output_data
 {
     IDXGIOutput* output = nullptr;
     DXGI_OUTPUT_DESC output_desc{};
+    
+    s32 output_index = -1;
+
+    RECT create_one_swapchain_for_each_adapter_rect = { 0, 0, 0, 0 };
+    RECT create_one_swapchain_for_each_adapter_without_control_output_rect = { 0, 0, 0, 0 };
+};
+
+struct window_data
+{
     HWND handle = nullptr;
     IDXGISwapChain3* swap_chain = nullptr;
     IDXGISwapChain* swap_chain_0 = nullptr;
@@ -166,8 +175,11 @@ struct output_data
     bool present_barrier_joined = false;
     _NV_PRESENT_BARRIER_FRAME_STATISTICS present_barrier_frame_stats{};
 
-    RECT create_one_swapchain_for_each_adapter_rect = { 0, 0, 0, 0 };
-    RECT create_one_swapchain_for_each_adapter_without_control_output_rect = { 0, 0, 0, 0 };
+    u32 adapter_index = 0;
+
+    s32 adapter_window_index = -1;
+
+    RECT rect{};
 };
 
 enum class deferred_type : s32
@@ -263,6 +275,9 @@ struct graphics_data
     std::deque<s32> free_texture_queue; // texture_index
     s32 next_texture_index = 0;
 
+    std::deque<s32> free_window_queue; // window_index
+    s32 next_window_index = 0;
+
     bool deferred_free_flag[frame_buffer_count];
     std::vector<deferred_free_object> deferred_free_object_list[frame_buffer_count];
 
@@ -279,6 +294,7 @@ struct graphics_data
 
 #pragma region Graphics
 std::vector<graphics_data*> _graphics_data_list;
+std::vector<window_data*> _window_data_list;
 
 constexpr u32 srv_descriptor_count = 4096;
 
@@ -314,6 +330,10 @@ u32 create_swap_chains();
 u32 delete_swap_chains();
 u32 create_rtv_heaps();
 u32 delete_rtv_heaps();
+u32 create_command_allocators();
+u32 delete_command_allocators();
+u32 create_rtvs();
+u32 delete_rtvs();
 u32 create_srv_heaps();
 u32 delete_srv_heaps();
 u32 create_root_signatures();
@@ -354,6 +374,9 @@ u32 delete_swap_group_and_swap_barrier();
 #if _DEBUG
 void d3d_memory_check();
 #endif
+
+u32 delete_windows();
+
 #pragma endregion
 
 #pragma region TCP Server
@@ -1634,82 +1657,90 @@ u32 create_swap_chains()
 
     HRESULT hr = S_OK;
 
-    for (auto data : _graphics_data_list)
+    for (auto window : _window_data_list)
     {
-        for (auto output : data->output_list)
+        for (auto data : _graphics_data_list)
         {
-            if (output->handle == nullptr)
+            if (window->adapter_index != data->adapter_index)
             {
                 continue;
             }
 
-            DXGI_SWAP_CHAIN_DESC1 desc{};
-            if (_create_one_swapchain_for_each_adapter == true)
+            for (auto output : data->output_list)
             {
-                desc.Width = output->create_one_swapchain_for_each_adapter_rect.right - output->create_one_swapchain_for_each_adapter_rect.left;
-                desc.Height = output->create_one_swapchain_for_each_adapter_rect.bottom - output->create_one_swapchain_for_each_adapter_rect.top;
-            }
-            else if (_create_one_swapchain_for_each_adapter_without_control_output == true)
-            {
-                desc.Width = output->create_one_swapchain_for_each_adapter_without_control_output_rect.right - output->create_one_swapchain_for_each_adapter_without_control_output_rect.left;
-                desc.Height = output->create_one_swapchain_for_each_adapter_without_control_output_rect.bottom - output->create_one_swapchain_for_each_adapter_without_control_output_rect.top;
-            }
-            else
-            {
-                desc.Width = output->output_desc.DesktopCoordinates.right - output->output_desc.DesktopCoordinates.left;
-                desc.Height = output->output_desc.DesktopCoordinates.bottom - output->output_desc.DesktopCoordinates.top;
-            }
-            desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-            desc.SampleDesc.Count = 1;
-            desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-            desc.BufferCount = frame_buffer_count;
-            desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-
-            IDXGISwapChain1* swap_chain = nullptr;
-
-            hr = _factory->CreateSwapChainForHwnd(
-                data->cmd_queue,
-                output->handle,
-                &desc,
-                nullptr,
-                nullptr,
-                &swap_chain
-            );
-
-            if (hr != S_OK)
-            {
-                continue;
-            }
-
-            hr = _factory->MakeWindowAssociation(output->handle, DXGI_MWA_NO_ALT_ENTER);
-            hr = swap_chain->QueryInterface(&output->swap_chain);
-
-            if (_disable_present_barrier == false || _use_swap_group_and_swap_barrier == true)
-            {
-                hr = swap_chain->QueryInterface(&output->swap_chain_0);
-            }
-
-            swap_chain->Release();
-            swap_chain = nullptr;
-
-            if (_disable_present_barrier == false)
-            {
-                if (output->present_barrier_client != nullptr)
+                if (window->output_index != output->output_index)
                 {
-                    if (output->present_barrier_joined == true)
-                    {
-                        _nvapi_status = NvAPI_LeavePresentBarrier(output->present_barrier_client);
-                        output->present_barrier_joined = false;
-                    }
-
-                    _nvapi_status = NvAPI_DestroyPresentBarrierClient(output->present_barrier_client);
-                    output->present_barrier_client = nullptr;
+                    continue;
                 }
 
-                _nvapi_status = NvAPI_D3D12_CreatePresentBarrierClient(data->device, output->swap_chain_0, &output->present_barrier_client);
-            }
+                DXGI_SWAP_CHAIN_DESC1 desc{};
+                if (_create_one_swapchain_for_each_adapter == true)
+                {
+                    desc.Width = output->create_one_swapchain_for_each_adapter_rect.right - output->create_one_swapchain_for_each_adapter_rect.left;
+                    desc.Height = output->create_one_swapchain_for_each_adapter_rect.bottom - output->create_one_swapchain_for_each_adapter_rect.top;
+                }
+                else if (_create_one_swapchain_for_each_adapter_without_control_output == true)
+                {
+                    desc.Width = output->create_one_swapchain_for_each_adapter_without_control_output_rect.right - output->create_one_swapchain_for_each_adapter_without_control_output_rect.left;
+                    desc.Height = output->create_one_swapchain_for_each_adapter_without_control_output_rect.bottom - output->create_one_swapchain_for_each_adapter_without_control_output_rect.top;
+                }
+                else
+                {
+                    desc.Width = output->output_desc.DesktopCoordinates.right - output->output_desc.DesktopCoordinates.left;
+                    desc.Height = output->output_desc.DesktopCoordinates.bottom - output->output_desc.DesktopCoordinates.top;
+                }
+                desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+                desc.SampleDesc.Count = 1;
+                desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+                desc.BufferCount = frame_buffer_count;
+                desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 
-            output->frame_index = output->swap_chain->GetCurrentBackBufferIndex();
+                IDXGISwapChain1* swap_chain = nullptr;
+
+                hr = _factory->CreateSwapChainForHwnd(
+                    data->cmd_queue,
+                    window->handle,
+                    &desc,
+                    nullptr,
+                    nullptr,
+                    &swap_chain
+                );
+
+                if (hr != S_OK)
+                {
+                    continue;
+                }
+
+                hr = _factory->MakeWindowAssociation(window->handle, DXGI_MWA_NO_ALT_ENTER);
+                hr = swap_chain->QueryInterface(&window->swap_chain);
+
+                if (_disable_present_barrier == false || _use_swap_group_and_swap_barrier == true)
+                {
+                    hr = swap_chain->QueryInterface(&window->swap_chain_0);
+                }
+
+                swap_chain->Release();
+                swap_chain = nullptr;
+
+                if (_disable_present_barrier == false)
+                {
+                    if (window->present_barrier_client != nullptr)
+                    {
+                        if (window->present_barrier_joined == true)
+                        {
+                            _nvapi_status = NvAPI_LeavePresentBarrier(window->present_barrier_client);
+                            window->present_barrier_joined = false;
+                        }
+
+                        _nvapi_status = NvAPI_DestroyPresentBarrierClient(window->present_barrier_client);
+                        window->present_barrier_client = nullptr;
+                    }
+
+                    _nvapi_status = NvAPI_D3D12_CreatePresentBarrierClient(data->device, window->swap_chain_0, &window->present_barrier_client);
+                }
+
+                window->frame_index = window->swap_chain->GetCurrentBackBufferIndex();
+            }
         }
     }
 
@@ -1723,28 +1754,20 @@ u32 delete_swap_chains()
         return u32();
     }
 
-    for (auto data : _graphics_data_list)
+    for (auto window : _window_data_list)
     {
-        for (auto output : data->output_list)
+        if (window->swap_chain != nullptr)
         {
-            if (output->handle == nullptr)
-            {
-                continue;
-            }
+            window->swap_chain->Release();
+            window->swap_chain = nullptr;
+        }
 
-            if (output->swap_chain != nullptr)
+        if (_disable_present_barrier == false || _use_swap_group_and_swap_barrier == true)
+        {
+            if (window->swap_chain_0 != nullptr)
             {
-                output->swap_chain->Release();
-                output->swap_chain = nullptr;
-            }
-
-            if (_disable_present_barrier == false || _use_swap_group_and_swap_barrier == true)
-            {
-                if (output->swap_chain_0 != nullptr)
-                {
-                    output->swap_chain_0->Release();
-                    output->swap_chain_0 = nullptr;
-                }
+                window->swap_chain_0->Release();
+                window->swap_chain_0 = nullptr;
             }
         }
     }
@@ -1776,45 +1799,6 @@ u32 create_rtv_heaps()
         data->rtv_descriptor_size = data->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
         NAME_D3D12_OBJECT_INDEXED(data->rtv_heaps, data->adapter_index, L"ID3D12DescriptorHeap_rtv");
-
-        u32 i = 0;
-
-        for (auto it = data->output_list.begin(); it != data->output_list.end(); it++)
-        {
-            output_data* o_data = *it;
-
-            if (o_data->handle == nullptr)
-            {
-                continue;
-            }
-
-            o_data->rtv_handle = data->rtv_heaps->GetCPUDescriptorHandleForHeapStart();
-
-            o_data->rtv_handle.ptr = o_data->rtv_handle.ptr + (i * data->rtv_descriptor_size * frame_buffer_count);
-
-            D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle = o_data->rtv_handle;
-
-            for (u32 j = 0; j < frame_buffer_count; j++)
-            {
-                o_data->rtv_view_list.emplace_back();
-
-                hr = o_data->swap_chain->GetBuffer(j, IID_PPV_ARGS(&o_data->rtv_view_list[j]));
-                data->device->CreateRenderTargetView(o_data->rtv_view_list[j], nullptr, cpu_handle);
-                cpu_handle.ptr = cpu_handle.ptr + data->rtv_descriptor_size;
-
-                NAME_D3D12_OBJECT_INDEXED_3(o_data->rtv_view_list[j], data->adapter_index, i, j, L"ID3D12Resource_rtv_view");
-            }
-
-            i++;
-        }
-
-        for (u32 j = 0; j < frame_buffer_count; j++)
-        {
-            data->cmd_allocator_list.emplace_back();
-            hr = data->device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&data->cmd_allocator_list[j]));
-
-            NAME_D3D12_OBJECT_INDEXED_2(data->cmd_allocator_list[j], data->adapter_index, j, L"ID3D12CommandAllocator");
-        }
     }
 
     return u32();
@@ -1839,6 +1823,47 @@ u32 delete_rtv_heaps()
             data->rtv_heaps->Release();
             data->rtv_heaps = nullptr;
         }
+    }
+
+    return u32();
+}
+
+u32 create_command_allocators()
+{
+    if (_graphics_data_list.empty())
+    {
+        return u32();
+    }
+
+    HRESULT hr = S_OK;
+
+    for (auto data : _graphics_data_list)
+    {
+        if (data->output_list.empty())
+        {
+            continue;
+        }
+
+        for (u32 j = 0; j < frame_buffer_count; j++)
+        {
+            data->cmd_allocator_list.emplace_back();
+            hr = data->device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&data->cmd_allocator_list[j]));
+
+            NAME_D3D12_OBJECT_INDEXED_2(data->cmd_allocator_list[j], data->adapter_index, j, L"ID3D12CommandAllocator");
+        }
+    }
+
+    return u32();
+}
+
+u32 delete_command_allocators()
+{
+    for (auto data : _graphics_data_list)
+    {
+        if (data->output_list.empty())
+        {
+            continue;
+        }
 
         for (u32 i = 0; i < frame_buffer_count; i++)
         {
@@ -1848,21 +1873,83 @@ u32 delete_rtv_heaps()
                 data->cmd_allocator_list[i] = nullptr;
             }
         }
+    }
 
-        for (auto o_data : data->output_list)
+    return u32();
+}
+
+u32 create_rtvs()
+{
+    if (_graphics_data_list.empty())
+    {
+        return u32();
+    }
+
+    HRESULT hr = S_OK;
+
+    for (auto data : _graphics_data_list)
+    {
+        if (data->output_list.empty())
         {
-            if (o_data->handle == nullptr)
+            continue;
+        }
+
+        u32 i = 0;
+
+        for (auto window : _window_data_list)
+        {
+            if (window->adapter_index != data->adapter_index)
             {
                 continue;
             }
 
-            for (u32 n = 0; n < frame_buffer_count; n++)
+            for (auto output : data->output_list)
             {
-                if (o_data->rtv_view_list[n] != nullptr)
+                if (window->output_index != output->output_index)
                 {
-                    o_data->rtv_view_list[n]->Release();
-                    o_data->rtv_view_list[n] = nullptr;
+                    continue;
                 }
+
+                window->rtv_handle = data->rtv_heaps->GetCPUDescriptorHandleForHeapStart();
+
+                window->rtv_handle.ptr = window->rtv_handle.ptr + (window->adapter_window_index * data->rtv_descriptor_size * frame_buffer_count);
+
+                D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle = window->rtv_handle;
+
+                for (u32 j = 0; j < frame_buffer_count; j++)
+                {
+                    window->rtv_view_list.emplace_back();
+
+                    hr = window->swap_chain->GetBuffer(j, IID_PPV_ARGS(&window->rtv_view_list[j]));
+                    data->device->CreateRenderTargetView(window->rtv_view_list[j], nullptr, cpu_handle);
+                    cpu_handle.ptr = cpu_handle.ptr + data->rtv_descriptor_size;
+
+                    NAME_D3D12_OBJECT_INDEXED_3(window->rtv_view_list[j], data->adapter_index, i, j, L"ID3D12Resource_rtv_view");
+                }
+
+                i++;
+            }
+        }
+    }
+
+    return u32();
+}
+
+u32 delete_rtvs()
+{
+    if (_graphics_data_list.empty())
+    {
+        return u32();
+    }
+
+    for (auto window : _window_data_list)
+    {
+        for (u32 n = 0; n < frame_buffer_count; n++)
+        {
+            if (window->rtv_view_list[n] != nullptr)
+            {
+                window->rtv_view_list[n]->Release();
+                window->rtv_view_list[n] = nullptr;
             }
         }
     }
@@ -2861,19 +2948,19 @@ u32 create_fences()
     {
         int n = 0;
 
-        for (auto output : data->output_list)
+        for (auto window : _window_data_list)
         {
-            if (output->handle == nullptr)
+            if (window->adapter_index != data->adapter_index)
             {
                 continue;
             }
 
-            hr = data->device->CreateFence(output->fence_values[output->frame_index], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&output->fence));
+            hr = data->device->CreateFence(window->fence_values[window->frame_index], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&window->fence));
 
-            NAME_D3D12_OBJECT_INDEXED_2(output->fence, data->adapter_index, n, L"ID3D12Fence");
+            NAME_D3D12_OBJECT_INDEXED_2(window->fence, data->adapter_index, n, L"ID3D12Fence");
 
-            output->fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-            if (output->fence_event == nullptr)
+            window->fence_event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+            if (window->fence_event == nullptr)
             {
                 hr = HRESULT_FROM_WIN32(GetLastError());
             }
@@ -2892,22 +2979,14 @@ u32 delete_fences()
         return u32();
     }
 
-    for (auto data : _graphics_data_list)
+    for (auto window : _window_data_list)
     {
-        for (auto output : data->output_list)
+        CloseHandle(window->fence_event);
+
+        if (window->fence != nullptr)
         {
-            if (output->handle == nullptr)
-            {
-                continue;
-            }
-
-            CloseHandle(output->fence_event);
-
-            if (output->fence != nullptr)
-            {
-                output->fence->Release();
-                output->fence = nullptr;
-            }
+            window->fence->Release();
+            window->fence = nullptr;
         }
     }
 
@@ -2921,29 +3000,37 @@ u32 create_viewports()
         return u32();
     }
 
-    for (auto data : _graphics_data_list)
+    for (auto window : _window_data_list)
     {
-        for (auto output : data->output_list)
+        for (auto data : _graphics_data_list)
         {
-            if (output->handle == nullptr)
+            if (window->adapter_index != data->adapter_index)
             {
                 continue;
             }
 
-            if (_create_one_swapchain_for_each_adapter == true)
+            for (auto output : data->output_list)
             {
-                output->viewport = { 0.0f, 0.0f, (f32)(output->create_one_swapchain_for_each_adapter_rect.right - output->create_one_swapchain_for_each_adapter_rect.left), (f32)(output->create_one_swapchain_for_each_adapter_rect.bottom - output->create_one_swapchain_for_each_adapter_rect.top) };
-                output->scissor_rect = { 0, 0, (s32)(output->create_one_swapchain_for_each_adapter_rect.right - output->create_one_swapchain_for_each_adapter_rect.left), (s32)(output->create_one_swapchain_for_each_adapter_rect.bottom - output->create_one_swapchain_for_each_adapter_rect.top) };
-            }
-            else if (_create_one_swapchain_for_each_adapter_without_control_output == true)
-            {
-                output->viewport = { 0.0f, 0.0f, (f32)(output->create_one_swapchain_for_each_adapter_without_control_output_rect.right - output->create_one_swapchain_for_each_adapter_without_control_output_rect.left), (f32)(output->create_one_swapchain_for_each_adapter_without_control_output_rect.bottom - output->create_one_swapchain_for_each_adapter_without_control_output_rect.top) };
-                output->scissor_rect = { 0, 0, (s32)(output->create_one_swapchain_for_each_adapter_without_control_output_rect.right - output->create_one_swapchain_for_each_adapter_without_control_output_rect.left), (s32)(output->create_one_swapchain_for_each_adapter_without_control_output_rect.bottom - output->create_one_swapchain_for_each_adapter_without_control_output_rect.top) };
-            }
-            else
-            {
-                output->viewport = { 0.0f, 0.0f, (f32)(output->output_desc.DesktopCoordinates.right - output->output_desc.DesktopCoordinates.left), (f32)(output->output_desc.DesktopCoordinates.bottom - output->output_desc.DesktopCoordinates.top) };
-                output->scissor_rect = { 0, 0, (s32)(output->output_desc.DesktopCoordinates.right - output->output_desc.DesktopCoordinates.left), (s32)(output->output_desc.DesktopCoordinates.bottom - output->output_desc.DesktopCoordinates.top) };
+                if (window->output_index != output->output_index)
+                {
+                    continue;
+                }
+
+                if (_create_one_swapchain_for_each_adapter == true)
+                {
+                    window->viewport = { 0.0f, 0.0f, (f32)(output->create_one_swapchain_for_each_adapter_rect.right - output->create_one_swapchain_for_each_adapter_rect.left), (f32)(output->create_one_swapchain_for_each_adapter_rect.bottom - output->create_one_swapchain_for_each_adapter_rect.top) };
+                    window->scissor_rect = { 0, 0, (s32)(output->create_one_swapchain_for_each_adapter_rect.right - output->create_one_swapchain_for_each_adapter_rect.left), (s32)(output->create_one_swapchain_for_each_adapter_rect.bottom - output->create_one_swapchain_for_each_adapter_rect.top) };
+                }
+                else if (_create_one_swapchain_for_each_adapter_without_control_output == true)
+                {
+                    window->viewport = { 0.0f, 0.0f, (f32)(output->create_one_swapchain_for_each_adapter_without_control_output_rect.right - output->create_one_swapchain_for_each_adapter_without_control_output_rect.left), (f32)(output->create_one_swapchain_for_each_adapter_without_control_output_rect.bottom - output->create_one_swapchain_for_each_adapter_without_control_output_rect.top) };
+                    window->scissor_rect = { 0, 0, (s32)(output->create_one_swapchain_for_each_adapter_without_control_output_rect.right - output->create_one_swapchain_for_each_adapter_without_control_output_rect.left), (s32)(output->create_one_swapchain_for_each_adapter_without_control_output_rect.bottom - output->create_one_swapchain_for_each_adapter_without_control_output_rect.top) };
+                }
+                else
+                {
+                    window->viewport = { 0.0f, 0.0f, (f32)(output->output_desc.DesktopCoordinates.right - output->output_desc.DesktopCoordinates.left), (f32)(output->output_desc.DesktopCoordinates.bottom - output->output_desc.DesktopCoordinates.top) };
+                    window->scissor_rect = { 0, 0, (s32)(output->output_desc.DesktopCoordinates.right - output->output_desc.DesktopCoordinates.left), (s32)(output->output_desc.DesktopCoordinates.bottom - output->output_desc.DesktopCoordinates.top) };
+                }
             }
         }
     }
@@ -2951,16 +3038,16 @@ u32 create_viewports()
     return u32();
 }
 
-u32 wait_for_gpu(ID3D12CommandQueue* cmd_queue, output_data* data)
+u32 wait_for_gpu(ID3D12CommandQueue* cmd_queue, window_data* window)
 {
     HRESULT hr = S_OK;
 
-    hr = cmd_queue->Signal(data->fence, data->fence_values[data->frame_index]);
+    hr = cmd_queue->Signal(window->fence, window->fence_values[window->frame_index]);
 
-    hr = data->fence->SetEventOnCompletion(data->fence_values[data->frame_index], data->fence_event);
-    WaitForSingleObject(data->fence_event, INFINITE);
+    hr = window->fence->SetEventOnCompletion(window->fence_values[window->frame_index], window->fence_event);
+    WaitForSingleObject(window->fence_event, INFINITE);
 
-    data->fence_values[data->frame_index]++;
+    window->fence_values[window->frame_index]++;
 
     return u32();
 }
@@ -2969,36 +3056,36 @@ u32 wait_for_gpus()
 {
     for (auto data : _graphics_data_list)
     {
-        for (auto output : data->output_list)
+        for (auto window : _window_data_list)
         {
-            if (output->handle == nullptr)
+            if (window->adapter_index != data->adapter_index)
             {
                 continue;
             }
 
-            wait_for_gpu(data->cmd_queue, output);
+            wait_for_gpu(data->cmd_queue, window);
         }
     }
 
     return u32();
 }
 
-u32 move_to_next_frame(ID3D12CommandQueue* cmd_queue, output_data* data)
+u32 move_to_next_frame(ID3D12CommandQueue* cmd_queue, window_data* window)
 {
     HRESULT hr = S_OK;
 
-    const u64 current_fence_value = data->fence_values[data->frame_index];
-    hr = cmd_queue->Signal(data->fence, current_fence_value);
+    const u64 current_fence_value = window->fence_values[window->frame_index];
+    hr = cmd_queue->Signal(window->fence, current_fence_value);
 
-    data->frame_index = data->swap_chain->GetCurrentBackBufferIndex();
+    window->frame_index = window->swap_chain->GetCurrentBackBufferIndex();
 
-    if (data->fence->GetCompletedValue() < data->fence_values[data->frame_index])
+    if (window->fence->GetCompletedValue() < window->fence_values[window->frame_index])
     {
-        hr = data->fence->SetEventOnCompletion(data->fence_values[data->frame_index], data->fence_event);
-        WaitForSingleObject(data->fence_event, INFINITE);
+        hr = window->fence->SetEventOnCompletion(window->fence_values[window->frame_index], window->fence_event);
+        WaitForSingleObject(window->fence_event, INFINITE);
     }
 
-    data->fence_values[data->frame_index] = current_fence_value + 1;
+    window->fence_values[window->frame_index] = current_fence_value + 1;
 
     return u32();
 }
@@ -3007,7 +3094,12 @@ u32 populate_command_list(graphics_data* data)
 {
     HRESULT hr = S_OK;
 
-    u32 current_back_buffer_index = ((output_data*)*data->output_list.begin())->frame_index;
+    if (_window_data_list.empty())
+    {
+        return u32();
+    }
+    
+    u32 current_back_buffer_index = ((window_data*)*_window_data_list.begin())->frame_index;
 
     hr = data->cmd_allocator_list[current_back_buffer_index]->Reset();
 
@@ -3093,13 +3185,14 @@ u32 populate_command_list(graphics_data* data)
                 }
             }
 
-            for (auto output : data->output_list)
+            for (auto window : _window_data_list)
             {
-                if (output->handle == nullptr)
+                if (window->adapter_index != data->adapter_index)
                 {
                     continue;
                 }
-                if (output->output_index != panel->output_index)
+
+                if (window->output_index != panel->output_index)
                 {
                     continue;
                 }
@@ -3439,20 +3532,21 @@ u32 populate_command_list(graphics_data* data)
     ID3D12DescriptorHeap* pp_heaps[] = { data->srv_heaps };
     data->cmd_list->SetDescriptorHeaps(_countof(pp_heaps), pp_heaps);
 
-    for (auto output : data->output_list)
+    for (auto window : _window_data_list)
     {
-        if (output->handle == nullptr)
+        if (window->adapter_index != data->adapter_index)
         {
             continue;
         }
-        data->cmd_list->RSSetViewports(1, &output->viewport);
-        data->cmd_list->RSSetScissorRects(1, &output->scissor_rect);
 
-        CD3DX12_RESOURCE_BARRIER transition_barrier_before = CD3DX12_RESOURCE_BARRIER::Transition(output->rtv_view_list[output->frame_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        data->cmd_list->RSSetViewports(1, &window->viewport);
+        data->cmd_list->RSSetScissorRects(1, &window->scissor_rect);
+
+        CD3DX12_RESOURCE_BARRIER transition_barrier_before = CD3DX12_RESOURCE_BARRIER::Transition(window->rtv_view_list[window->frame_index], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         data->cmd_list->ResourceBarrier(1, &transition_barrier_before);
 
         D3D12_CPU_DESCRIPTOR_HANDLE rtv_handle = data->rtv_heaps->GetCPUDescriptorHandleForHeapStart();
-        rtv_handle.ptr = SIZE_T(INT64(output->rtv_handle.ptr) + INT64(data->rtv_descriptor_size * output->frame_index));
+        rtv_handle.ptr = SIZE_T(INT64(window->rtv_handle.ptr) + INT64(data->rtv_descriptor_size * window->frame_index));
 
         data->cmd_list->OMSetRenderTargets(1, &rtv_handle, FALSE, nullptr);
 
@@ -3476,7 +3570,7 @@ u32 populate_command_list(graphics_data* data)
                     continue;
                 }
 
-                if (panel->output_index != output->output_index)
+                if (panel->output_index != window->output_index)
                 {
                     continue;
                 }
@@ -3508,7 +3602,7 @@ u32 populate_command_list(graphics_data* data)
             }
         }
 
-        CD3DX12_RESOURCE_BARRIER transition_barrier_after = CD3DX12_RESOURCE_BARRIER::Transition(output->rtv_view_list[output->frame_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+        CD3DX12_RESOURCE_BARRIER transition_barrier_after = CD3DX12_RESOURCE_BARRIER::Transition(window->rtv_view_list[window->frame_index], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
         data->cmd_list->ResourceBarrier(1, &transition_barrier_after);
     }
 
@@ -3541,26 +3635,27 @@ u32 render()
             continue;
         }
 
-        for (auto output : data->output_list)
+        for (auto window : _window_data_list)
         {
-            if (output->handle == nullptr)
+            if (window->adapter_index != data->adapter_index)
             {
                 continue;
             }
+
             if (_use_swap_group_and_swap_barrier == true)
             {
-                data->nvapi_status = NvAPI_D3D1x_Present(data->device, output->swap_chain_0, 1, 0);
+                data->nvapi_status = NvAPI_D3D1x_Present(data->device, window->swap_chain_0, 1, 0);
             }
             else
             {
-                hr = output->swap_chain->Present(1, 0);
+                hr = window->swap_chain->Present(1, 0);
             }
 
             if (_disable_present_barrier == false)
             {
-                _nvapi_status = NvAPI_QueryPresentBarrierFrameStatistics(output->present_barrier_client, &output->present_barrier_frame_stats);
+                _nvapi_status = NvAPI_QueryPresentBarrierFrameStatistics(window->present_barrier_client, &window->present_barrier_frame_stats);
 
-                switch (output->present_barrier_frame_stats.SyncMode)
+                switch (window->present_barrier_frame_stats.SyncMode)
                 {
                 case NV_PRESENT_BARRIER_SYNC_MODE::PRESENT_BARRIER_NOT_JOINED:
                 {
@@ -3596,14 +3691,14 @@ u32 render()
             continue;
         }
 
-        for (auto output : data->output_list)
+        for (auto window : _window_data_list)
         {
-            if (output->handle == nullptr)
+            if (window->adapter_index != data->adapter_index)
             {
                 continue;
             }
 
-            move_to_next_frame(data->cmd_queue, output);
+            move_to_next_frame(data->cmd_queue, window);
         }
     }
 
@@ -4498,29 +4593,21 @@ u32 delete_present_barriers()
 
     if (_disable_present_barrier == false)
     {
-        for (auto data : _graphics_data_list)
+        for (auto window : _window_data_list)
         {
-            for (auto output : data->output_list)
+            if (window->present_barrier_joined == true)
             {
-                if (output->handle == nullptr)
-                {
-                    continue;
-                }
+                _nvapi_status = NvAPI_LeavePresentBarrier(window->present_barrier_client);
+                window->present_barrier_joined = false;
+            }
 
-                if (output->present_barrier_joined == true)
-                {
-                    _nvapi_status = NvAPI_LeavePresentBarrier(output->present_barrier_client);
-                    output->present_barrier_joined = false;
-                }
+            _nvapi_status = NvAPI_DestroyPresentBarrierClient(window->present_barrier_client);
+            window->present_barrier_client = nullptr;
 
-                _nvapi_status = NvAPI_DestroyPresentBarrierClient(output->present_barrier_client);
-                output->present_barrier_client = nullptr;
-
-                if (output->present_barrier_fence != nullptr)
-                {
-                    output->present_barrier_fence->Release();
-                    output->present_barrier_fence = nullptr;
-                }
+            if (window->present_barrier_fence != nullptr)
+            {
+                window->present_barrier_fence->Release();
+                window->present_barrier_fence = nullptr;
             }
         }
     }
@@ -4541,14 +4628,14 @@ u32 delete_swap_group_and_swap_barrier()
         {
             data->nvapi_status = NvAPI_D3D1x_BindSwapBarrier(data->device, data->selected_swap_group, 0);
 
-            for (auto output : data->output_list)
+            for (auto window : _window_data_list)
             {
-                if (output->handle == nullptr)
+                if (window->adapter_index != data->adapter_index)
                 {
                     continue;
                 }
 
-                data->nvapi_status = NvAPI_D3D1x_JoinSwapGroup(data->device, output->swap_chain_0, 0, false);
+                data->nvapi_status = NvAPI_D3D1x_JoinSwapGroup(data->device, window->swap_chain_0, 0, false);
             }
 
             data->selected_swap_barrier = 0;
@@ -4722,19 +4809,40 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         for (auto output : data->output_list)
         {
+            HWND handle = nullptr;
+
             if (_create_one_swapchain_for_each_adapter == true)
             {
-                create_window(szWindowClass, szTitle, hInst, output->create_one_swapchain_for_each_adapter_rect, nullptr, output->handle);
+                create_window(szWindowClass, szTitle, hInst, output->create_one_swapchain_for_each_adapter_rect, nullptr, handle);
             }
             else if (_create_one_swapchain_for_each_adapter_without_control_output == true)
             {
-                create_window(szWindowClass, szTitle, hInst, output->create_one_swapchain_for_each_adapter_without_control_output_rect, nullptr, output->handle);
+                create_window(szWindowClass, szTitle, hInst, output->create_one_swapchain_for_each_adapter_without_control_output_rect, nullptr, handle);
             }
             else
             {
-                create_window(szWindowClass, szTitle, hInst, output->output_desc.DesktopCoordinates, nullptr, output->handle);
+                create_window(szWindowClass, szTitle, hInst, output->output_desc.DesktopCoordinates, nullptr, handle);
             }
             
+            window_data* w_data = new window_data();
+            _window_data_list.push_back(w_data);
+            
+            w_data->handle = handle;
+            w_data->output_index = output->output_index;
+            w_data->adapter_index = data->adapter_index;
+            GetWindowRect(w_data->handle, &w_data->rect);
+
+            if (data->free_window_queue.empty())
+            {
+                w_data->adapter_window_index = data->next_window_index;
+                data->next_window_index++;
+            }
+            else
+            {
+                w_data->adapter_window_index = data->free_window_queue.front();
+                data->free_window_queue.pop_front();
+            }
+
             n++;
 
             if (n == _test_window_count)
@@ -4772,15 +4880,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 // return false;
             }
 
-            for (auto output : data->output_list)
+            for (auto window : _window_data_list)
             {
-                if (output->handle == nullptr)
-                {
-                    continue;
-                }
-
-                data->device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&output->present_barrier_fence));
-                NAME_D3D12_OBJECT_INDEXED_2(output->present_barrier_fence, data->adapter_index, output->output_index, L"ID3D12Fence_Nv");
+                data->device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&window->present_barrier_fence));
+                NAME_D3D12_OBJECT_INDEXED_2(window->present_barrier_fence, data->adapter_index, window->output_index, L"ID3D12Fence_Nv");
             }
         }
     }
@@ -4819,14 +4922,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             NvU32 swap_barrier = 1;
             NvU32 swap_group = 1;
 
-            for (auto output : data->output_list)
+            for (auto window : _window_data_list)
             {
-                if (output->handle == nullptr)
+                if (window->adapter_index != data->adapter_index)
                 {
                     continue;
                 }
 
-                data->nvapi_status = NvAPI_D3D1x_JoinSwapGroup(data->device, output->swap_chain_0, swap_group, false);
+                data->nvapi_status = NvAPI_D3D1x_JoinSwapGroup(data->device, window->swap_chain_0, swap_group, false);
             }
 
             data->nvapi_status = NvAPI_D3D1x_BindSwapBarrier(data->device, swap_group, swap_barrier);
@@ -4837,20 +4940,17 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     }
 
     create_rtv_heaps();
+    create_rtvs();
+    create_command_allocators();
     create_srv_heaps();
 
     if (_disable_present_barrier == false)
     {
         for (auto data : _graphics_data_list)
         {
-            for (auto output : data->output_list)
+            for (auto window : _window_data_list)
             {
-                if (output->handle == nullptr)
-                {
-                    continue;
-                }
-
-                _nvapi_status = NvAPI_D3D12_RegisterPresentBarrierResources(output->present_barrier_client, output->present_barrier_fence, output->rtv_view_list.data(), static_cast<NvU32>(output->rtv_view_list.size()));
+                _nvapi_status = NvAPI_D3D12_RegisterPresentBarrierResources(window->present_barrier_client, window->present_barrier_fence, window->rtv_view_list.data(), static_cast<NvU32>(window->rtv_view_list.size()));
             }
         }
     }
@@ -4873,25 +4973,26 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     {
         for (auto data : _graphics_data_list)
         {
-            for (auto output : data->output_list)
+            for (auto window : _window_data_list)
             {
-                if (output->handle == nullptr)
+                if (data->adapter_index != window->adapter_index)
                 {
                     continue;
                 }
 
-                if (output->present_barrier_joined == false)
+                if (window->present_barrier_joined == false)
                 {
                     NV_JOIN_PRESENT_BARRIER_PARAMS params = {};
                     params.dwVersion = NV_JOIN_PRESENT_BARRIER_PARAMS_VER1;
-                    _nvapi_status = NvAPI_JoinPresentBarrier(output->present_barrier_client, &params);
-                    output->present_barrier_joined = true;
+                    _nvapi_status = NvAPI_JoinPresentBarrier(window->present_barrier_client, &params);
+                    window->present_barrier_joined = true;
                 }
 
-                output->present_barrier_frame_stats.dwVersion = NV_PRESENT_BARRIER_FRAME_STATICS_VER1;
+                window->present_barrier_frame_stats.dwVersion = NV_PRESENT_BARRIER_FRAME_STATICS_VER1;
             }
         }
     }
+
     ready = true;
 
     MSG msg;
@@ -4957,6 +5058,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     delete_srv_heaps();
     delete_rtv_heaps();
+
+    delete_rtvs();
+
+    delete_command_allocators();
+
     delete_swap_chains();
     delete_command_queues();
     delete_devices();
@@ -4968,6 +5074,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     {
         _nvapi_status = NvAPI_Unload();
     }
+
+    delete_windows();
 
 #if _DEBUG
     d3d_memory_check();
@@ -5058,3 +5166,21 @@ void d3d_memory_check()
     debug->Release();
 }
 #endif // _DEBUG
+
+u32 delete_windows()
+{
+    for (auto window : _window_data_list)
+    {
+        if (window->handle != nullptr)
+        {
+            CloseWindow(window->handle);
+            window->handle = nullptr;
+        }
+
+        delete window;
+    }
+
+    _window_data_list.clear();
+
+    return u32();
+}
