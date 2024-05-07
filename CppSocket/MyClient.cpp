@@ -174,6 +174,19 @@ bool MyClient::send_stop_sync_group(cppsocket_struct_client_send_stop_sync_group
     return true;
 }
 
+bool MyClient::send_program_quit()
+{
+    packet_header header{};
+    header.cmd = command_type::program_quit;
+    header.size = sizeof(packet_header);
+
+    std::shared_ptr<Packet> program_quit_packet = std::make_shared<Packet>(PacketType::structured_data_from_client);
+    *program_quit_packet << (void*)&header;
+    m_connection.m_pmOutgoing.Append(program_quit_packet);
+
+    return true;
+}
+
 void MyClient::connection_close()
 {
     m_connection.Close();

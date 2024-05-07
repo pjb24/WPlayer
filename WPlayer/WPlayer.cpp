@@ -430,6 +430,8 @@ std::mutex  _sync_group_counter_mutex_frame_numbering;
 
 void config_setting();
 
+bool _is_running = true;
+
 // CppFFmpegWrapper의 콜백 명령 처리
 void ffmpeg_processing_thread()
 {
@@ -1134,6 +1136,11 @@ void tcp_processing_thread()
                 cppsocket_server_send_stop_sync_group(_server, data_pair.second, data);
                 break;
             }
+        }
+        break;
+        case command_type::program_quit:
+        {
+            _is_running = false;
         }
         break;
         default:
@@ -3550,6 +3557,7 @@ u32 render()
         }
     }
 
+    // 다음 프레임으로 이동
     {
         std::lock_guard<std::mutex> lock(_ffmpeg_data_mutex);
 
@@ -4830,15 +4838,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     ready = true;
 
     MSG msg;
-    bool is_running = true;
+    //bool is_running = true;
+    
     // 기본 메시지 루프입니다:
-    while (is_running)
+    while (_is_running)
     {
         while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
         {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
-            is_running &= (msg.message != WM_QUIT);
+            _is_running &= (msg.message != WM_QUIT);
         }
         if (ready)
         {

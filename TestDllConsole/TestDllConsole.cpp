@@ -321,6 +321,9 @@ void client_output_messages_step_1()
     std::cout << "7(play_sync_group)" << std::endl;
     std::cout << "8(pause_sync_group)" << std::endl;
     std::cout << "9(stop_sync_group)" << std::endl;
+    std::cout << "10(sync_group_frame_numbering) (internal command type, not implemented)" << std::endl;
+    std::cout << "11(seek_repeat_self_sync_Group) (internal command type, not implemented)" << std::endl;
+    std::cout << "12(program_quit)" << std::endl;
 
     std::cout << std::endl;
     std::cout << "input 99 to stop program" << std::endl;
@@ -605,6 +608,11 @@ int main()
                     data.sync_group_index = sync_group_index;
 
                     cppsocket_client_send_stop_sync_group(_client, data);
+                }
+                break;
+                case command_type::program_quit:
+                {
+                    cppsocket_client_send_program_quit(_client);
                 }
                 break;
                 default:

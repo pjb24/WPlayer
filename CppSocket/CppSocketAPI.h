@@ -67,6 +67,8 @@ EXPORT void cppsocket_client_send_play_sync_group(void* client_instance, cppsock
 EXPORT void cppsocket_client_send_pause_sync_group(void* client_instance, cppsocket_struct_client_send_pause_sync_group data);
 EXPORT void cppsocket_client_send_stop_sync_group(void* client_instance, cppsocket_struct_client_send_stop_sync_group data);
 
+EXPORT void cppsocket_client_send_program_quit(void* client_instance);
+
 EXPORT void cppsocket_client_set_callback_data(void* client_instance, CALLBACK_DATA cb);
 
 EXPORT void cppsocket_client_connection_close(void* client_instance);

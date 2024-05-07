@@ -188,6 +188,12 @@ void cppsocket_client_send_stop_sync_group(void* client_instance, cppsocket_stru
     client->send_stop_sync_group(data);
 }
 
+void cppsocket_client_send_program_quit(void* client_instance)
+{
+    MyClient* client = (MyClient*)client_instance;
+    client->send_program_quit();
+}
+
 void cppsocket_client_set_callback_data(void * client_instance, CALLBACK_DATA cb)
 {
     MyClient* client = (MyClient*)client_instance;
