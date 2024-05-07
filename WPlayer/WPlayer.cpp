@@ -353,9 +353,9 @@ u32 delete_textures();
 u32 create_fences();
 u32 delete_fences();
 u32 create_viewports();
-u32 wait_for_gpu(ID3D12CommandQueue* cmd_queue, output_data* data);
+u32 wait_for_gpu(ID3D12CommandQueue* cmd_queue, window_data* window);
 u32 wait_for_gpus();
-u32 move_to_next_frame(ID3D12CommandQueue* cmd_queue, output_data* data);
+u32 move_to_next_frame(ID3D12CommandQueue* cmd_queue, window_data* window);
 u32 populate_command_list(graphics_data* data);
 u32 render();
 u32 create_scene_data(RECT rect, u32 sync_group_index = u32_invalid_id, u16 sync_group_count = 0);
@@ -454,6 +454,18 @@ std::mutex  _sync_group_counter_mutex_frame_numbering;
 void config_setting();
 
 bool _is_running = true;
+
+#define MAX_LOADSTRING 100
+
+// 전역 변수:
+HINSTANCE hInst;                                // 현재 인스턴스입니다.
+WCHAR szTitle[MAX_LOADSTRING];                  // 제목 표시줄 텍스트입니다.
+WCHAR szWindowClass[MAX_LOADSTRING];            // 기본 창 클래스 이름입니다.
+
+// 이 코드 모듈에 포함된 함수의 선언을 전달합니다:
+ATOM                MyRegisterClass(HINSTANCE hInstance);
+LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
+
 
 // CppFFmpegWrapper의 콜백 명령 처리
 void ffmpeg_processing_thread()
@@ -4754,16 +4766,6 @@ void config_setting()
     _use_swap_group_and_swap_barrier = result_i == 0 ? false : true;
 }
 
-#define MAX_LOADSTRING 100
-
-// 전역 변수:
-HINSTANCE hInst;                                // 현재 인스턴스입니다.
-WCHAR szTitle[MAX_LOADSTRING];                  // 제목 표시줄 텍스트입니다.
-WCHAR szWindowClass[MAX_LOADSTRING];            // 기본 창 클래스 이름입니다.
-
-// 이 코드 모듈에 포함된 함수의 선언을 전달합니다:
-ATOM                MyRegisterClass(HINSTANCE hInstance);
-LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
