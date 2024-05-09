@@ -81,6 +81,9 @@ bool _use_swap_group_and_swap_barrier = false;
 // window mode, 영상 하나가 하나의 Window를 생성하는 옵션.
 bool _window_mode = false;
 
+// cross fence wait, Fence에 대한 대기를 서로 교차하여 수행하도록 하는 옵션
+bool _cross_fence_wait = false;
+
 std::string _ip;
 uint16_t _port;
 
@@ -390,6 +393,8 @@ u32 create_viewport_window(window_data* window);
 u32 wait_for_gpu(ID3D12CommandQueue* cmd_queue, window_data* window);
 u32 wait_for_gpus();
 u32 move_to_next_frame(ID3D12CommandQueue* cmd_queue, window_data* window);
+u32 move_to_next_frame_signal(ID3D12CommandQueue* cmd_queue, window_data* window);
+u32 move_to_next_frame_wait(ID3D12CommandQueue* cmd_queue, window_data* window);
 u32 populate_command_list(graphics_data* data);
 u32 populate_command_list_window(graphics_data* data);
 u32 render();
@@ -3424,6 +3429,36 @@ u32 move_to_next_frame(ID3D12CommandQueue* cmd_queue, window_data* window)
     return u32();
 }
 
+u32 move_to_next_frame_signal(ID3D12CommandQueue* cmd_queue, window_data* window)
+{
+    HRESULT hr = S_OK;
+
+    const u64 current_fence_value = window->fence_values[window->frame_index];
+
+    hr = cmd_queue->Signal(window->fence, current_fence_value);
+
+    return u32();
+}
+
+u32 move_to_next_frame_wait(ID3D12CommandQueue* cmd_queue, window_data* window)
+{
+    HRESULT hr = S_OK;
+
+    const u64 current_fence_value = window->fence_values[window->frame_index];
+
+    window->frame_index = window->swap_chain->GetCurrentBackBufferIndex();
+
+    if (window->fence->GetCompletedValue() < window->fence_values[window->frame_index])
+    {
+        hr = window->fence->SetEventOnCompletion(window->fence_values[window->frame_index], window->fence_event);
+        WaitForSingleObject(window->fence_event, INFINITE);
+    }
+
+    window->fence_values[window->frame_index] = current_fence_value + 1;
+
+    return u32();
+}
+
 u32 populate_command_list(graphics_data* data)
 {
     HRESULT hr = S_OK;
@@ -4576,14 +4611,59 @@ u32 render()
             continue;
         }
 
-        for (auto window : _window_data_list)
+        if (_cross_fence_wait == false)
         {
-            if (window->adapter_index != data->adapter_index)
+            for (auto window : _window_data_list)
             {
-                continue;
+                if (window->adapter_index != data->adapter_index)
+                {
+                    continue;
+                }
+
+                move_to_next_frame(data->cmd_queue, window);
+            }
+        }
+        else
+        {
+            std::vector<window_data*> window_data_list_temp;
+
+            for (auto window : _window_data_list)
+            {
+                if (window->adapter_index != data->adapter_index)
+                {
+                    continue;
+                }
+
+                window_data_list_temp.push_back(window);
             }
 
-            move_to_next_frame(data->cmd_queue, window);
+            auto it_window_temp = window_data_list_temp.begin();
+            for (; it_window_temp != window_data_list_temp.end(); it_window_temp++)
+            {
+                window_data* window = (window_data*)*it_window_temp;
+
+                if (window->adapter_index != data->adapter_index)
+                {
+                    continue;
+                }
+
+                move_to_next_frame_signal(data->cmd_queue, window);
+                //move_to_next_frame_wait(data->cmd_queue, window);
+            }
+
+            auto it_window_r = window_data_list_temp.rbegin();
+            for (; it_window_r != window_data_list_temp.rend(); it_window_r++)
+            {
+                window_data* window = (window_data*)*it_window_r;
+
+                if (window->adapter_index != data->adapter_index)
+                {
+                    continue;
+                }
+
+                //move_to_next_frame_signal(data->cmd_queue, window);
+                move_to_next_frame_wait(data->cmd_queue, window);
+            }
         }
     }
 
@@ -4748,14 +4828,59 @@ u32 render_window()
             continue;
         }
 
-        for (auto window : _window_data_list)
+        if (_cross_fence_wait == false)
         {
-            if (window->adapter_index != data->adapter_index)
+            for (auto window : _window_data_list)
             {
-                continue;
+                if (window->adapter_index != data->adapter_index)
+                {
+                    continue;
+                }
+
+                move_to_next_frame(data->cmd_queue, window);
+            }
+        }
+        else
+        {
+            std::vector<window_data*> window_data_list_temp;
+
+            for (auto window : _window_data_list)
+            {
+                if (window->adapter_index != data->adapter_index)
+                {
+                    continue;
+                }
+
+                window_data_list_temp.push_back(window);
             }
 
-            move_to_next_frame(data->cmd_queue, window);
+            auto it_window_temp = window_data_list_temp.begin();
+            for (; it_window_temp != window_data_list_temp.end(); it_window_temp++)
+            {
+                window_data* window = (window_data*)*it_window_temp;
+
+                if (window->adapter_index != data->adapter_index)
+                {
+                    continue;
+                }
+
+                move_to_next_frame_signal(data->cmd_queue, window);
+                //move_to_next_frame_wait(data->cmd_queue, window);
+            }
+
+            auto it_window_r = window_data_list_temp.rbegin();
+            for (; it_window_r != window_data_list_temp.rend(); it_window_r++)
+            {
+                window_data* window = (window_data*)*it_window_r;
+
+                if (window->adapter_index != data->adapter_index)
+                {
+                    continue;
+                }
+
+                //move_to_next_frame_signal(data->cmd_queue, window);
+                move_to_next_frame_wait(data->cmd_queue, window);
+            }
         }
     }
 
@@ -6011,6 +6136,10 @@ void config_setting()
     GetPrivateProfileString(L"WPlayer", L"window_mode", L"0", result_w, 255, str_ini_path_w.c_str());
     result_i = _ttoi(result_w);
     _window_mode = result_i == 0 ? false : true;
+
+    GetPrivateProfileString(L"WPlayer", L"cross_fence_wait", L"0", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _cross_fence_wait = result_i == 0 ? false : true;
 }
 
 
