@@ -316,6 +316,8 @@ struct graphics_data
     NvU32 selected_swap_barrier = 0;
 
     NvAPI_Status nvapi_status = NVAPI_OK;
+
+    bool bind_swap_barrier_flag = false;
 };
 
 #pragma region Graphics
@@ -414,6 +416,8 @@ u32 deferred_free_processing(u32 back_buffer_index);
 
 u32 delete_present_barriers();
 u32 delete_swap_group_and_swap_barrier();
+u32 delete_swap_group_window(window_data* window);
+u32 delete_swap_barrier_window();
 #if _DEBUG
 void d3d_memory_check();
 #endif
@@ -1920,6 +1924,32 @@ u32 create_swap_chain_window(window_data* window)
             _nvapi_status = NvAPI_D3D12_CreatePresentBarrierClient(data->device, window->swap_chain_0, &window->present_barrier_client);
         }
 
+        if (_use_swap_group_and_swap_barrier == true)
+        {
+            data->nvapi_status = NvAPI_D3D1x_QueryMaxSwapGroup(data->device, &data->max_swap_group, &data->max_swap_barrier);
+
+            if (data->max_swap_group == 0 && data->max_swap_barrier == 0)
+            {
+                
+            }
+            else
+            {
+                NvU32 swap_barrier = 1;
+                NvU32 swap_group = 1;
+
+                data->nvapi_status = NvAPI_D3D1x_JoinSwapGroup(data->device, window->swap_chain_0, swap_group, false);
+
+                if (data->bind_swap_barrier_flag == false)
+                {
+                    data->bind_swap_barrier_flag = true;
+                    data->nvapi_status = NvAPI_D3D1x_BindSwapBarrier(data->device, swap_group, swap_barrier);
+                }
+
+                data->selected_swap_group = swap_group;
+                data->selected_swap_barrier = swap_barrier;
+            }
+        }
+
         window->frame_index = window->swap_chain->GetCurrentBackBufferIndex();
     }
 
@@ -1931,6 +1961,11 @@ u32 delete_swap_chain_window(window_data* window)
     if (_graphics_data_list.empty())
     {
         return u32();
+    }
+
+    if (_use_swap_group_and_swap_barrier == true)
+    {
+        delete_swap_group_window(window);
     }
 
     if (window->swap_chain != nullptr)
@@ -4969,6 +5004,24 @@ u32 deferred_free_processing_window()
         {
             if (it->free_flag == true)
             {
+                auto it_window1 = _window_data_list.begin();
+                for (; it_window1 != _window_data_list.end();)
+                {
+                    window_data* w_data = (window_data*)*it_window1;
+
+                    if (w_data->adapter_window_index == it->index)
+                    {
+                        if (_use_swap_group_and_swap_barrier == true)
+                        {
+                            delete_swap_group_window(w_data);
+                        }
+
+                        break;
+                    }
+
+                    it_window1++;
+                }
+                
                 if (it->swapchain != nullptr)
                 {
                     it->swapchain->Release();
@@ -6026,6 +6079,60 @@ u32 delete_swap_group_and_swap_barrier()
     return u32();
 }
 
+u32 delete_swap_group_window(window_data* window)
+{
+    if (_graphics_data_list.empty())
+    {
+        return u32();
+    }
+
+    if (_use_swap_group_and_swap_barrier == true)
+    {
+        for (auto data : _graphics_data_list)
+        {
+            if (window->adapter_index != data->adapter_index)
+            {
+                continue;
+            }
+            
+            //if (data->bind_swap_barrier_flag == true)
+            //{
+            //    data->bind_swap_barrier_flag = false;
+            //    data->nvapi_status = NvAPI_D3D1x_BindSwapBarrier(data->device, data->selected_swap_group, 0);
+            //}
+            
+            data->nvapi_status = NvAPI_D3D1x_JoinSwapGroup(data->device, window->swap_chain_0, 0, false);
+
+            data->selected_swap_barrier = 0;
+            data->selected_swap_group = 0;
+        }
+    }
+
+    return u32();
+}
+
+u32 delete_swap_barrier_window()
+{
+    if (_graphics_data_list.empty())
+    {
+        return u32();
+    }
+
+    if (_use_swap_group_and_swap_barrier == true)
+    {
+        for (auto data : _graphics_data_list)
+        {
+            if (data->bind_swap_barrier_flag == true)
+            {
+                data->bind_swap_barrier_flag = false;
+                data->nvapi_status = NvAPI_D3D1x_BindSwapBarrier(data->device, data->selected_swap_group, 0);
+            }
+        }
+    }
+
+    return u32();
+}
+
 void config_setting()
 {
     wchar_t path_w[260] = { 0, };
@@ -6452,7 +6559,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     delete_present_barriers();
 
-    delete_swap_group_and_swap_barrier();
+    if (_window_mode == true)
+    {
+        delete_swap_barrier_window();
+    }
+    else
+    {
+        delete_swap_group_and_swap_barrier();
+    }
 
     if (_window_mode == true)
     {
