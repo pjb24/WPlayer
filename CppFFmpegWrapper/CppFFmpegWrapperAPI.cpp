@@ -115,6 +115,12 @@ int32_t cpp_ffmpeg_wrapper_frame_to_next(void * instance)
     return core->frame_to_next();
 }
 
+int32_t cpp_ffmpeg_wrapper_frame_to_next_non_waiting(void* instance)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    return core->frame_to_next_non_waiting();
+}
+
 void cpp_ffmpeg_wrapper_seek_pts(void * instance, int64_t pts)
 {
     FFmpegCore* core = (FFmpegCore*)instance;

@@ -114,11 +114,15 @@ xcopy /y $(ProjectDir)WPlayer.ini $(OutDir)</Command>
   <ItemGroup>
     <ClCompile Include="D3D12Data.cpp" />
     <ClCompile Include="PlayerWindow.cpp" />
-    <ClCompile Include="WPlayer.cpp" />
+    <ClCompile Include="WPlayer.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="WPlayer_Present_Barrier_Test.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="WPlayer_Test_IDC512.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="WPlayer.rc" />
@@ -132,6 +136,7 @@ xcopy /y $(ProjectDir)WPlayer.ini $(OutDir)</Command>
     <CopyFileToFolders Include="WPlayer.ini">
       <FileType>Document</FileType>
     </CopyFileToFolders>
+    <None Include="WPlayer_Test_IDC512.ini" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="shaders.hlsl">
