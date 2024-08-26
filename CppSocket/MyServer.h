@@ -33,6 +33,15 @@ public:
 
     bool send_gplayer_stop(TcpConnection* connection, cppsocket_struct_server_send_gplayer_stop data);
     
+
+    bool send_dplayer_play_url(TcpConnection* connection, cppsocket_struct_server_send_dplayer_play_url data);
+    bool send_dplayer_play_rect(TcpConnection* connection, cppsocket_struct_server_send_dplayer_play_rect data);
+
+    bool send_dplayer_connect_data_url(TcpConnection* connection, cppsocket_struct_server_send_dplayer_connect_data_url data);
+    bool send_dplayer_connect_data_rect(TcpConnection* connection, cppsocket_struct_server_send_dplayer_connect_data_rect data);
+
+    bool send_dplayer_stop(TcpConnection* connection, cppsocket_struct_server_send_dplayer_stop data);
+
 private:
 	void OnConnect(TcpConnection* newConnection) override;
 	void OnDisconnect(TcpConnection* lostConnection, std::string reason) override;

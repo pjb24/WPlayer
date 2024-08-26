@@ -49,6 +49,15 @@ enum class command_type : uint16_t
     gplayer_connect_data_url,    // 18
     gplayer_connect_data_rect,   // 19
 
+
+    dplayer_play_url,   // 20
+    dplayer_play_rect,  // 21
+    dplayer_stop,   // 22
+
+    dplayer_connect,    // 23
+    dplayer_connect_data_url,    // 24
+    dplayer_connect_data_rect,   // 25
+
     invalid = u16_invalid_id
 };
 
@@ -400,3 +409,148 @@ struct packet_gplayer_connect_data_rect_from_server
 
 // --------------------------------
 
+// dplayer_play_url ////////////////////////////////
+struct packet_dplayer_play_url_from_client
+{
+    packet_header   header;
+
+    uint32_t        player_sync_group_index;   // sync group 번호
+    uint16_t        player_sync_group_input_count;   // player_sync_group_index에 해당하는 sync group의 재생 목록 개수
+
+    uint32_t        scene_index;
+
+    uint16_t        url_size;
+    char            url[260];   // URL
+};
+
+struct packet_dplayer_play_url_from_server
+{
+    packet_header   header;
+    packet_result   result;     // 명령 수행 결과
+
+    uint32_t        player_sync_group_index;   // sync group 번호
+    uint16_t        player_sync_group_input_count;
+
+    uint32_t        scene_index;
+
+    uint16_t        url_size;
+    char            url[260];   // URL
+};
+
+// --------------------------------
+
+// dplayer_play_rect ////////////////////////////////
+struct packet_dplayer_play_rect_from_client
+{
+    packet_header   header;
+
+    uint32_t        player_sync_group_index;   // sync group 번호
+    uint16_t        player_sync_group_output_count;   // player_sync_group_index에 해당하는 sync group의 출력 윈도우 개수
+
+    uint32_t        scene_index;
+
+    int             left;
+    int             top;
+    int             width;
+    int             height;
+};
+
+struct packet_dplayer_play_rect_from_server
+{
+    packet_header   header;
+    packet_result   result;     // 명령 수행 결과
+
+    uint32_t        player_sync_group_index;   // sync group 번호
+    uint16_t        player_sync_group_output_count;
+
+    uint32_t        scene_index;
+
+    int             left;
+    int             top;
+    int             width;
+    int             height;
+};
+
+// --------------------------------
+
+// dplayer_stop ////////////////////////////////
+struct packet_dplayer_stop_from_client
+{
+    packet_header header;
+
+    uint32_t        player_sync_group_index;   // sync group 번호
+};
+
+struct packet_dplayer_stop_from_server
+{
+    packet_header header;
+    packet_result result;
+
+    uint32_t        player_sync_group_index;   // sync group 번호
+};
+
+// --------------------------------
+
+// dplayer_connect_data_url ////////////////////////////////
+struct packet_dplayer_connect_data_url_from_client
+{
+    packet_header   header;
+
+    uint32_t        player_sync_group_index;   // sync group 번호
+    uint16_t        player_sync_group_input_count;   // player_sync_group_index에 해당하는 sync group의 재생 목록 개수
+
+    uint32_t        scene_index;    // url과 rect를 연결할 정보
+
+    uint16_t        url_size;
+    char            url[260];   // URL
+};
+
+struct packet_dplayer_connect_data_url_from_server
+{
+    packet_header   header;
+    packet_result   result;     // 명령 수행 결과
+
+    uint32_t        player_sync_group_index;   // sync group 번호
+    uint16_t        player_sync_group_input_count;
+
+    uint32_t        scene_index;    // url과 rect를 연결할 정보
+
+    uint16_t        url_size;
+    char            url[260];   // URL
+};
+
+// --------------------------------
+
+// dplayer_connect_data_rect ////////////////////////////////
+struct packet_dplayer_connect_data_rect_from_client
+{
+    packet_header   header;
+
+    uint32_t        player_sync_group_index;   // sync group 번호
+    uint16_t        player_sync_group_output_count;   // player_sync_group_index에 해당하는 sync group의 출력 윈도우 개수
+
+    uint32_t        scene_index;
+
+    int             left;
+    int             top;
+    int             width;
+    int             height;
+};
+
+struct packet_dplayer_connect_data_rect_from_server
+{
+    packet_header   header;
+    packet_result   result;     // 명령 수행 결과
+
+    uint32_t        player_sync_group_index;   // sync group 번호
+    uint16_t        player_sync_group_output_count;
+
+    uint32_t        scene_index;
+
+    int             left;
+    int             top;
+    int             width;
+    int             height;
+};
+
+// --------------------------------

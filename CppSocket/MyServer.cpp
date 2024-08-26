@@ -412,3 +412,130 @@ bool MyServer::send_gplayer_stop(TcpConnection* connection, cppsocket_struct_ser
     return true;
 }
 
+bool MyServer::send_dplayer_play_url(TcpConnection* connection, cppsocket_struct_server_send_dplayer_play_url data)
+{
+    packet_header header{};
+    header.cmd = command_type::dplayer_play_url;
+    header.size = sizeof(packet_dplayer_play_url_from_server);
+
+    packet_dplayer_play_url_from_server out_packet{};
+    out_packet.header = header;
+
+    out_packet.result = packet_result::ok;
+
+    out_packet.player_sync_group_index = data.player_sync_group_index;
+    out_packet.player_sync_group_input_count = data.player_sync_group_input_count;
+
+    out_packet.scene_index = data.scene_index;
+
+    out_packet.url_size = data.url_size;
+    memcpy(out_packet.url, data.url, data.url_size);
+
+    std::shared_ptr<Packet> dplayer_connect_data_url_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    *dplayer_connect_data_url_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(dplayer_connect_data_url_packet);
+
+    return true;
+}
+
+bool MyServer::send_dplayer_play_rect(TcpConnection* connection, cppsocket_struct_server_send_dplayer_play_rect data)
+{
+    packet_header header{};
+    header.cmd = command_type::dplayer_play_rect;
+    header.size = sizeof(packet_dplayer_play_rect_from_server);
+
+    packet_dplayer_play_rect_from_server out_packet{};
+    out_packet.header = header;
+
+    out_packet.result = packet_result::ok;
+
+    out_packet.player_sync_group_index = data.player_sync_group_index;
+    out_packet.player_sync_group_output_count = data.player_sync_group_output_count;
+
+    out_packet.scene_index = data.scene_index;
+
+    out_packet.left = data.left;
+    out_packet.top = data.top;
+    out_packet.width = data.width;
+    out_packet.height = data.height;
+
+    std::shared_ptr<Packet> dplayer_connect_data_rect_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    *dplayer_connect_data_rect_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(dplayer_connect_data_rect_packet);
+
+    return true;
+}
+
+bool MyServer::send_dplayer_connect_data_url(TcpConnection* connection, cppsocket_struct_server_send_dplayer_connect_data_url data)
+{
+    packet_header header{};
+    header.cmd = command_type::dplayer_connect_data_url;
+    header.size = sizeof(packet_dplayer_connect_data_url_from_server);
+
+    packet_dplayer_connect_data_url_from_server out_packet{};
+    out_packet.header = header;
+
+    out_packet.result = packet_result::ok;
+
+    out_packet.player_sync_group_index = data.player_sync_group_index;
+    out_packet.player_sync_group_input_count = data.player_sync_group_input_count;
+
+    out_packet.scene_index = data.scene_index;
+
+    out_packet.url_size = data.url_size;
+    memcpy(out_packet.url, data.url, data.url_size);
+
+    std::shared_ptr<Packet> dplayer_connect_data_url_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    *dplayer_connect_data_url_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(dplayer_connect_data_url_packet);
+
+    return true;
+}
+
+bool MyServer::send_dplayer_connect_data_rect(TcpConnection* connection, cppsocket_struct_server_send_dplayer_connect_data_rect data)
+{
+    packet_header header{};
+    header.cmd = command_type::dplayer_connect_data_rect;
+    header.size = sizeof(packet_dplayer_connect_data_rect_from_server);
+
+    packet_dplayer_connect_data_rect_from_server out_packet{};
+    out_packet.header = header;
+
+    out_packet.result = packet_result::ok;
+
+    out_packet.player_sync_group_index = data.player_sync_group_index;
+    out_packet.player_sync_group_output_count = data.player_sync_group_output_count;
+
+    out_packet.scene_index = data.scene_index;
+
+    out_packet.left = data.left;
+    out_packet.top = data.top;
+    out_packet.width = data.width;
+    out_packet.height = data.height;
+
+    std::shared_ptr<Packet> dplayer_connect_data_rect_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    *dplayer_connect_data_rect_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(dplayer_connect_data_rect_packet);
+
+    return true;
+}
+
+bool MyServer::send_dplayer_stop(TcpConnection* connection, cppsocket_struct_server_send_dplayer_stop data)
+{
+    packet_header header{};
+    header.cmd = command_type::dplayer_stop;
+    header.size = sizeof(packet_dplayer_stop_from_server);
+
+    packet_dplayer_stop_from_server out_packet{};
+    out_packet.header = header;
+
+    out_packet.result = packet_result::ok;
+
+    out_packet.player_sync_group_index = data.player_sync_group_index;
+
+    std::shared_ptr<Packet> dplayer_stop_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    *dplayer_stop_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(dplayer_stop_packet);
+
+    return true;
+}

@@ -132,6 +132,36 @@ void cppsocket_server_send_gplayer_stop(void* server_instance, void* connection,
     server->send_gplayer_stop((TcpConnection*)connection, data);
 }
 
+void cppsocket_server_send_dplayer_play_url(void* server_instance, void* connection, cppsocket_struct_server_send_dplayer_play_url data)
+{
+    MyServer* server = (MyServer*)server_instance;
+    server->send_dplayer_play_url((TcpConnection*)connection, data);
+}
+
+void cppsocket_server_send_dplayer_play_rect(void* server_instance, void* connection, cppsocket_struct_server_send_dplayer_play_rect data)
+{
+    MyServer* server = (MyServer*)server_instance;
+    server->send_dplayer_play_rect((TcpConnection*)connection, data);
+}
+
+void cppsocket_server_send_dplayer_connect_data_url(void* server_instance, void* connection, cppsocket_struct_server_send_dplayer_connect_data_url data)
+{
+    MyServer* server = (MyServer*)server_instance;
+    server->send_dplayer_connect_data_url((TcpConnection*)connection, data);
+}
+
+void cppsocket_server_send_dplayer_connect_data_rect(void* server_instance, void* connection, cppsocket_struct_server_send_dplayer_connect_data_rect data)
+{
+    MyServer* server = (MyServer*)server_instance;
+    server->send_dplayer_connect_data_rect((TcpConnection*)connection, data);
+}
+
+void cppsocket_server_send_dplayer_stop(void* server_instance, void* connection, cppsocket_struct_server_send_dplayer_stop data)
+{
+    MyServer* server = (MyServer*)server_instance;
+    server->send_dplayer_stop((TcpConnection*)connection, data);
+}
+
 // --------------------------------
 
 void * cppsocket_client_create()
@@ -258,6 +288,30 @@ void cppsocket_client_send_gplayer_stop(void* client_instance, cppsocket_struct_
 {
     MyClient* client = (MyClient*)client_instance;
     client->send_gplayer_stop(data);
+}
+
+void cppsocket_client_send_dplayer_play_url(void* client_instance, cppsocket_struct_client_send_dplayer_play_url data)
+{
+    MyClient* client = (MyClient*)client_instance;
+    client->send_dplayer_play_url(data);
+}
+
+void cppsocket_client_send_dplayer_play_rect(void* client_instance, cppsocket_struct_client_send_dplayer_play_rect data)
+{
+    MyClient* client = (MyClient*)client_instance;
+    client->send_dplayer_play_rect(data);
+}
+
+void cppsocket_client_send_dplayer_connect(void* client_instance, cppsocket_struct_client_send_player_connect data)
+{
+    MyClient* client = (MyClient*)client_instance;
+    client->send_dplayer_connect(data);
+}
+
+void cppsocket_client_send_dplayer_stop(void* client_instance, cppsocket_struct_client_send_dplayer_stop data)
+{
+    MyClient* client = (MyClient*)client_instance;
+    client->send_dplayer_stop(data);
 }
 
 // --------------------------------

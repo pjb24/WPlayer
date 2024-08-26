@@ -35,6 +35,11 @@ public:
     bool send_gplayer_connect(cppsocket_struct_client_send_player_connect data);
     bool send_gplayer_stop(cppsocket_struct_client_send_gplayer_stop data);
     
+    bool send_dplayer_play_url(cppsocket_struct_client_send_dplayer_play_url data);
+    bool send_dplayer_play_rect(cppsocket_struct_client_send_dplayer_play_rect data);
+    bool send_dplayer_connect(cppsocket_struct_client_send_player_connect data);
+    bool send_dplayer_stop(cppsocket_struct_client_send_dplayer_stop data);
+
 private:
 	bool ProcessPacket(std::shared_ptr<Packet> packet) override;
 	void OnConnect() override;
