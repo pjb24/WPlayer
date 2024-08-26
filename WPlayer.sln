@@ -20,6 +20,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TestDllConsoleCppSocket", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestCSharpConsoleCppSocket", "TestCSharpConsoleCppSocket\TestCSharpConsoleCppSocket.csproj", "{0244705F-1B76-4E44-B10A-5EE41C144637}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DPlayer", "DPlayer\DPlayer.vcxproj", "{31F07D14-7FDA-43DC-83EB-B9674241FFEC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -45,6 +47,10 @@ Global
 		{0244705F-1B76-4E44-B10A-5EE41C144637}.Debug|x64.ActiveCfg = Debug|x64
 		{0244705F-1B76-4E44-B10A-5EE41C144637}.Debug|x64.Build.0 = Debug|x64
 		{0244705F-1B76-4E44-B10A-5EE41C144637}.Release|x64.ActiveCfg = Release|x64
+		{31F07D14-7FDA-43DC-83EB-B9674241FFEC}.Debug|x64.ActiveCfg = Debug|x64
+		{31F07D14-7FDA-43DC-83EB-B9674241FFEC}.Debug|x64.Build.0 = Debug|x64
+		{31F07D14-7FDA-43DC-83EB-B9674241FFEC}.Release|x64.ActiveCfg = Release|x64
+		{31F07D14-7FDA-43DC-83EB-B9674241FFEC}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
