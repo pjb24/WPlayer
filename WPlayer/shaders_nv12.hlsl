@@ -37,7 +37,7 @@ PSInput VSMain(float4 position : POSITION, float2 uv : TEXCOORD)
 //
 //*********************************************************
 
-Texture2D texture_y : register(t1);
+Texture2D texture_luminance : register(t1);
 Texture2D texture_chrominance : register(t2);
 
 SamplerState g_sampler : register(s0);
@@ -65,7 +65,7 @@ float3 ConvertYUVtoRGB(float3 yuv)
 
 min16float4 PSMain(PSInput input) : SV_TARGET
 {
-    float y = texture_y.Sample(g_sampler, input.uv).r;
+    float y = texture_luminance.Sample(g_sampler, input.uv).r;
     float2 uv = texture_chrominance.Sample(g_sampler, input.uv).rg;
 
     return min16float4(ConvertYUVtoRGB(float3(y, uv)), 1.f);
