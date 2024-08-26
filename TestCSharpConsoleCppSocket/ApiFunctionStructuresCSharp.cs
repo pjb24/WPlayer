@@ -10,38 +10,6 @@ namespace TestCSharpConsoleCppSocket
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate void CALLBACK_DATA(IntPtr data);
 
-    enum packet_result : UInt16
-    {
-        ok,     // 0
-        fail,   // 1
-	    pause,  // 2
-        resume, // 3
-
-        invalid = UInt16.MaxValue
-    };
-
-    enum command_type : UInt16
-    {
-        play,   // 0
-        pause,  // 1
-        stop,   // 2
-        move,   // 3
-        jump_forward,   // 4
-        jump_backwards, // 5
-        seek_repeat_self,   // 6
-        play_sync_group,    // 7
-        pause_sync_group,   // 8
-        stop_sync_group,    // 9
-
-        sync_group_frame_numbering,     // 10
-
-        seek_repeat_self_sync_group,    // 11
-    
-        program_quit, // 12
-
-        invalid = UInt16.MaxValue
-    };
-
     // client ////////////////////////////////
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
@@ -116,100 +84,73 @@ namespace TestCSharpConsoleCppSocket
         public UInt32 sync_group_index;
     };
 
-    // --------------------------------
+    [StructLayout(LayoutKind.Sequential)]
+    struct cppsocket_struct_client_send_player_connect
+    {
+        public UInt32 player_sync_group_index;
+    }
 
     [StructLayout(LayoutKind.Sequential)]
-    struct packet_header
+    struct cppsocket_struct_client_send_gplayer_play_url
     {
-        public command_type cmd;    // 명령
-        public UInt32 size;   // 패킷 전체 크기
-    };
+        public UInt32 player_sync_group_index;
+        public UInt16 player_sync_group_input_count;
 
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    struct packet_play_from_server
-    {
-        public packet_header header;
-        public packet_result result;     // 명령 수행 결과
-        public UInt32 scene_index;
-        public int left;
-        public int top;
-        public int width;
-        public int height;
         public UInt16 url_size;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+        [MarshalAs(UnmanagedType.LPStr)]
         public string url;
-    };
+    }
 
     [StructLayout(LayoutKind.Sequential)]
-    struct packet_pause_from_server
+    struct cppsocket_struct_client_send_gplayer_play_rect
     {
-        public packet_header header;
-        public packet_result result;     // 명령 수행 결과
-        public UInt32 scene_index;
-    };
+        public UInt32 player_sync_group_index;
+        public UInt16 player_sync_group_output_count;
 
-    [StructLayout(LayoutKind.Sequential)]
-    struct packet_stop_from_server
-    {
-        public packet_header header;
-        public packet_result result;     // 명령 수행 결과
-        public UInt32 scene_index;
-    };
-
-    [StructLayout(LayoutKind.Sequential)]
-    struct packet_move_from_server
-    {
-        public packet_header header;
-        public packet_result result; // 명령 수행 결과
-        public UInt32 scene_index;
-    };
-
-    [StructLayout(LayoutKind.Sequential)]
-    struct packet_jump_forward_from_server
-    {
-        public packet_header header;
-        public packet_result result; // 명령 수행 결과
-        public UInt32 scene_index;
-    };
-
-    [StructLayout(LayoutKind.Sequential)]
-    struct packet_jump_backwards_from_server
-    {
-        public packet_header header;
-        public packet_result result; // 명령 수행 결과
-        public UInt32 scene_index;
-    };
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    struct packet_play_sync_group_from_server
-    {
-        public packet_header header;
-        public packet_result result;     // 명령 수행 결과
-        public UInt32 scene_index;
         public int left;
         public int top;
         public int width;
         public int height;
-        public UInt32 sync_group_index;   // sync group 번호
-        public UInt16 sync_group_count;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct cppsocket_struct_client_send_gplayer_stop
+    {
+        public UInt32 player_sync_group_index;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct cppsocket_struct_client_send_dplayer_play_url
+    {
+        public UInt32 player_sync_group_index;
+        public UInt16 player_sync_group_input_count;
+
+        public UInt32 scene_index;
+
         public UInt16 url_size;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
-        public string url;   // URL
-    };
+        [MarshalAs(UnmanagedType.LPStr)]
+        public string url;
+    }
 
     [StructLayout(LayoutKind.Sequential)]
-    struct packet_pause_sync_group_from_server
+    struct cppsocket_struct_client_send_dplayer_play_rect
     {
-        public packet_header header;
-        public packet_result result;     // 명령 수행 결과
-        public UInt32 sync_group_index;       // sync group 번호
-    };
+        public UInt32 player_sync_group_index;
+        public UInt16 player_sync_group_output_count;
+
+        public UInt32 scene_index;
+
+        public int left;
+        public int top;
+        public int width;
+        public int height;
+    }
 
     [StructLayout(LayoutKind.Sequential)]
-    struct packet_stop_sync_group_from_server
+    struct cppsocket_struct_client_send_dplayer_stop
     {
-        public packet_header header;
-        public packet_result result;     // 명령 수행 결과
-        public UInt32 sync_group_index;       // sync group 번호
-    };
+        public UInt32 player_sync_group_index;
+    }
+
+    // --------------------------------
 }

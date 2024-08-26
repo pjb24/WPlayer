@@ -64,6 +64,24 @@ namespace TestCSharpConsoleCppSocket
 
         [DllImport("CppSocket.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void cppsocket_client_connection_close(IntPtr client_instance);
+
+        [DllImport("CppSocket.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void cppsocket_client_send_gplayer_play_url(IntPtr client_instance, cppsocket_struct_client_send_gplayer_play_url data);
+
+        [DllImport("CppSocket.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void cppsocket_client_send_gplayer_play_rect(IntPtr client_instance, cppsocket_struct_client_send_gplayer_play_rect data);
+
+        [DllImport("CppSocket.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void cppsocket_client_send_gplayer_stop(IntPtr client_instance, cppsocket_struct_client_send_gplayer_stop data);
+
+        [DllImport("CppSocket.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void cppsocket_client_send_dplayer_play_url(IntPtr client_instance, cppsocket_struct_client_send_dplayer_play_url data);
+
+        [DllImport("CppSocket.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void cppsocket_client_send_dplayer_play_rect(IntPtr client_instance, cppsocket_struct_client_send_dplayer_play_rect data);
+
+        [DllImport("CppSocket.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void cppsocket_client_send_dplayer_stop(IntPtr client_instance, cppsocket_struct_client_send_dplayer_stop data);
     }
 
     class CppSocket
@@ -91,6 +109,15 @@ namespace TestCSharpConsoleCppSocket
             Console.WriteLine("10(sync_group_frame_numbering) (internal command type, not implemented)");
             Console.WriteLine("11(seek_repeat_self_sync_Group) (internal command type, not implemented)");
             Console.WriteLine("12(program_quit)");
+            Console.WriteLine("");
+            Console.WriteLine("13(gplayer_play_url)");
+            Console.WriteLine("14(gplayer_play_rect)");
+            Console.WriteLine("15(gplayer_play_stop)");
+            Console.WriteLine("16(gplayer_play_pause) (not implemented)");
+            Console.WriteLine("");
+            Console.WriteLine("20(dplayer_play_url)");
+            Console.WriteLine("21(dplayer_play_rect)");
+            Console.WriteLine("22(dplayer_play_stop)");
 
             Console.WriteLine("");
             Console.WriteLine("input 99 to stop program");
@@ -222,6 +249,89 @@ namespace TestCSharpConsoleCppSocket
                     {
                     }
                     break;
+
+                case command_type.gplayer_play_url:
+                    {
+                        packet_gplayer_play_url_from_server packet = Marshal.PtrToStructure<packet_gplayer_play_url_from_server>(data);
+
+                        Console.Write($"gplayer_play_url, ");
+                        Console.Write($"command_type: {(UInt16)packet.header.cmd}, ");
+                        Console.Write($"packet size: {packet.header.size}, ");
+                        Console.Write($"player_sync_group_index: {packet.player_sync_group_index}, ");
+                        Console.Write($"player_sync_group_input_count: {packet.player_sync_group_input_count}, ");
+                        Console.Write($"url: {packet.url}, ");
+                        Console.WriteLine($"result: {(UInt16)packet.result}");
+                    }
+                    break;
+                case command_type.gplayer_play_rect:
+                    {
+                        packet_gplayer_play_rect_from_server packet = Marshal.PtrToStructure<packet_gplayer_play_rect_from_server>(data);
+
+                        Console.Write($"gplayer_play_rect, ");
+                        Console.Write($"command_type: {(UInt16)packet.header.cmd}, ");
+                        Console.Write($"packet size: {packet.header.size}, ");
+                        Console.Write($"player_sync_group_index: {packet.player_sync_group_index}, ");
+                        Console.Write($"player_sync_group_output_count: {packet.player_sync_group_output_count}, ");
+                        Console.Write($"left: {packet.left}, ");
+                        Console.Write($"top: {packet.top}, ");
+                        Console.Write($"width: {packet.width}, ");
+                        Console.Write($"height: {packet.height}, ");
+                        Console.WriteLine($"result: {(UInt16)packet.result}");
+                    }
+                    break;
+                case command_type.gplayer_stop:
+                    {
+                        packet_gplayer_stop_from_server packet = Marshal.PtrToStructure<packet_gplayer_stop_from_server>(data);
+
+                        Console.Write($"gplayer_stop, ");
+                        Console.Write($"command_type: {(UInt16)packet.header.cmd}, ");
+                        Console.Write($"packet size: {packet.header.size}, ");
+                        Console.Write($"player_sync_group_index: {packet.player_sync_group_index}, ");
+                        Console.WriteLine($"result: {(UInt16)packet.result}");
+                    }
+                    break;
+
+                case command_type.dplayer_play_url:
+                    {
+                        packet_dplayer_play_url_from_server packet = Marshal.PtrToStructure<packet_dplayer_play_url_from_server>(data);
+
+                        Console.Write($"dplayer_play_url, ");
+                        Console.Write($"command_type: {(UInt16)packet.header.cmd}, ");
+                        Console.Write($"packet size: {packet.header.size}, ");
+                        Console.Write($"player_sync_group_index: {packet.player_sync_group_index}, ");
+                        Console.Write($"player_sync_group_input_count: {packet.player_sync_group_input_count}, ");
+                        Console.Write($"url: {packet.url}, ");
+                        Console.WriteLine($"result: {(UInt16)packet.result}");
+                    }
+                    break;
+                case command_type.dplayer_play_rect:
+                    {
+                        packet_dplayer_play_rect_from_server packet = Marshal.PtrToStructure<packet_dplayer_play_rect_from_server>(data);
+
+                        Console.Write($"dplayer_play_rect, ");
+                        Console.Write($"command_type: {(UInt16)packet.header.cmd}, ");
+                        Console.Write($"packet size: {packet.header.size}, ");
+                        Console.Write($"player_sync_group_index: {packet.player_sync_group_index}, ");
+                        Console.Write($"player_sync_group_output_count: {packet.player_sync_group_output_count}, ");
+                        Console.Write($"left: {packet.left}, ");
+                        Console.Write($"top: {packet.top}, ");
+                        Console.Write($"width: {packet.width}, ");
+                        Console.Write($"height: {packet.height}, ");
+                        Console.WriteLine($"result: {(UInt16)packet.result}");
+                    }
+                    break;
+                case command_type.dplayer_stop:
+                    {
+                        packet_dplayer_stop_from_server packet = Marshal.PtrToStructure<packet_dplayer_stop_from_server>(data);
+
+                        Console.Write($"dplayer_stop, ");
+                        Console.Write($"command_type: {(UInt16)packet.header.cmd}, ");
+                        Console.Write($"packet size: {packet.header.size}, ");
+                        Console.Write($"player_sync_group_index: {packet.player_sync_group_index}, ");
+                        Console.WriteLine($"result: {(UInt16)packet.result}");
+                    }
+                    break;
+
                 default:
                     break;
             }
@@ -419,6 +529,107 @@ namespace TestCSharpConsoleCppSocket
                                 CppSocketAPI.cppsocket_client_send_program_quit(socket._client);
                             }
                             break;
+
+                        case command_type.gplayer_play_url:
+                            {
+                                Console.WriteLine("gplayer_play_url, Input url player_sync_group_index player_sync_group_input_count");
+
+                                string cmd_line = Console.ReadLine();
+                                string[] cmd_words = cmd_line.Split(' ');
+
+                                string url = cmd_words[0];
+
+                                cppsocket_struct_client_send_gplayer_play_url data;
+                                data.player_sync_group_index = uint.Parse(cmd_words[1]);
+                                data.player_sync_group_input_count = ushort.Parse(cmd_words[2]);
+                                data.url_size = (UInt16)url.Length;
+                                data.url = url;
+
+                                CppSocketAPI.cppsocket_client_send_gplayer_play_url(socket._client, data);
+                            }
+                            break;
+                        case command_type.gplayer_play_rect:
+                            {
+                                Console.WriteLine("gplayer_play_rect, Input left top width height player_sync_group_index player_sync_group_output_count");
+
+                                string cmd_line = Console.ReadLine();
+                                string[] cmd_words = cmd_line.Split(' ');
+
+                                cppsocket_struct_client_send_gplayer_play_rect data;
+                                data.left = int.Parse(cmd_words[0]);
+                                data.top = int.Parse(cmd_words[1]);
+                                data.width = int.Parse(cmd_words[2]);
+                                data.height = int.Parse(cmd_words[3]);
+                                data.player_sync_group_index = uint.Parse(cmd_words[4]);
+                                data.player_sync_group_output_count = ushort.Parse(cmd_words[5]);
+
+                                CppSocketAPI.cppsocket_client_send_gplayer_play_rect(socket._client, data);
+                            }
+                            break;
+                        case command_type.gplayer_stop:
+                            {
+                                Console.WriteLine("gplayer_stop, Input player_sync_group_index");
+
+                                string cmd_line = Console.ReadLine();
+
+                                cppsocket_struct_client_send_gplayer_stop data;
+                                data.player_sync_group_index = uint.Parse(cmd_line);
+
+                                CppSocketAPI.cppsocket_client_send_gplayer_stop(socket._client, data);
+                            }
+                            break;
+
+                        case command_type.dplayer_play_url:
+                            {
+                                Console.WriteLine("dplayer_play_url, Input url player_sync_group_index player_sync_group_input_count scene_index");
+
+                                string cmd_line = Console.ReadLine();
+                                string[] cmd_words = cmd_line.Split(' ');
+
+                                string url = cmd_words[0];
+
+                                cppsocket_struct_client_send_dplayer_play_url data;
+                                data.player_sync_group_index = uint.Parse(cmd_words[1]);
+                                data.player_sync_group_input_count = ushort.Parse(cmd_words[2]);
+                                data.scene_index = uint.Parse(cmd_words[3]);
+                                data.url_size = (UInt16)url.Length;
+                                data.url = url;
+
+                                CppSocketAPI.cppsocket_client_send_dplayer_play_url(socket._client, data);
+                            }
+                            break;
+                        case command_type.dplayer_play_rect:
+                            {
+                                Console.WriteLine("dplayer_play_rect, Input left top width height player_sync_group_index player_sync_group_output_count scene_index");
+
+                                string cmd_line = Console.ReadLine();
+                                string[] cmd_words = cmd_line.Split(' ');
+
+                                cppsocket_struct_client_send_dplayer_play_rect data;
+                                data.left = int.Parse(cmd_words[0]);
+                                data.top = int.Parse(cmd_words[1]);
+                                data.width = int.Parse(cmd_words[2]);
+                                data.height = int.Parse(cmd_words[3]);
+                                data.player_sync_group_index = uint.Parse(cmd_words[4]);
+                                data.player_sync_group_output_count = ushort.Parse(cmd_words[5]);
+                                data.scene_index = uint.Parse(cmd_words[6]);
+
+                                CppSocketAPI.cppsocket_client_send_dplayer_play_rect(socket._client, data);
+                            }
+                            break;
+                        case command_type.dplayer_stop:
+                            {
+                                Console.WriteLine("dplayer_stop, Input player_sync_group_index");
+
+                                string cmd_line = Console.ReadLine();
+
+                                cppsocket_struct_client_send_dplayer_stop data;
+                                data.player_sync_group_index = uint.Parse(cmd_line);
+
+                                CppSocketAPI.cppsocket_client_send_dplayer_stop(socket._client, data);
+                            }
+                            break;
+
                         default:
                             break;
                     }
