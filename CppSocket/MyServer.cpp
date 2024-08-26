@@ -176,13 +176,13 @@ bool MyServer::send_stop_sync_group(TcpConnection* connection, cppsocket_struct_
     return true;
 }
 
-void MyServer::OnConnect(TcpConnection& newConnection)
+void MyServer::OnConnect(TcpConnection* newConnection)
 {
-	std::cout << newConnection.ToString() << " - New connection accepted." << std::endl;
+	std::cout << newConnection->ToString() << " - New connection accepted." << std::endl;
 
 	std::shared_ptr<Packet> welcomeMessagePacket = std::make_shared<Packet>(PacketType::ChatMessage);
 	*welcomeMessagePacket << std::string("Welcome!");
-	newConnection.m_pmOutgoing.Append(welcomeMessagePacket);
+	newConnection->m_pmOutgoing.Append(welcomeMessagePacket);
 
 	std::shared_ptr<Packet> newUserMessagePacket = std::make_shared<Packet>(PacketType::ChatMessage);
 	*newUserMessagePacket << std::string("New user connected!");
@@ -193,24 +193,24 @@ void MyServer::OnConnect(TcpConnection& newConnection)
 			continue;
 		}
 
-		connection.m_pmOutgoing.Append(newUserMessagePacket);
+		connection->m_pmOutgoing.Append(newUserMessagePacket);
 	}
 }
 
-void MyServer::OnDisconnect(TcpConnection& lostConnection, std::string reason)
+void MyServer::OnDisconnect(TcpConnection* lostConnection, std::string reason)
 {
-	std::cout << "[" << reason << "] Connection lost: " << lostConnection.ToString() << "." << std::endl;
+	std::cout << "[" << reason << "] Connection lost: " << lostConnection->ToString() << "." << std::endl;
 
 	std::shared_ptr<Packet> connectionLostPacket = std::make_shared<Packet>(PacketType::ChatMessage);
 	*connectionLostPacket << std::string("A user disconnected!");
-	for (auto& connection : m_connections)
+	for (auto connection : m_connections)
 	{
-		if (&connection == &lostConnection)
+		if (connection == lostConnection)
 		{
 			continue;
 		}
 
-		connection.m_pmOutgoing.Append(connectionLostPacket);
+		connection->m_pmOutgoing.Append(connectionLostPacket);
 	}
 }
 

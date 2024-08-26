@@ -25,8 +25,8 @@ public:
     void set_callback_data_connection(CALLBACK_DATA_CONNECTION cb) { callback_data_connection = cb; }
 
 private:
-	void OnConnect(TcpConnection& newConnection) override;
-	void OnDisconnect(TcpConnection& lostConnection, std::string reason) override;
+	void OnConnect(TcpConnection* newConnection) override;
+	void OnDisconnect(TcpConnection* lostConnection, std::string reason) override;
 	bool ProcessPacket(std::shared_ptr<Packet> packet) override;
 	bool ProcessPacket(std::shared_ptr<Packet> packet, TcpConnection* connection) override;
 

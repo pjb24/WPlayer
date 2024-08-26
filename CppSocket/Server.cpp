@@ -1,5 +1,25 @@
 #include "Server.h"
 
+Server::~Server()
+{
+    if (m_connections.size() > 0)
+    {
+        while (m_connections.size() != 0)
+        {
+            size_t i = m_connections.size() - 1;
+
+            TcpConnection* connection = m_connections[i];
+            OnDisconnect(connection, std::string("Server Destructor"));
+
+            m_masterFd.erase(m_masterFd.begin() + (i + 1));
+            m_useFd.erase(m_useFd.begin() + (i + 1));
+            connection->Close();
+            delete connection;
+            m_connections.erase(m_connections.begin() + i);
+        }
+    }
+}
+
 bool Server::Initialize(IPEndpoint ip)
 {
 	m_masterFd.clear();
@@ -42,7 +62,7 @@ void Server::Frame()
 {
 	for (size_t i = 0; i < m_connections.size(); i++)
 	{
-		if (m_connections[i].m_pmOutgoing.HasPendingPackets())
+		if (m_connections[i]->m_pmOutgoing.HasPendingPackets())
 		{
 			m_masterFd[i + 1].events = POLLRDNORM | POLLWRNORM;
 		}
@@ -61,8 +81,8 @@ void Server::Frame()
 			IPEndpoint newConnectionEndpoint;
 			if (m_listeningSocket.Accept(newConnection, &newConnectionEndpoint) == Result::Success)
 			{
-				m_connections.emplace_back(TcpConnection(newConnection, newConnectionEndpoint));
-				TcpConnection& acceptedConnection = m_connections[m_connections.size() - 1];
+				m_connections.emplace_back(new TcpConnection(newConnection, newConnectionEndpoint));
+				TcpConnection* acceptedConnection = m_connections[m_connections.size() - 1];
 				
 				WSAPOLLFD newConnectionFd = {};
 				newConnectionFd.fd = newConnection.GetHandle();
@@ -82,7 +102,7 @@ void Server::Frame()
 		for (int i = m_useFd.size() - 1; i >= 1; i--)
 		{
 			int connectionIndex = i - 1;
-			TcpConnection& connection = m_connections[connectionIndex];
+			TcpConnection* connection = m_connections[connectionIndex];
 
 			if (m_useFd[i].revents & POLLERR)	// If error occurred on this socket
 			{
@@ -106,13 +126,13 @@ void Server::Frame()
 			{
 				int bytesReceived = 0;
 
-				if (connection.m_pmIncoming.m_currentTask == PacketTask::ProcessPacketSize)
+				if (connection->m_pmIncoming.m_currentTask == PacketTask::ProcessPacketSize)
 				{
-					bytesReceived = recv(m_useFd[i].fd, (char*)&connection.m_pmIncoming.m_currentPacketSize + connection.m_pmIncoming.m_currentPacketExtractionOffset, sizeof(uint16_t) - connection.m_pmIncoming.m_currentPacketExtractionOffset, 0);
+					bytesReceived = recv(m_useFd[i].fd, (char*)&connection->m_pmIncoming.m_currentPacketSize + connection->m_pmIncoming.m_currentPacketExtractionOffset, sizeof(uint16_t) - connection->m_pmIncoming.m_currentPacketExtractionOffset, 0);
 				}
 				else	// Process packet contents
 				{
-					bytesReceived = recv(m_useFd[i].fd, (char*)&connection.m_buffer + connection.m_pmIncoming.m_currentPacketExtractionOffset, connection.m_pmIncoming.m_currentPacketSize - connection.m_pmIncoming.m_currentPacketExtractionOffset, 0);
+					bytesReceived = recv(m_useFd[i].fd, (char*)&connection->m_buffer + connection->m_pmIncoming.m_currentPacketExtractionOffset, connection->m_pmIncoming.m_currentPacketSize - connection->m_pmIncoming.m_currentPacketExtractionOffset, 0);
 				}
 
 				if (bytesReceived == 0)	// If connection was lost
@@ -133,35 +153,35 @@ void Server::Frame()
 
 				if (bytesReceived > 0)
 				{
-					connection.m_pmIncoming.m_currentPacketExtractionOffset += bytesReceived;
-					if (connection.m_pmIncoming.m_currentTask == PacketTask::ProcessPacketSize)
+					connection->m_pmIncoming.m_currentPacketExtractionOffset += bytesReceived;
+					if (connection->m_pmIncoming.m_currentTask == PacketTask::ProcessPacketSize)
 					{
-						if (connection.m_pmIncoming.m_currentPacketExtractionOffset == sizeof(uint16_t))
+						if (connection->m_pmIncoming.m_currentPacketExtractionOffset == sizeof(uint16_t))
 						{
-							connection.m_pmIncoming.m_currentPacketSize = ntohs(connection.m_pmIncoming.m_currentPacketSize);
-							if (connection.m_pmIncoming.m_currentPacketSize > g_maxPacketSize)
+							connection->m_pmIncoming.m_currentPacketSize = ntohs(connection->m_pmIncoming.m_currentPacketSize);
+							if (connection->m_pmIncoming.m_currentPacketSize > g_maxPacketSize)
 							{
 								CloseConnection(connectionIndex, "Packet size too large.");
 								continue;
 							}
 
-							connection.m_pmIncoming.m_currentPacketExtractionOffset = 0;
-							connection.m_pmIncoming.m_currentTask = PacketTask::ProcessPacketContents;
+							connection->m_pmIncoming.m_currentPacketExtractionOffset = 0;
+							connection->m_pmIncoming.m_currentTask = PacketTask::ProcessPacketContents;
 						}
 					}
 					else	// Processing packet contents
 					{
-						if (connection.m_pmIncoming.m_currentPacketExtractionOffset == connection.m_pmIncoming.m_currentPacketSize)
+						if (connection->m_pmIncoming.m_currentPacketExtractionOffset == connection->m_pmIncoming.m_currentPacketSize)
 						{
 							std::shared_ptr<Packet> packet = std::make_shared<Packet>();
-							packet->buffer.resize(connection.m_pmIncoming.m_currentPacketSize);
-							memcpy(&packet->buffer[0], connection.m_buffer, connection.m_pmIncoming.m_currentPacketSize);
+							packet->buffer.resize(connection->m_pmIncoming.m_currentPacketSize);
+							memcpy(&packet->buffer[0], connection->m_buffer, connection->m_pmIncoming.m_currentPacketSize);
 
-							connection.m_pmIncoming.Append(packet);
+							connection->m_pmIncoming.Append(packet);
 
-							connection.m_pmIncoming.m_currentPacketSize = 0;
-							connection.m_pmIncoming.m_currentPacketExtractionOffset = 0;
-							connection.m_pmIncoming.m_currentTask = PacketTask::ProcessPacketSize;
+							connection->m_pmIncoming.m_currentPacketSize = 0;
+							connection->m_pmIncoming.m_currentPacketExtractionOffset = 0;
+							connection->m_pmIncoming.m_currentTask = PacketTask::ProcessPacketSize;
 						}
 					}
 				}
@@ -169,7 +189,7 @@ void Server::Frame()
 
 			if (m_useFd[i].revents & POLLWRNORM)	// If normal data can be written without blocking
 			{
-				PacketManager& pm = connection.m_pmOutgoing;
+				PacketManager& pm = connection->m_pmOutgoing;
 				while (pm.HasPendingPackets())
 				{
 					if (pm.m_currentTask == PacketTask::ProcessPacketSize)	// Sending packet size
@@ -224,38 +244,39 @@ void Server::Frame()
 
 	for (int i = m_connections.size() - 1; i >= 0; i--)
 	{
-		while (m_connections[i].m_pmIncoming.HasPendingPackets())
+		while (m_connections[i]->m_pmIncoming.HasPendingPackets())
 		{
-			std::shared_ptr<Packet> frontPacket = m_connections[i].m_pmIncoming.Retrieve();
+			std::shared_ptr<Packet> frontPacket = m_connections[i]->m_pmIncoming.Retrieve();
 			//if (!ProcessPacket(frontPacket))
-			if (!ProcessPacket(frontPacket, &m_connections[i]))
+			if (!ProcessPacket(frontPacket, m_connections[i]))
 			{
 				CloseConnection(i, "Failed to process incoming packet.");
 				break;
 			}
-			m_connections[i].m_pmIncoming.Pop();
+			m_connections[i]->m_pmIncoming.Pop();
 		}
 	}
 }
 
-void Server::OnConnect(TcpConnection& newConnection)
+void Server::OnConnect(TcpConnection* newConnection)
 {
-	std::cout << newConnection.ToString() << " - New connection accepted." << std::endl;
+	std::cout << newConnection->ToString() << " - New connection accepted." << std::endl;
 }
 
-void Server::OnDisconnect(TcpConnection& lostConnection, std::string reason)
+void Server::OnDisconnect(TcpConnection* lostConnection, std::string reason)
 {
-	std::cout << "[" << reason << "] Connection lost: " << lostConnection.ToString() << "." << std::endl;
+	std::cout << "[" << reason << "] Connection lost: " << lostConnection->ToString() << "." << std::endl;
 }
 
 void Server::CloseConnection(int connectionIndex, std::string reason)
 {
-	TcpConnection& connection = m_connections[connectionIndex];
+	TcpConnection* connection = m_connections[connectionIndex];
 	OnDisconnect(connection, reason);
 
 	m_masterFd.erase(m_masterFd.begin() + (connectionIndex + 1));
 	m_useFd.erase(m_useFd.begin() + (connectionIndex + 1));
-	connection.Close();
+	connection->Close();
+    delete connection;
 	m_connections.erase(m_connections.begin() + connectionIndex);
 }
 
