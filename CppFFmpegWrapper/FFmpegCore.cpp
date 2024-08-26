@@ -367,67 +367,15 @@ s32 FFmpegCore::frame_to_next()
 
 s32 FFmpegCore::frame_to_next_non_waiting()
 {
-    if (_sync_group_frame_numbering == true && _sync_group_index != u32_invalid_id)
-    {
-        if (_frame_numbering < _frame_count)
-        {
-            return error_type::use_previous_frame;
-        }
-    }
-
     std::lock_guard<std::mutex> lock(_frame_mutex);
 
     if (is_empty_frame_queue())
     {
-        if (_pause_flag)
-        {
-            _time_started = 0.0;
-        }
         return error_type::queue_is_empty;
-    }
-
-    int frame_queue_size = get_frame_queue_size();
-
-    double time_now = av_gettime_relative() / 1'000.0;  // millisecond
-
-    double previous_frame_pts = 0;
-    if (_frame_queue[_output_frame_index]->pts > 0)
-    {
-        previous_frame_pts = _frame_queue[_output_frame_index]->pts * _time_base_d * 1'000.0;
-    }
-
-    if (_time_started == 0.0)
-    {
-        _time_started = time_now - previous_frame_pts;
-    }
-
-    double previous_frame_present_time = _time_started + (previous_frame_pts);
-
-    double time_delta = previous_frame_present_time - time_now;
-
-    if (time_delta > -(_duration_frame_half))
-    {
-        //return error_type::use_previous_frame;
-    }
-
-    if (frame_queue_size > 2)
-    {
-        s32 temp_index = (_output_frame_index + 1) % _frame_queue_size;
-        // pts 역전이 있을 때
-        if (_previous_frame_pts > _frame_queue[temp_index]->pts)
-        {
-            av_frame_unref(_frame_queue[_output_frame_index]);
-            _output_frame_index = (_output_frame_index + 1) % _frame_queue_size;
-        }
     }
 
     av_frame_unref(_frame_queue[_output_frame_index]);
     _output_frame_index = (_output_frame_index + 1) % _frame_queue_size;
-
-    if (_sync_group_frame_numbering == true && _sync_group_index != u32_invalid_id)
-    {
-        _frame_count++;
-    }
 
     return error_type::ok;
 }
@@ -491,15 +439,19 @@ void FFmpegCore::read()
     {
         while (_pause_flag || _seek_flag)
         {
+            std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time));
+
             if (_seek_flag)
             {
                 _seek_ready_flag_reader = true;
                 std::unique_lock<std::mutex> lk(_seek_mutex_reader);
-                _seek_condition_reader.wait(lk);
+                if (_seek_flag_reader == false)
+                {
+                    _seek_condition_reader.wait(lk);
+                }
+                _seek_flag_reader = false;
                 break;
             }
-
-            std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time));
         }
 
         while (true)
@@ -631,6 +583,7 @@ void FFmpegCore::open_codec()
             return;
         }
         _codec_ctx->hw_device_ctx = av_buffer_ref(_hw_device_ctx);
+        av_buffer_unref(&_hw_device_ctx);
     }
     else
     {
@@ -694,17 +647,21 @@ void FFmpegCore::decode()
     {
         while (_pause_flag || _seek_flag)
         {
+            std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time));
+
             if (_seek_flag)
             {
                 _seek_ready_flag_decoder = true;
                 std::unique_lock<std::mutex> lk(_seek_mutex_decoder);
-                _seek_condition_decoder.wait(lk);
+                if (_seek_flag_decoder == false)
+                {
+                    _seek_condition_decoder.wait(lk);
+                }
+                _seek_flag_decoder = false;
                 break;
             }
 
             _time_started = 0.0;
-
-            std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time));
         }
 
         while (true)
@@ -743,7 +700,8 @@ void FFmpegCore::decode()
 
             if (_hw_decode == true)
             {
-                result = decode_internal(packet, _hw_frame);
+                //result = decode_internal(packet, _hw_frame);
+                result = decode_internal(packet, frame);
             }
             else
             {
@@ -753,9 +711,9 @@ void FFmpegCore::decode()
             {
                 if (_hw_decode == true)
                 {
-                    av_hwframe_transfer_data(frame, _hw_frame, 0);
-                    av_frame_copy_props(frame, _hw_frame);
-                    av_frame_unref(_hw_frame);
+                    //av_hwframe_transfer_data(frame, _hw_frame, 0);
+                    //av_frame_copy_props(frame, _hw_frame);
+                    //av_frame_unref(_hw_frame);
                 }
 
                 if (_scale == true)
@@ -1094,8 +1052,15 @@ void FFmpegCore::repeat_sync_group()
     _seek_ready_flag_reader = false;
     _seek_ready_flag_decoder = false;
 
+    _seek_mutex_reader.lock();
     _seek_condition_reader.notify_one();
+    _seek_flag_reader = true;
+    _seek_mutex_reader.unlock();
+
+    _seek_mutex_decoder.lock();
     _seek_condition_decoder.notify_one();
+    _seek_flag_decoder = true;
+    _seek_mutex_decoder.unlock();
 }
 
 void FFmpegCore::set_scale(bool scale)

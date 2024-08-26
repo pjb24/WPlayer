@@ -108,10 +108,12 @@ private:
     bool                _seek_ready_flag_reader = false;
     std::mutex          _seek_mutex_reader;
     std::condition_variable _seek_condition_reader;
+    bool                _seek_flag_reader = false;
 
     bool                _seek_ready_flag_decoder = false;
     std::mutex          _seek_mutex_decoder;
     std::condition_variable _seek_condition_decoder;
+    bool                _seek_flag_decoder = false;
 #pragma endregion
 
     AVFormatContext*    _format_ctx = nullptr;
