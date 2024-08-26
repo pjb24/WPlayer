@@ -248,3 +248,101 @@ void MyClient::OnConnect()
     *helloPacket << std::string("Hello from the client!");
     m_connection.m_pmOutgoing.Append(helloPacket);
 }
+
+bool MyClient::send_gplayer_play_url(cppsocket_struct_client_send_gplayer_play_url data)
+{
+    if (data.url_size > 260)
+    {
+        return false;
+    }
+
+    if (data.player_sync_group_input_count <= 0)
+    {
+        return false;
+    }
+
+    packet_header header{};
+    header.cmd = command_type::gplayer_play_url;
+    header.size = sizeof(packet_gplayer_play_url_from_client);
+
+    packet_gplayer_play_url_from_client packet{};
+    packet.header = header;
+    
+    packet.player_sync_group_index = data.player_sync_group_index;
+    packet.player_sync_group_input_count = data.player_sync_group_input_count;
+
+    packet.url_size = data.url_size;
+    memcpy(packet.url, data.url, data.url_size);
+
+    std::shared_ptr<Packet> gplayer_play_url_packet = std::make_shared<Packet>(PacketType::structured_data_from_client);
+    *gplayer_play_url_packet << (void*)&packet;
+    m_connection.m_pmOutgoing.Append(gplayer_play_url_packet);
+
+    return true;
+}
+
+bool MyClient::send_gplayer_play_rect(cppsocket_struct_client_send_gplayer_play_rect data)
+{
+    if (data.player_sync_group_output_count <= 0)
+    {
+        return false;
+    }
+
+    packet_header header{};
+    header.cmd = command_type::gplayer_play_rect;
+    header.size = sizeof(packet_gplayer_play_rect_from_client);
+
+    packet_gplayer_play_rect_from_client packet{};
+    packet.header = header;
+
+    packet.player_sync_group_index = data.player_sync_group_index;
+    packet.player_sync_group_output_count = data.player_sync_group_output_count;
+
+    packet.left = data.left;
+    packet.top = data.top;
+    packet.width = data.width;
+    packet.height = data.height;
+
+    std::shared_ptr<Packet> gplayer_play_rect_packet = std::make_shared<Packet>(PacketType::structured_data_from_client);
+    *gplayer_play_rect_packet << (void*)&packet;
+    m_connection.m_pmOutgoing.Append(gplayer_play_rect_packet);
+
+    return true;
+}
+
+bool MyClient::send_gplayer_connect(cppsocket_struct_client_send_player_connect data)
+{
+    packet_header header{};
+    header.cmd = command_type::gplayer_connect;
+    header.size = sizeof(packet_player_connect_from_client);
+
+    packet_player_connect_from_client packet{};
+    packet.header = header;
+
+    packet.player_sync_group_index = data.player_sync_group_index;
+
+    std::shared_ptr<Packet> player_connect_packet = std::make_shared<Packet>(PacketType::structured_data_from_client);
+    *player_connect_packet << (void*)&packet;
+    m_connection.m_pmOutgoing.Append(player_connect_packet);
+
+    return true;
+}
+
+bool MyClient::send_gplayer_stop(cppsocket_struct_client_send_gplayer_stop data)
+{
+    packet_header header{};
+    header.cmd = command_type::gplayer_stop;
+    header.size = sizeof(packet_gplayer_stop_from_client);
+
+    packet_gplayer_stop_from_client packet{};
+    packet.header = header;
+
+    packet.player_sync_group_index = data.player_sync_group_index;
+
+    std::shared_ptr<Packet> gplayer_stop_packet = std::make_shared<Packet>(PacketType::structured_data_from_client);
+    *gplayer_stop_packet << (void*)&packet;
+    m_connection.m_pmOutgoing.Append(gplayer_stop_packet);
+
+    return true;
+}
+

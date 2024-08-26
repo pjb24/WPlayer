@@ -68,6 +68,36 @@ struct cppsocket_struct_client_send_stop_sync_group
     uint32_t sync_group_index;
 };
 
+struct cppsocket_struct_client_send_player_connect
+{
+    uint32_t player_sync_group_index;
+};
+
+struct cppsocket_struct_client_send_gplayer_play_url
+{
+    uint32_t player_sync_group_index;
+    uint16_t player_sync_group_input_count;
+
+    uint16_t url_size;
+    const char* url;
+};
+
+struct cppsocket_struct_client_send_gplayer_play_rect
+{
+    uint32_t player_sync_group_index;
+    uint16_t player_sync_group_output_count;
+
+    int left;
+    int top;
+    int width;
+    int height;
+};
+
+struct cppsocket_struct_client_send_gplayer_stop
+{
+    uint32_t player_sync_group_index;
+};
+
 // --------------------------------
 
 // server ////////////////////////////////
@@ -138,6 +168,61 @@ struct cppsocket_struct_server_send_stop_sync_group
 {
     uint32_t sync_group_index;
     uint16_t result;
+};
+
+struct cppsocket_struct_server_send_gplayer_play_url
+{
+    uint32_t player_sync_group_index;
+    uint16_t player_sync_group_input_count;
+    
+    uint16_t result;
+
+    uint16_t url_size;
+    char url[260];
+};
+
+struct cppsocket_struct_server_send_gplayer_play_rect
+{
+    uint32_t player_sync_group_index;
+    uint16_t player_sync_group_output_count;
+
+    uint16_t result;
+    
+    int left;
+    int top;
+    int width;
+    int height;
+};
+
+struct cppsocket_struct_server_send_gplayer_connect_data_url
+{
+    uint32_t player_sync_group_index;
+    uint16_t player_sync_group_input_count;
+
+    uint16_t result;
+
+    uint16_t url_size;
+    char url[260];
+};
+
+struct cppsocket_struct_server_send_gplayer_connect_data_rect
+{
+    uint32_t player_sync_group_index;
+    uint16_t player_sync_group_output_count;
+
+    uint16_t result;
+
+    int left;
+    int top;
+    int width;
+    int height;
+};
+
+struct cppsocket_struct_server_send_gplayer_stop
+{
+    uint16_t result;
+
+    uint32_t player_sync_group_index;
 };
 
 // --------------------------------

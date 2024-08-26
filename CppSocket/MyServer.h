@@ -24,6 +24,15 @@ public:
 
     void set_callback_data_connection(CALLBACK_DATA_CONNECTION cb) { callback_data_connection = cb; }
 
+
+    bool send_gplayer_play_url(TcpConnection* connection, cppsocket_struct_server_send_gplayer_play_url data);
+    bool send_gplayer_play_rect(TcpConnection* connection, cppsocket_struct_server_send_gplayer_play_rect data);
+
+    bool send_gplayer_connect_data_url(TcpConnection* connection, cppsocket_struct_server_send_gplayer_connect_data_url data);
+    bool send_gplayer_connect_data_rect(TcpConnection* connection, cppsocket_struct_server_send_gplayer_connect_data_rect data);
+
+    bool send_gplayer_stop(TcpConnection* connection, cppsocket_struct_server_send_gplayer_stop data);
+    
 private:
 	void OnConnect(TcpConnection* newConnection) override;
 	void OnDisconnect(TcpConnection* lostConnection, std::string reason) override;

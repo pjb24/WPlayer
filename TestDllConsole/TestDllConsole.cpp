@@ -361,6 +361,57 @@ void callback_ptr_client(void* data)
         delete packet;
     }
     break;
+
+    case command_type::gplayer_play_url:
+    {
+        packet_gplayer_play_url_from_server* packet = new packet_gplayer_play_url_from_server();
+        memcpy(packet, data, header->size);
+
+        std::cout << "gplayer_play_url" << ", ";
+        std::cout << "command_type: " << (uint16_t)packet->header.cmd << ", ";
+        std::cout << "packet size: " << packet->header.size << ", ";
+        std::cout << "player_sync_group_index: " << packet->player_sync_group_index << ", ";
+        std::cout << "player_sync_group_input_count: " << packet->player_sync_group_input_count << ", ";
+        std::cout << "url: " << packet->url << ", ";
+        std::cout << "result: " << (uint16_t)packet->result << std::endl;
+
+        delete packet;
+    }
+    break;
+    case command_type::gplayer_play_rect:
+    {
+        packet_gplayer_play_rect_from_server* packet = new packet_gplayer_play_rect_from_server();
+        memcpy(packet, data, header->size);
+
+        std::cout << "gplayer_play_rect" << ", ";
+        std::cout << "command_type: " << (uint16_t)packet->header.cmd << ", ";
+        std::cout << "packet size: " << packet->header.size << ", ";
+        std::cout << "player_sync_group_index: " << packet->player_sync_group_index << ", ";
+        std::cout << "player_sync_group_output_count: " << packet->player_sync_group_output_count << ", ";
+        std::cout << "left: " << packet->left << ", ";
+        std::cout << "top: " << packet->top << ", ";
+        std::cout << "width: " << packet->width << ", ";
+        std::cout << "height: " << packet->height << ", ";
+        std::cout << "result: " << (uint16_t)packet->result << std::endl;
+
+        delete packet;
+    }
+    break;
+    case command_type::gplayer_stop:
+    {
+        packet_gplayer_stop_from_server* packet = new packet_gplayer_stop_from_server();
+        memcpy(packet, data, header->size);
+
+        std::cout << "gplayer_stop" << ", ";
+        std::cout << "command_type: " << (uint16_t)packet->header.cmd << ", ";
+        std::cout << "packet size: " << packet->header.size << ", ";
+        std::cout << "player_sync_group_index: " << packet->player_sync_group_index << ", ";
+        std::cout << "result: " << (uint16_t)packet->result << std::endl;
+
+        delete packet;
+    }
+    break;
+
     default:
         break;
     }
@@ -401,6 +452,11 @@ void client_output_messages_step_1()
     std::cout << "10(sync_group_frame_numbering) (internal command type, not implemented)" << std::endl;
     std::cout << "11(seek_repeat_self_sync_Group) (internal command type, not implemented)" << std::endl;
     std::cout << "12(program_quit)" << std::endl;
+    std::cout << std::endl;
+    std::cout << "13(gplayer_play_url)" << std::endl;
+    std::cout << "14(gplayer_play_rect)" << std::endl;
+    std::cout << "15(gplayer_play_stop)" << std::endl;
+    std::cout << "16(gplayer_play_pause) (not implemented)" << std::endl;
 
     std::cout << std::endl;
     std::cout << "input 99 to stop program" << std::endl;
@@ -692,6 +748,67 @@ int main()
                     cppsocket_client_send_program_quit(_client);
                 }
                 break;
+
+                case command_type::gplayer_play_url:
+                {
+                    std::cout << "gplayer_play_url, Input url player_sync_group_index player_sync_group_input_count" << std::endl;
+
+                    std::string url;
+                    uint32_t player_sync_group_index;
+                    uint16_t player_sync_group_input_count;
+
+                    std::cin >> url;
+                    std::cin >> player_sync_group_index >> player_sync_group_input_count;
+
+                    cppsocket_struct_client_send_gplayer_play_url data{};
+                    data.url_size = url.size();
+                    data.url = url.c_str();
+                    data.player_sync_group_index = player_sync_group_index;
+                    data.player_sync_group_input_count = player_sync_group_input_count;
+
+                    cppsocket_client_send_gplayer_play_url(_client, data);
+                }
+                break;
+                case command_type::gplayer_play_rect:
+                {
+                    std::cout << "gplayer_play_rect, Input left top width height player_sync_group_index player_sync_group_output_count" << std::endl;
+
+                    int left;
+                    int top;
+                    int width;
+                    int height;
+                    uint32_t player_sync_group_index;
+                    uint16_t player_sync_group_output_count;
+
+                    std::cin >> left >> top >> width >> height;
+                    std::cin >> player_sync_group_index >> player_sync_group_output_count;
+
+                    cppsocket_struct_client_send_gplayer_play_rect data{};
+                    data.left = left;
+                    data.top = top;
+                    data.width = width;
+                    data.height = height;
+                    data.player_sync_group_index = player_sync_group_index;
+                    data.player_sync_group_output_count = player_sync_group_output_count;
+
+                    cppsocket_client_send_gplayer_play_rect(_client, data);
+                }
+                break;
+                case command_type::gplayer_stop:
+                {
+                    std::cout << "gplayer_stop, Input player_sync_group_index" << std::endl;
+
+                    uint32_t player_sync_group_index;
+
+                    std::cin >> player_sync_group_index;
+
+                    cppsocket_struct_client_send_gplayer_stop data{};
+                    data.player_sync_group_index = player_sync_group_index;
+
+                    cppsocket_client_send_gplayer_stop(_client, data);
+                }
+                break;
+
                 default:
                     break;
                 }
