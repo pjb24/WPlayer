@@ -30,12 +30,6 @@
     <ClInclude Include="WPlayer.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="PlayerWindow.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="D3D12Data.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="CommonHeaders.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
@@ -50,12 +44,6 @@
     <ClCompile Include="WPlayer.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="D3D12Data.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="PlayerWindow.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
     <ClCompile Include="WPlayer_Present_Barrier_Test.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
@@ -63,6 +51,9 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="StringConverter.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="WPlayer_Alpha.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
@@ -85,14 +76,13 @@
     <None Include="WPlayer_Test_IDC512.ini" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="shaders.hlsl">
-      <Filter>쉐이더 파일</Filter>
-    </FxCompile>
-    <FxCompile Include="shaders_nv12.hlsl">
-      <Filter>쉐이더 파일</Filter>
-    </FxCompile>
+    <CopyFileToFolders Include="WPlayer_Alpha.ini" />
+    <CopyFileToFolders Include="shaders.hlsl" />
+    <CopyFileToFolders Include="shaders_nv12.hlsl" />
   </ItemGroup>
   <ItemGroup>
-    <CopyFileToFolders Include="WPlayer_Alpha.ini" />
+    <FxCompile Include="shaders_dx11.hlsl">
+      <Filter>쉐이더 파일</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

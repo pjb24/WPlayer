@@ -99,18 +99,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="CommonHeaders.h" />
-    <ClInclude Include="D3D12Data.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GraphicsHeaders.h" />
-    <ClInclude Include="PlayerWindow.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="StringConverter.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="WPlayer.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="D3D12Data.cpp" />
-    <ClCompile Include="PlayerWindow.cpp" />
     <ClCompile Include="StringConverter.cpp" />
     <ClCompile Include="WPlayer.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -124,7 +120,10 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="WPlayer_Test_IDC512.cpp" />
+    <ClCompile Include="WPlayer_Test_IDC512.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="WPlayer.rc" />
