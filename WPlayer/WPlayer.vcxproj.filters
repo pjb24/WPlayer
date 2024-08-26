@@ -42,6 +42,9 @@
     <ClInclude Include="GraphicsHeaders.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="StringConverter.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="WPlayer.cpp">
@@ -59,6 +62,9 @@
     <ClCompile Include="WPlayer_Test_IDC512.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="StringConverter.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="WPlayer.rc">
@@ -74,6 +80,7 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
+    <None Include="WPlayer.ini" />
     <None Include="packages.config" />
     <None Include="WPlayer_Test_IDC512.ini" />
   </ItemGroup>
@@ -86,6 +93,6 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <CopyFileToFolders Include="WPlayer.ini" />
+    <CopyFileToFolders Include="WPlayer_Alpha.ini" />
   </ItemGroup>
 </Project>
