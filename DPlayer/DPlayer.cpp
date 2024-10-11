@@ -128,7 +128,7 @@ typedef struct st_adapter
     IDXGIAdapter1* adapter = nullptr;
     DXGI_ADAPTER_DESC1 adapter_desc{};
 
-    uint64_t adapter_index = UINT64_MAX;
+    UINT adapter_index = UINT_MAX;
 
 }*pst_adapter;
 
@@ -136,7 +136,7 @@ typedef struct st_device
 {
     ID3D12Device* device = nullptr;
 
-    uint64_t device_index = UINT64_MAX;
+    UINT device_index = UINT_MAX;
 
     bool flag_thread_device = true;
     bool flag_thread_upload = true;
@@ -161,8 +161,8 @@ typedef struct st_output
     IDXGIOutput* output = nullptr;
     DXGI_OUTPUT_DESC output_desc{};
 
-    uint64_t output_index = UINT64_MAX;
-    uint64_t device_index = UINT64_MAX;
+    UINT output_index = UINT_MAX;
+    UINT device_index = UINT_MAX;
 
 }*pst_output;
 
@@ -171,9 +171,9 @@ typedef struct st_window
     HWND handle = nullptr;
     RECT rect{};
 
-    uint64_t window_index = UINT64_MAX;
-    uint64_t output_index = UINT64_MAX;
-    uint64_t device_index = UINT64_MAX;
+    UINT window_index = UINT_MAX;
+    UINT output_index = UINT_MAX;
+    UINT device_index = UINT_MAX;
 
     bool flag_thread_window = true;
 
@@ -191,7 +191,7 @@ typedef struct st_command_queue
 {
     ID3D12CommandQueue* command_queue = nullptr;
 
-    uint64_t device_index = UINT64_MAX;
+    UINT device_index = UINT_MAX;
 
 }*pst_command_queue;
 
@@ -199,17 +199,17 @@ typedef struct st_swap_chain
 {
     IDXGISwapChain1* swap_chain = nullptr;
 
-    uint64_t window_index = UINT64_MAX;
-    uint64_t device_index = UINT64_MAX;
+    UINT window_index = UINT_MAX;
+    UINT device_index = UINT_MAX;
 
 }*pst_swap_chain;
 
 typedef struct st_rtv_heap
 {
     ID3D12DescriptorHeap* rtv_heap = nullptr;
-    uint32_t rtv_descriptor_size = UINT32_MAX;
+    UINT rtv_descriptor_size = UINT_MAX;
 
-    uint64_t device_index = UINT64_MAX;
+    UINT device_index = UINT_MAX;
 
 }*pst_rtv_heap;
 
@@ -218,17 +218,17 @@ typedef struct st_rtv
     std::vector<ID3D12Resource*> vector_rtv;
     std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> vector_rtv_handle;
 
-    uint64_t window_index = UINT64_MAX;
-    uint64_t device_index = UINT64_MAX;
+    UINT window_index = UINT_MAX;
+    UINT device_index = UINT_MAX;
 
 }*pst_rtv;
 
 typedef struct st_srv_heap
 {
     ID3D12DescriptorHeap* srv_heap = nullptr;
-    uint32_t srv_descriptor_size = UINT32_MAX;
+    UINT srv_descriptor_size = UINT_MAX;
 
-    uint64_t device_index = UINT64_MAX;
+    UINT device_index = UINT_MAX;
 
 }*pst_srv_heap;
 
@@ -236,7 +236,7 @@ typedef struct st_command_allocator
 {
     std::vector<ID3D12CommandAllocator*> vector_command_allocator;
 
-    uint64_t device_index = UINT64_MAX;
+    UINT device_index = UINT_MAX;
 
 }*pst_command_allocator;
 
@@ -244,7 +244,7 @@ typedef struct st_root_signature
 {
     ID3D12RootSignature* root_sig = nullptr;
 
-    uint64_t device_index = UINT64_MAX;
+    UINT device_index = UINT_MAX;
 
 }*pst_root_signature;
 
@@ -252,7 +252,7 @@ typedef struct st_pipeline_state_object
 {
     ID3D12PipelineState* pso = nullptr;
 
-    uint64_t device_index = UINT64_MAX;
+    UINT device_index = UINT_MAX;
 
 }*pst_pipeline_state_object, st_pso, * pst_pso;
 
@@ -260,7 +260,7 @@ typedef struct st_command_list
 {
     ID3D12GraphicsCommandList* command_list = nullptr;
 
-    uint64_t device_index = UINT64_MAX;
+    UINT device_index = UINT_MAX;
 
 }*pst_command_list;
 
@@ -274,7 +274,7 @@ typedef struct st_fence
     uint64_t fence_value_device = 0;
     uint64_t fence_value_upload = 0;
 
-    uint64_t device_index = UINT64_MAX;
+    UINT device_index = UINT_MAX;
 
 }*pst_fence;
 
@@ -283,8 +283,8 @@ typedef struct st_viewport
     D3D12_VIEWPORT viewport{};
     D3D12_RECT scissor_rect{};
 
-    uint64_t window_index = UINT64_MAX;
-    uint64_t device_index = UINT64_MAX;
+    UINT window_index = UINT_MAX;
+    UINT device_index = UINT_MAX;
 
 }*pst_viewport;
 
@@ -292,7 +292,7 @@ typedef struct st_vertex_buffer
 {
     std::vector<ID3D12Resource*> vector_vertex_buffer;
 
-    uint64_t device_index = UINT64_MAX;
+    UINT device_index = UINT_MAX;
 
 }*pst_vertex_buffer;
 
@@ -300,7 +300,7 @@ typedef struct st_vertex_upload_buffer
 {
     std::vector<ID3D12Resource*> vector_vertex_upload_buffer;
 
-    uint64_t device_index = UINT64_MAX;
+    UINT device_index = UINT_MAX;
 
 }*pst_vertex_upload_buffer;
 
@@ -308,7 +308,7 @@ typedef struct st_vertex_buffer_view
 {
     std::vector<D3D12_VERTEX_BUFFER_VIEW> vector_vertex_buffer_view{};
 
-    uint64_t device_index = UINT64_MAX;
+    UINT device_index = UINT_MAX;
 
 }*pst_vertex_buffer_view;
 
@@ -316,7 +316,7 @@ typedef struct st_index_buffer
 {
     ID3D12Resource* index_buffer = nullptr;
 
-    uint64_t device_index = UINT64_MAX;
+    UINT device_index = UINT_MAX;
 
 }*pst_index_buffer;
 
@@ -324,7 +324,7 @@ typedef struct st_index_upload_buffer
 {
     ID3D12Resource* index_upload_buffer = nullptr;
 
-    uint64_t device_index = UINT64_MAX;
+    UINT device_index = UINT_MAX;
 
 }*pst_index_upload_buffer;
 
@@ -332,7 +332,7 @@ typedef struct st_index_buffer_view
 {
     D3D12_INDEX_BUFFER_VIEW index_buffer_view{};
 
-    uint64_t device_index = UINT64_MAX;
+    UINT device_index = UINT_MAX;
 
 }*pst_index_buffer_view;
 
@@ -340,7 +340,7 @@ typedef struct st_texture
 {
     std::vector<ID3D12Resource*> vector_texture;
 
-    uint64_t device_index = UINT64_MAX;
+    UINT device_index = UINT_MAX;
 
 }*pst_texture;
 
@@ -353,7 +353,7 @@ typedef struct st_upload_texture
     UINT64 rowSizeInBytes = 0;
     UINT64 totalBytes = 0;
 
-    uint64_t device_index = UINT64_MAX;
+    UINT device_index = UINT_MAX;
 
 }*pst_upload_texture;
 
@@ -362,7 +362,7 @@ typedef struct st_srv_handle
     std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> vector_handle_cpu;
     std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> vector_handle_gpu;
 
-    uint64_t device_index = UINT64_MAX;
+    UINT device_index = UINT_MAX;
 
 }*pst_srv_handle;
 
@@ -374,9 +374,9 @@ typedef struct st_scene
     RECT rect{ 0, 0, 0, 0 };
     NormalizedRect normal_rect{ 0.0f, 0.0f, 0.0f, 0.0f };
 
-    uint64_t scene_index = UINT64_MAX;
-    uint64_t device_index = UINT64_MAX;
-    uint64_t output_index = UINT64_MAX;
+    UINT scene_index = UINT_MAX;
+    UINT device_index = UINT_MAX;
+    UINT output_index = UINT_MAX;
 
     bool flag_thread_scene = true;
 
@@ -410,13 +410,13 @@ WCHAR szWindowClass[MAX_LOADSTRING];            // 기본 창 클래스 이름입니다.
 bool _is_running = true;
 std::wstring _asset_path;
 
-constexpr int64_t _sleep_time_main_loop = 1;
-constexpr int64_t _sleep_time_processing = 10;
-constexpr uint32_t _frame_buffer_count = 3;
-constexpr uint32_t _rtv_descriptor_count = 4096;
-constexpr uint32_t _srv_descriptor_count = 4096;
-constexpr uint32_t _texture_resource_count_nv12 = 2;
-constexpr uint32_t _texture_resource_count_yuv = 3;
+constexpr int _sleep_time_main_loop = 1;
+constexpr int _sleep_time_processing = 10;
+constexpr UINT _frame_buffer_count = 3;
+constexpr UINT _rtv_descriptor_count = 4096;
+constexpr UINT _srv_descriptor_count = 4096;
+constexpr int _texture_resource_count_nv12 = 2;
+constexpr int _texture_resource_count_yuv = 3;
 
 #pragma region Config Values
 
@@ -477,16 +477,16 @@ int _count_scene_fps = 0;
 #pragma endregion
 
 // 윈도우 좌표 설정
-std::map<uint64_t, pst_coordinate> _map_window_coordinate;
+std::map<int, pst_coordinate> _map_window_coordinate;
 
 // scene 생성 개수
 int _count_scene = 0;
 // scene url
-std::map<uint64_t, std::string> _map_scene_url;
+std::map<int, std::string> _map_scene_url;
 // scene 표출 좌표
-std::map<uint64_t, pst_coordinate> _map_scene_coordinate;
+std::map<int, pst_coordinate> _map_scene_coordinate;
 
-uint32_t _player_sync_group_index = UINT32_MAX;
+UINT _player_sync_group_index = UINT_MAX;
 
 
 bool _nvapi_initialized = false;
@@ -559,76 +559,76 @@ std::thread _thread_wait_for_multiple_objects_window_to_scene;
 bool _flag_wait_for_multiple_objects_window_to_scene = true;
 
 
-std::map<uint64_t, std::thread*> _map_thread_scene;
-std::map<uint64_t, std::thread*> _map_thread_upload;
-std::map<uint64_t, std::thread*> _map_thread_device;
-std::map<uint64_t, std::thread*> _map_thread_window;
+std::map<UINT, std::thread*> _map_thread_scene;
+std::map<UINT, std::thread*> _map_thread_upload;
+std::map<UINT, std::thread*> _map_thread_device;
+std::map<UINT, std::thread*> _map_thread_window;
 
-std::map<uint64_t, pst_scene> _map_scene;
+std::map<UINT, pst_scene> _map_scene;
 
 // --------------------------------
 
 IDXGIFactory2* _factory = nullptr;
 
-std::map<uint64_t, pst_adapter> _map_adapter;
-std::map<uint64_t, pst_device> _map_device;
-std::map<uint64_t, pst_output> _map_output;
+std::map<UINT, pst_adapter> _map_adapter;
+std::map<UINT, pst_device> _map_device;
+std::map<UINT, pst_output> _map_output;
 
-std::map<uint64_t, pst_command_queue> _map_command_queue;
-std::map<uint64_t, pst_command_allocator> _map_command_allocator;
-std::map<uint64_t, pst_command_list> _map_command_list;
-std::map<uint64_t, pst_root_signature> _map_root_sig;
-std::map<uint64_t, pst_pso> _map_pso;
-std::map<uint64_t, pst_fence> _map_fence;
+std::map<UINT, pst_command_queue> _map_command_queue;
+std::map<UINT, pst_command_allocator> _map_command_allocator;
+std::map<UINT, pst_command_list> _map_command_list;
+std::map<UINT, pst_root_signature> _map_root_sig;
+std::map<UINT, pst_pso> _map_pso;
+std::map<UINT, pst_fence> _map_fence;
 
-std::map<uint64_t, pst_rtv_heap> _map_rtv_heap;
-std::map<uint64_t, pst_rtv> _map_rtv;
+std::map<UINT, pst_rtv_heap> _map_rtv_heap;
+std::map<UINT, pst_rtv> _map_rtv;
 
-std::map<uint64_t, pst_srv_heap> _map_srv_heap;
+std::map<UINT, pst_srv_heap> _map_srv_heap;
 
-std::map<uint64_t, pst_vertex_buffer> _map_vertex_buffer;
+std::map<UINT, pst_vertex_buffer> _map_vertex_buffer;
 std::mutex* _mutex_map_vertex_buffer = nullptr;
-std::map<uint64_t, pst_vertex_upload_buffer> _map_vertex_upload_buffer;
+std::map<UINT, pst_vertex_upload_buffer> _map_vertex_upload_buffer;
 std::mutex* _mutex_map_vertex_upload_buffer = nullptr;
-std::map<uint64_t, pst_vertex_buffer_view> _map_vertex_buffer_view;
+std::map<UINT, pst_vertex_buffer_view> _map_vertex_buffer_view;
 std::mutex* _mutex_map_vertex_buffer_view = nullptr;
 
-std::map<uint64_t, pst_index_buffer> _map_index_buffer;
+std::map<UINT, pst_index_buffer> _map_index_buffer;
 std::mutex* _mutex_map_index_buffer = nullptr;
-std::map<uint64_t, pst_index_upload_buffer> _map_index_upload_buffer;
+std::map<UINT, pst_index_upload_buffer> _map_index_upload_buffer;
 std::mutex* _mutex_map_index_upload_buffer = nullptr;
-std::map<uint64_t, pst_index_buffer_view> _map_index_buffer_view;
+std::map<UINT, pst_index_buffer_view> _map_index_buffer_view;
 std::mutex* _mutex_map_index_buffer_view = nullptr;
 
-std::map<uint64_t, pst_texture> _map_texture;
+std::map<UINT, pst_texture> _map_texture;
 std::mutex* _mutex_map_texture = nullptr;
-std::map<uint64_t, pst_srv_handle> _map_srv_handle_luminance;
+std::map<UINT, pst_srv_handle> _map_srv_handle_luminance;
 std::mutex* _mutex_map_srv_handle_luminance = nullptr;
-std::map<uint64_t, pst_srv_handle> _map_srv_handle_chrominance;
+std::map<UINT, pst_srv_handle> _map_srv_handle_chrominance;
 std::mutex* _mutex_map_srv_handle_chrominance = nullptr;
 
-std::map<uint64_t, pst_texture> _map_texture_y;
+std::map<UINT, pst_texture> _map_texture_y;
 std::mutex* _mutex_map_texture_y = nullptr;
-std::map<uint64_t, pst_texture> _map_texture_u;
+std::map<UINT, pst_texture> _map_texture_u;
 std::mutex* _mutex_map_texture_u = nullptr;
-std::map<uint64_t, pst_texture> _map_texture_v;
+std::map<UINT, pst_texture> _map_texture_v;
 std::mutex* _mutex_map_texture_v = nullptr;
-std::map<uint64_t, pst_upload_texture> _map_upload_texture_y;
+std::map<UINT, pst_upload_texture> _map_upload_texture_y;
 std::mutex* _mutex_map_upload_texture_y = nullptr;
-std::map<uint64_t, pst_upload_texture> _map_upload_texture_u;
+std::map<UINT, pst_upload_texture> _map_upload_texture_u;
 std::mutex* _mutex_map_upload_texture_u = nullptr;
-std::map<uint64_t, pst_upload_texture> _map_upload_texture_v;
+std::map<UINT, pst_upload_texture> _map_upload_texture_v;
 std::mutex* _mutex_map_upload_texture_v = nullptr;
-std::map<uint64_t, pst_srv_handle> _map_srv_handle_y;
+std::map<UINT, pst_srv_handle> _map_srv_handle_y;
 std::mutex* _mutex_map_srv_handle_y = nullptr;
-std::map<uint64_t, pst_srv_handle> _map_srv_handle_u;
+std::map<UINT, pst_srv_handle> _map_srv_handle_u;
 std::mutex* _mutex_map_srv_handle_u = nullptr;
-std::map<uint64_t, pst_srv_handle> _map_srv_handle_v;
+std::map<UINT, pst_srv_handle> _map_srv_handle_v;
 std::mutex* _mutex_map_srv_handle_v = nullptr;
 
-std::map<uint64_t, pst_window> _map_window;
-std::map<uint64_t, pst_swap_chain> _map_swap_chain;
-std::map<uint64_t, pst_viewport> _map_viewport;
+std::map<UINT, pst_window> _map_window;
+std::map<UINT, pst_swap_chain> _map_swap_chain;
+std::map<UINT, pst_viewport> _map_viewport;
 
 bool _flag_wait_for_vblank_repeat = false;
 bool _flag_scene_repeat = false;
@@ -687,13 +687,13 @@ void create_vertex_buffer(pst_device data_device);
 void delete_vertex_buffers();
 void create_index_buffer(pst_device data_device);
 void delete_index_buffers();
-void create_texture(pst_device data_device, uint64_t width, uint32_t height, uint64_t counter_texture);
+void create_texture(pst_device data_device, UINT64 width, UINT height, int counter_texture);
 void delete_textures();
-void create_texture_yuv(pst_device data_device, uint64_t width, uint32_t height, uint64_t counter_texture);
+void create_texture_yuv(pst_device data_device, UINT64 width, UINT height, int counter_texture);
 void delete_textures_yuv();
 
-void upload_texture(pst_device data_device, AVFrame* frame, uint64_t counter_texture, uint64_t srv_index);
-void upload_texture_yuv(pst_device data_device, AVFrame* frame, uint64_t counter_texture, uint64_t srv_index);
+void upload_texture(pst_device data_device, AVFrame* frame, int counter_texture, int srv_index);
+void upload_texture_yuv(pst_device data_device, AVFrame* frame, int counter_texture, int srv_index);
 
 
 void initialize_swap_lock(ID3D12Device* device, IDXGISwapChain1* swap_chain);
@@ -711,7 +711,7 @@ void callback_ffmpeg_wrapper_ptr(void* param);
 void d3d_memory_check();
 #endif
 
-void get_asset_path(wchar_t* path, u32 path_size);
+void get_asset_path(wchar_t* path, uint32_t path_size);
 std::wstring get_asset_full_path(LPCWSTR asset_name);
 void config_setting();
 
@@ -796,7 +796,7 @@ void enum_adapters()
     IDXGIAdapter1* adapter = nullptr;
     DXGI_ADAPTER_DESC1 adapter_desc{};
 
-    for (size_t i = 0; ; i++)
+    for (UINT i = 0; ; i++)
     {
         hr = _factory->EnumAdapters1(i, &adapter);
         if (hr != S_OK)
@@ -834,7 +834,7 @@ void enum_outputs()
 
     IDXGIOutput* output = nullptr;
 
-    uint64_t output_index = 0;
+    UINT output_index = 0;
 
     for (auto it_adapter = _map_adapter.begin(); it_adapter != _map_adapter.end();)
     {
@@ -842,7 +842,7 @@ void enum_outputs()
 
         uint64_t output_count = 0;
 
-        for (size_t i = 0; ; i++)
+        for (UINT i = 0; ; i++)
         {
             hr = data_adapter->adapter->EnumOutputs(i, &output);
             if (hr != S_OK)
@@ -900,7 +900,7 @@ void create_window(WCHAR* window_class, WCHAR* title, HINSTANCE instance, RECT r
 
 void create_windows()
 {
-    uint64_t i = 0;
+    UINT i = 0;
 
     for (auto it_adapter = _map_adapter.begin(); it_adapter != _map_adapter.end(); it_adapter++)
     {
@@ -908,7 +908,7 @@ void create_windows()
 
         RECT rect{ LONG_MAX, LONG_MAX, LONG_MIN, LONG_MIN };
 
-        uint64_t output_index = 0;
+        UINT output_index = 0;
 
         for (auto it_output = _map_output.begin(); it_output != _map_output.end(); it_output++)
         {
@@ -1169,7 +1169,7 @@ void create_command_allocators()
 
         pst_command_allocator data_command_allocator = new st_command_allocator();
 
-        for (uint32_t i = 0; i < _frame_buffer_count * 2; i++)
+        for (UINT i = 0; i < _frame_buffer_count * 2; i++)
         {
             ID3D12CommandAllocator* command_allocator = nullptr;
 
@@ -1569,7 +1569,7 @@ void create_rtvs()
 
         pst_rtv data_rtv = new st_rtv();
 
-        for (size_t i = 0; i < _frame_buffer_count; i++)
+        for (UINT i = 0; i < _frame_buffer_count; i++)
         {
             ID3D12Resource* rtv = nullptr;
 
@@ -2266,7 +2266,7 @@ void delete_index_buffers()
     _mutex_map_index_buffer_view->unlock();
 }
 
-void create_texture(pst_device data_device, uint64_t width, uint32_t height, uint64_t counter_texture)
+void create_texture(pst_device data_device, UINT64 width, UINT height, int counter_texture)
 {
     HRESULT hr = S_OK;
 
@@ -2275,7 +2275,7 @@ void create_texture(pst_device data_device, uint64_t width, uint32_t height, uin
     D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu(data_srv_heap->srv_heap->GetCPUDescriptorHandleForHeapStart());
     D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu(data_srv_heap->srv_heap->GetGPUDescriptorHandleForHeapStart());
 
-    const uint32_t srv_descriptor_size = data_device->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    const UINT srv_descriptor_size = data_device->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
     _mutex_map_texture->lock();
     pst_texture data_texture = nullptr;
@@ -2334,7 +2334,7 @@ void create_texture(pst_device data_device, uint64_t width, uint32_t height, uin
 
     CD3DX12_HEAP_PROPERTIES texture_properties(D3D12_HEAP_TYPE_DEFAULT);
 
-    for (size_t i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
+    for (int i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
     {
         ID3D12Resource* texture = nullptr;
         hr = data_device->device->CreateCommittedResource(
@@ -2362,14 +2362,14 @@ void create_texture(pst_device data_device, uint64_t width, uint32_t height, uin
     srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + INT64(srv_descriptor_size * (_count_texture_store * counter_texture * _texture_resource_count_nv12)));
     srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + INT64(srv_descriptor_size * (_count_texture_store * counter_texture * _texture_resource_count_nv12)));
 
-    for (size_t i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
+    for (int i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
     {
         ID3D12Resource* texture = data_texture->vector_texture.at(i);
 
         D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_luminance = srv_handle_cpu;
-        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + INT64(srv_descriptor_size));
+        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
         D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_chrominance = srv_handle_cpu;
-        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + INT64(srv_descriptor_size));
+        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
 
         srv_desc.Format = DXGI_FORMAT_R8_UNORM;
         srv_desc.Texture2D.PlaneSlice = 0;
@@ -2383,11 +2383,11 @@ void create_texture(pst_device data_device, uint64_t width, uint32_t height, uin
 
 
         D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu_luminance = srv_handle_gpu;
-        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + INT64(srv_descriptor_size));
+        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
         data_srv_handle_luminance->vector_handle_gpu.push_back(srv_handle_gpu_luminance);
 
         D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu_chrominance = srv_handle_gpu;
-        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + INT64(srv_descriptor_size));
+        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
         data_srv_handle_chrominance->vector_handle_gpu.push_back(srv_handle_gpu_chrominance);
     }
 }
@@ -2447,7 +2447,7 @@ void delete_textures()
     _mutex_map_srv_handle_chrominance->unlock();
 }
 
-void create_texture_yuv(pst_device data_device, uint64_t width, uint32_t height, uint64_t counter_texture)
+void create_texture_yuv(pst_device data_device, UINT64 width, UINT height, int counter_texture)
 {
     HRESULT hr = S_OK;
 
@@ -2456,7 +2456,7 @@ void create_texture_yuv(pst_device data_device, uint64_t width, uint32_t height,
     D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu(data_srv_heap->srv_heap->GetCPUDescriptorHandleForHeapStart());
     D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu(data_srv_heap->srv_heap->GetGPUDescriptorHandleForHeapStart());
 
-    const uint32_t srv_descriptor_size = data_device->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    const UINT srv_descriptor_size = data_device->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
     _mutex_map_texture_y->lock();
     pst_texture data_texture_y = nullptr;
@@ -2593,7 +2593,7 @@ void create_texture_yuv(pst_device data_device, uint64_t width, uint32_t height,
 
     CD3DX12_HEAP_PROPERTIES texture_properties(D3D12_HEAP_TYPE_DEFAULT);
 
-    for (size_t i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
+    for (int i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
     {
         ID3D12Resource* texture_y = nullptr;
         hr = data_device->device->CreateCommittedResource(
@@ -2611,7 +2611,7 @@ void create_texture_yuv(pst_device data_device, uint64_t width, uint32_t height,
     texture_desc.Width /= 2;
     texture_desc.Height /= 2;
 
-    for (size_t i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
+    for (int i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
     {
         ID3D12Resource* texture_u = nullptr;
         hr = data_device->device->CreateCommittedResource(
@@ -2625,7 +2625,7 @@ void create_texture_yuv(pst_device data_device, uint64_t width, uint32_t height,
         data_texture_u->vector_texture.push_back(texture_u);
         NAME_D3D12_OBJECT_INDEXED_2(texture_u, data_device->device_index, i, L"ID3D12Resource_texture_u");
     }
-    for (size_t i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
+    for (int i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
     {
         ID3D12Resource* texture_v = nullptr;
         hr = data_device->device->CreateCommittedResource(
@@ -2672,7 +2672,7 @@ void create_texture_yuv(pst_device data_device, uint64_t width, uint32_t height,
     data_upload_texture_y->rowSizeInBytes = rowSizeInBytes_y;
     data_upload_texture_y->totalBytes = totalBytes_y;
 
-    for (size_t i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
+    for (int i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
     {
         ID3D12Resource* upload_texture_y = nullptr;
         hr = data_device->device->CreateCommittedResource(
@@ -2706,7 +2706,7 @@ void create_texture_yuv(pst_device data_device, uint64_t width, uint32_t height,
     data_upload_texture_u->rowSizeInBytes = rowSizeInBytes_u;
     data_upload_texture_u->totalBytes = totalBytes_u;
 
-    for (size_t i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
+    for (int i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
     {
         ID3D12Resource* upload_texture_u = nullptr;
         hr = data_device->device->CreateCommittedResource(
@@ -2736,7 +2736,7 @@ void create_texture_yuv(pst_device data_device, uint64_t width, uint32_t height,
     data_upload_texture_v->rowSizeInBytes = rowSizeInBytes_v;
     data_upload_texture_v->totalBytes = totalBytes_v;
 
-    for (size_t i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
+    for (int i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
     {
         ID3D12Resource* upload_texture_v = nullptr;
         hr = data_device->device->CreateCommittedResource(
@@ -2765,18 +2765,18 @@ void create_texture_yuv(pst_device data_device, uint64_t width, uint32_t height,
     srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + INT64(srv_descriptor_size * (_count_texture_store * counter_texture * _texture_resource_count_yuv)));
     srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + INT64(srv_descriptor_size * (_count_texture_store * counter_texture * _texture_resource_count_yuv)));
 
-    for (size_t i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
+    for (int i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
     {
         ID3D12Resource* texture_y = data_texture_y->vector_texture.at(i);
         ID3D12Resource* texture_u = data_texture_u->vector_texture.at(i);
         ID3D12Resource* texture_v = data_texture_v->vector_texture.at(i);
 
         D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_y = srv_handle_cpu;
-        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + INT64(srv_descriptor_size));
+        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
         D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_u = srv_handle_cpu;
-        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + INT64(srv_descriptor_size));
+        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
         D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_v = srv_handle_cpu;
-        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + INT64(srv_descriptor_size));
+        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
 
         data_device->device->CreateShaderResourceView(texture_y, &srv_desc, srv_handle_cpu_y);
         data_srv_handle_y->vector_handle_cpu.push_back(srv_handle_cpu_y);
@@ -2787,15 +2787,15 @@ void create_texture_yuv(pst_device data_device, uint64_t width, uint32_t height,
 
 
         D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu_y = srv_handle_gpu;
-        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + INT64(srv_descriptor_size));
+        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
         data_srv_handle_y->vector_handle_gpu.push_back(srv_handle_gpu_y);
 
         D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu_u = srv_handle_gpu;
-        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + INT64(srv_descriptor_size));
+        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
         data_srv_handle_u->vector_handle_gpu.push_back(srv_handle_gpu_u);
 
         D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu_v = srv_handle_gpu;
-        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + INT64(srv_descriptor_size));
+        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
         data_srv_handle_v->vector_handle_gpu.push_back(srv_handle_gpu_v);
     }
 }
@@ -2974,14 +2974,14 @@ void delete_textures_yuv()
     _mutex_map_srv_handle_v->unlock();
 }
 
-void upload_texture(pst_device data_device, AVFrame* frame, uint64_t counter_texture, uint64_t srv_index)
+void upload_texture(pst_device data_device, AVFrame* frame, int counter_texture, int srv_index)
 {
     //auto it_command_list = _map_command_list.find(data_device->device_index);
     //pst_command_list data_command_list = it_command_list->second;
     //auto it_texture = _map_texture.find(data_device->device_index);
     //pst_texture data_texture = it_texture->second;
 
-    uint64_t texture_index = (_count_texture_store * counter_texture) + srv_index;
+    int texture_index = (_count_texture_store * counter_texture) + srv_index;
 
     ID3D12Resource* srcResource = ((AVD3D12VAFrame*)frame->data[0])->texture;
 
@@ -3017,7 +3017,7 @@ void upload_texture(pst_device data_device, AVFrame* frame, uint64_t counter_tex
     data_device->device->CreateShaderResourceView(srcResource, &srv_desc, srv_handle_cpu_chrominance);
 }
 
-void upload_texture_yuv(pst_device data_device, AVFrame* frame, uint64_t counter_texture, uint64_t srv_index)
+void upload_texture_yuv(pst_device data_device, AVFrame* frame, int counter_texture, int srv_index)
 {
     auto it_command_list = _map_command_list.find(data_device->device_index);
     pst_command_list data_command_list = it_command_list->second;
@@ -3048,7 +3048,7 @@ void upload_texture_yuv(pst_device data_device, AVFrame* frame, uint64_t counter
     pst_upload_texture data_upload_texture_v = it_upload_texture_v->second;
     _mutex_map_upload_texture_v->unlock();
 
-    uint64_t texture_index = (_count_texture_store * counter_texture) + srv_index;
+    int texture_index = (_count_texture_store * counter_texture) + srv_index;
 
     ID3D12Resource* texture_y = nullptr;
     ID3D12Resource* texture_u = nullptr;
@@ -3240,7 +3240,7 @@ void create_scenes()
 {
     for (auto it_scene_url = _map_scene_url.begin(); it_scene_url != _map_scene_url.end(); it_scene_url++)
     {
-        uint64_t scene_index = it_scene_url->first;
+        int scene_index = it_scene_url->first;
 
         std::string url = it_scene_url->second;
 
@@ -3257,8 +3257,8 @@ void create_scenes()
         rect.right = left + width;
         rect.bottom = top + height;
 
-        uint64_t device_index = UINT64_MAX;
-        uint64_t output_index = UINT64_MAX;
+        UINT device_index = UINT_MAX;
+        UINT output_index = UINT_MAX;
 
         for (auto it_output = _map_output.begin(); it_output != _map_output.end(); it_output++)
         {
@@ -3448,7 +3448,7 @@ void d3d_memory_check()
 }
 #endif // _DEBUG
 
-void get_asset_path(wchar_t* path, u32 path_size)
+void get_asset_path(wchar_t* path, uint32_t path_size)
 {
     DWORD size = GetModuleFileName(nullptr, path, path_size);
 
@@ -4183,8 +4183,8 @@ void thread_device(pst_device data_device)
 
     bool flag_created = false;
 
-    int64_t rtv_index = -1;
-    int64_t srv_index = -1;
+    int rtv_index = -1;
+    int srv_index = -1;
 
     float color_offset = 0.0f;
 
@@ -4384,8 +4384,8 @@ void thread_device_yuv(pst_device data_device)
 
     bool flag_created = false;
 
-    int64_t rtv_index = -1;
-    int64_t srv_index = -1;
+    int rtv_index = -1;
+    int srv_index = -1;
 
     float color_offset = 0.0f;
 
@@ -4574,8 +4574,8 @@ void thread_upload(pst_device data_device)
 
     bool flag_created = false;
 
-    int64_t upload_index = 2;
-    int64_t srv_index = -1;
+    int upload_index = 2;
+    int srv_index = -1;
 
     std::vector<pst_scene> vector_scene;
 
@@ -4654,7 +4654,7 @@ void thread_upload(pst_device data_device)
             create_vertex_buffer(data_device);
             create_index_buffer(data_device);
 
-            uint64_t counter_scene = 0;
+            int counter_scene = 0;
             for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
             {
                 pst_scene data_scene = it_scene->second;
@@ -4680,7 +4680,7 @@ void thread_upload(pst_device data_device)
         }
 
 
-        uint64_t counter_texture = 0;
+        int counter_texture = 0;
         for (auto it_vector = vector_scene.begin(); it_vector != vector_scene.end(); it_vector++)
         {
             pst_scene data_scene = *it_vector;
@@ -4752,8 +4752,8 @@ void thread_upload_yuv(pst_device data_device)
 
     bool flag_created = false;
 
-    int64_t upload_index = 2;
-    int64_t srv_index = -1;
+    int upload_index = 2;
+    int srv_index = -1;
 
     std::vector<pst_scene> vector_scene;
 
@@ -4811,7 +4811,7 @@ void thread_upload_yuv(pst_device data_device)
             create_vertex_buffer(data_device);
             create_index_buffer(data_device);
 
-            uint64_t counter_scene = 0;
+            int counter_scene = 0;
             for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
             {
                 pst_scene data_scene = it_scene->second;
@@ -4836,7 +4836,7 @@ void thread_upload_yuv(pst_device data_device)
             flag_created = true;
         }
 
-        uint64_t counter_texture = 0;
+        int counter_texture = 0;
         for (auto it_vector = vector_scene.begin(); it_vector != vector_scene.end(); it_vector++)
         {
             pst_scene data_scene = *it_vector;

@@ -63,7 +63,7 @@ private:
     bool    _first_decode = false;
     int64_t _previous_frame_pts = 0;
     double _time_started = 0.0;
-    
+
     bool _sync_group_frame_numbering = false;
 
     uint32_t _frame_numbering = 0;  // sync_group_frame_numbering 호출되면 올라감
@@ -116,15 +116,15 @@ private:
     bool                _seek_flag_decoder = false;
 #pragma endregion
 
-    AVFormatContext*    _format_ctx = nullptr;
-    AVCodecContext*     _codec_ctx = nullptr;
+    AVFormatContext* _format_ctx = nullptr;
+    AVCodecContext* _codec_ctx = nullptr;
     s32                 _stream_index = -1;
 
-    const AVCodec*      _codec = nullptr;
+    const AVCodec* _codec = nullptr;
 
     std::string         _file_path;
 
-    AVDictionary*       _option = nullptr;
+    AVDictionary* _option = nullptr;
 
     AVRational          _time_base = { 0, 1 };
     double              _time_base_d = 0.0f;
@@ -159,8 +159,8 @@ private:
     void scale(AVFrame* frame);
 
     AVPixelFormat       _scale_dest_format = AVPixelFormat::AV_PIX_FMT_YUV420P;
-    AVFrame*            _scale_frame = nullptr;
-    SwsContext*         _sws_ctx = nullptr;
+    AVFrame* _scale_frame = nullptr;
+    SwsContext* _sws_ctx = nullptr;
 
     int                 _scale_alloc_size = 0;
 
@@ -199,7 +199,7 @@ private:
     /// <returns> queue_is_empty or ok </returns>
     error_type output_frame(__out AVFrame*& frame);
 
-    error_type output_frame(__out AVFrame *& frame, s32& index);
+    error_type output_frame(__out AVFrame*& frame, s32& index);
 
     u32 initialize_packet_queue();
     u32 initialize_frame_queue();
@@ -211,13 +211,13 @@ private:
     s32 get_packet_queue_size();
     s32 get_frame_queue_size();
 
-    AVPacket*           _packet_queue[_packet_queue_size];
+    AVPacket* _packet_queue[_packet_queue_size];
     s32                 _input_packet_index = 0;
     s32                 _output_packet_index = 0;
     std::mutex          _packet_mutex;
     bool                _packet_queue_free = false;
 
-    AVFrame*            _frame_queue[_frame_queue_size];
+    AVFrame* _frame_queue[_frame_queue_size];
     s32                 _input_frame_index = 0;
     s32                 _output_frame_index = 0;
     std::mutex          _frame_mutex;

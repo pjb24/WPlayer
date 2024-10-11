@@ -4,8 +4,8 @@
 
 bool FFmpegCore::initialize(CALLBACK_PTR cb)
 {
-    u32 packet_index = 0;
-    u32 frame_index = 0;
+    UINT packet_index = 0;
+    UINT frame_index = 0;
 
     packet_index = initialize_packet_queue();
     if (packet_index != _packet_queue_size)
@@ -42,7 +42,7 @@ bool FFmpegCore::initialize(CALLBACK_PTR cb)
     _logical_processor_count_half = _logical_processor_count / 2;
 
     _scale_frame = av_frame_alloc();
-    
+
     _hw_frame = av_frame_alloc();
 
     return true;
@@ -115,7 +115,7 @@ int FFmpegCore::open_file()
     _time_base_d = av_q2d(_time_base);
     _duration = _format_ctx->streams[_stream_index]->duration;
     _start_time = _format_ctx->streams[_stream_index]->start_time;
-    
+
     return (int)error_type::ok;
 }
 
@@ -270,7 +270,7 @@ void FFmpegCore::jump_backwards(void* connection)
     delete data;
 }
 
-s32 FFmpegCore::get_frame(AVFrame *& frame)
+s32 FFmpegCore::get_frame(AVFrame*& frame)
 {
     error_type result = error_type::ok;
     s32 index = -1;
@@ -498,7 +498,7 @@ void FFmpegCore::read()
     av_packet_free(&packet);
 }
 
-error_type FFmpegCore::read_internal(AVPacket *& packet)
+error_type FFmpegCore::read_internal(AVPacket*& packet)
 {
     if (!packet)
     {
@@ -753,7 +753,7 @@ void FFmpegCore::decode()
                     _callback_ffmpeg(data);
 
                     delete data;
-                    
+
                     _duration_frame = frame->duration;
                     _duration_frame_half = _duration_frame * _time_base_d * 1'000.0 / 2;
                 }
@@ -840,7 +840,7 @@ void FFmpegCore::decode()
     av_frame_free(&frame);
 }
 
-error_type FFmpegCore::decode_internal(AVPacket * packet, AVFrame *& frame)
+error_type FFmpegCore::decode_internal(AVPacket* packet, AVFrame*& frame)
 {
     int result = 0;
 
@@ -1086,7 +1086,7 @@ void FFmpegCore::set_timestamp(s64 pts)
     av_seek_frame(_format_ctx, _stream_index, _start_time + pts, AVSEEK_FLAG_BACKWARD);
 }
 
-void FFmpegCore::scale(AVFrame * frame)
+void FFmpegCore::scale(AVFrame* frame)
 {
     if (frame->format == _scale_dest_format)
     {
@@ -1100,7 +1100,7 @@ void FFmpegCore::scale(AVFrame * frame)
         _sws_ctx = sws_getContext(frame->width, frame->height, (AVPixelFormat)frame->format,
             frame->width, frame->height, _scale_dest_format,
             SWS_BICUBIC, nullptr, nullptr, nullptr
-            );
+        );
         _scale_alloc_size = av_image_alloc(_scale_frame->data, _scale_frame->linesize, frame->width, frame->height, (AVPixelFormat)_scale_dest_format, 1);
     }
 
@@ -1115,7 +1115,7 @@ void FFmpegCore::scale(AVFrame * frame)
     AVBufferRef* buf = av_buffer_create(*frame->data, _scale_alloc_size, nullptr, nullptr, 0);
 
     frame->buf[0] = buf;
-   
+
     frame->format = _scale_dest_format;
 }
 
@@ -1141,7 +1141,7 @@ bool FFmpegCore::is_empty_frame_queue()
     return _output_frame_index == _input_frame_index;
 }
 
-error_type FFmpegCore::input_packet(AVPacket * packet)
+error_type FFmpegCore::input_packet(AVPacket* packet)
 {
     std::lock_guard<std::mutex> lock(_packet_mutex);
 
@@ -1156,7 +1156,7 @@ error_type FFmpegCore::input_packet(AVPacket * packet)
     return error_type::ok;
 }
 
-error_type FFmpegCore::output_packet(AVPacket *& packet)
+error_type FFmpegCore::output_packet(AVPacket*& packet)
 {
     std::lock_guard<std::mutex> lock(_packet_mutex);
 
@@ -1172,7 +1172,7 @@ error_type FFmpegCore::output_packet(AVPacket *& packet)
     return error_type::ok;
 }
 
-error_type FFmpegCore::input_frame(AVFrame * frame)
+error_type FFmpegCore::input_frame(AVFrame* frame)
 {
     std::lock_guard<std::mutex> lock(_frame_mutex);
 
@@ -1187,7 +1187,7 @@ error_type FFmpegCore::input_frame(AVFrame * frame)
     return error_type::ok;
 }
 
-error_type FFmpegCore::output_frame(AVFrame *& frame)
+error_type FFmpegCore::output_frame(AVFrame*& frame)
 {
     std::lock_guard<std::mutex> lock(_frame_mutex);
 
@@ -1203,7 +1203,7 @@ error_type FFmpegCore::output_frame(AVFrame *& frame)
     return error_type::ok;
 }
 
-error_type FFmpegCore::output_frame(AVFrame *& frame, s32 & index)
+error_type FFmpegCore::output_frame(AVFrame*& frame, s32& index)
 {
     std::lock_guard<std::mutex> lock(_frame_mutex);
 
@@ -1321,7 +1321,7 @@ s32 FFmpegCore::get_packet_queue_size()
     }
 }
 
-s32 FFmpegCore::get_frame_queue_size()
+int FFmpegCore::get_frame_queue_size()
 {
     if (is_empty_frame_queue())
     {
