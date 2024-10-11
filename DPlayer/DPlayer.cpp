@@ -3417,6 +3417,18 @@ void thread_device(pst_device data_device)
     auto it_fence = _map_fence.find(data_device->device_index);
     pst_fence data_fence = it_fence->second;
 
+    pst_swap_chain data_swap_chain = nullptr;
+    for (auto it_swapchain = _map_swap_chain.begin(); it_swapchain != _map_swap_chain.end(); it_swapchain++)
+    {
+        pst_swap_chain data_swap_chain_temp = it_swapchain->second;
+
+        if (data_swap_chain_temp->device_index == data_device->device_index)
+        {
+            data_swap_chain = data_swap_chain_temp;
+            break;
+        }
+    }
+
     bool flag_created = false;
 
     int rtv_index = -1;
@@ -3518,13 +3530,19 @@ void thread_device(pst_device data_device)
         ID3D12DescriptorHeap* pp_heaps[] = { data_srv_heap->srv_heap };
         command_list->SetDescriptorHeaps(_countof(pp_heaps), pp_heaps);
 
-        CD3DX12_RESOURCE_BARRIER barrier_before = CD3DX12_RESOURCE_BARRIER::Transition(data_rtv->vector_rtv.at(rtv_index), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        IDXGISwapChain3* swapchain3 = nullptr;
+        data_swap_chain->swap_chain->QueryInterface(IID_PPV_ARGS(&swapchain3));
+
+        int backbuffer_index = swapchain3->GetCurrentBackBufferIndex();
+        swapchain3->Release();
+
+        CD3DX12_RESOURCE_BARRIER barrier_before = CD3DX12_RESOURCE_BARRIER::Transition(data_rtv->vector_rtv.at(backbuffer_index), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         command_list->ResourceBarrier(1, &barrier_before);
 
-        command_list->OMSetRenderTargets(1, &data_rtv->vector_rtv_handle.at(rtv_index), FALSE, nullptr);
+        command_list->OMSetRenderTargets(1, &data_rtv->vector_rtv_handle.at(backbuffer_index), FALSE, nullptr);
 
         float color[4] = { color_offset, color_offset, color_offset, color_offset };
-        command_list->ClearRenderTargetView(data_rtv->vector_rtv_handle.at(rtv_index), color, 0, nullptr);
+        command_list->ClearRenderTargetView(data_rtv->vector_rtv_handle.at(backbuffer_index), color, 0, nullptr);
         command_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         command_list->IASetIndexBuffer(&data_index_buffer_view->index_buffer_view);
 
@@ -3546,7 +3564,7 @@ void thread_device(pst_device data_device)
             counter++;
         }
 
-        CD3DX12_RESOURCE_BARRIER barrier_after = CD3DX12_RESOURCE_BARRIER::Transition(data_rtv->vector_rtv.at(rtv_index), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+        CD3DX12_RESOURCE_BARRIER barrier_after = CD3DX12_RESOURCE_BARRIER::Transition(data_rtv->vector_rtv.at(backbuffer_index), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
         command_list->ResourceBarrier(1, &barrier_after);
 
         command_list->Close();
