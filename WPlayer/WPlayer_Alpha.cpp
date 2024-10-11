@@ -422,12 +422,6 @@ bool _block_swap_group_present = false;
 // SetMaximumFrameLatency. 0: unset, 1 ~16
 UINT _set_maximum_frame_latency = 0;
 
-// WaitForVBlank 사용
-bool _use_wait_for_vblank = false;
-
-// 반복 재생이 시작할 때 한번씩 WaitForVBlank 사용
-bool _use_wait_for_vblank_repeat = false;
-
 // data_window에 flag를 설정하여 WaitForVBlank 사용
 bool _use_wait_for_vblank_first_entry = false;
 
@@ -597,9 +591,6 @@ std::mutex* _mutex_map_srv_handle_chrominance = nullptr;
 std::map<UINT, pst_window> _map_window;
 std::map<UINT, pst_swap_chain> _map_swap_chain;
 std::map<UINT, pst_viewport> _map_viewport;
-
-bool _flag_wait_for_vblank_repeat = false;
-bool _flag_scene_repeat = false;
 
 bool _flag_repeat = false;
 
@@ -2951,14 +2942,6 @@ void config_setting()
     GetPrivateProfileString(L"WPlayer", L"set_maximum_frame_latency", L"0", result_w, 255, str_ini_path_w.c_str());
     _set_maximum_frame_latency = _ttoi(result_w);
 
-    GetPrivateProfileString(L"WPlayer", L"use_wait_for_vblank", L"0", result_w, 255, str_ini_path_w.c_str());
-    result_i = _ttoi(result_w);
-    _use_wait_for_vblank = result_i == 0 ? false : true;
-
-    GetPrivateProfileString(L"WPlayer", L"use_wait_for_vblank_repeat", L"0", result_w, 255, str_ini_path_w.c_str());
-    result_i = _ttoi(result_w);
-    _use_wait_for_vblank_repeat = result_i == 0 ? false : true;
-
     GetPrivateProfileString(L"WPlayer", L"use_wait_for_vblank_first_entry", L"0", result_w, 255, str_ini_path_w.c_str());
     result_i = _ttoi(result_w);
     _use_wait_for_vblank_first_entry = result_i == 0 ? false : true;
@@ -3545,29 +3528,6 @@ void thread_wait_for_multiple_objects(WaitType wait_type, bool* flag_thread)
             continue;
         }
 
-        if (_use_wait_for_vblank_repeat)
-        {
-            if (wait_type == WaitType::window_to_scene)
-            {
-                if (_flag_wait_for_vblank_repeat)
-                {
-                    _flag_wait_for_vblank_repeat = false;
-                }
-            }
-            else if (wait_type == WaitType::scene_to_upload)
-            {
-                if (_flag_scene_repeat)
-                {
-                    if (_flag_wait_for_vblank_repeat == false)
-                    {
-                        _flag_wait_for_vblank_repeat = true;
-                    }
-
-                    _flag_scene_repeat = false;
-                }
-            }
-        }
-
         // Notify to condition variables
         for (int i = 0; i < n_cv_count; i++)
         {
@@ -4010,43 +3970,6 @@ void thread_window(pst_window data_window)
             break;
         }
 
-        if (_use_wait_for_vblank)
-        {
-            if (_flag_set_logger)
-            {
-                std::string str = "";
-                str.append("thread_window, device index = ");
-                str.append(std::to_string(data_device->device_index));
-                str.append(", WaitForVBlank Start, ");
-                str.append(std::to_string(av_gettime_relative()));
-
-                auto logger = spdlog::get("wplayer_logger");
-                logger->debug(str.c_str());
-            }
-
-            data_output->output->WaitForVBlank();
-
-            if (_flag_set_logger)
-            {
-                std::string str = "";
-                str.append("thread_window, device index = ");
-                str.append(std::to_string(data_device->device_index));
-                str.append(", WaitForVBlank End, ");
-                str.append(std::to_string(av_gettime_relative()));
-
-                auto logger = spdlog::get("wplayer_logger");
-                logger->debug(str.c_str());
-            }
-        }
-
-        if (_use_wait_for_vblank_repeat)
-        {
-            if (_flag_wait_for_vblank_repeat)
-            {
-                data_output->output->WaitForVBlank();
-            }
-        }
-
         if (_use_wait_for_vblank_first_entry)
         {
             if (data_window->flag_first_entry)
@@ -4109,40 +4032,8 @@ void thread_scene(pst_scene data_scene)
                     _flag_repeat = true;
                     break;
 
-                    //if (_flag_set_logger)
-                    //{
-                    //    std::string str = "";
-                    //    str.append("thread_scene, scene index = ");
-                    //    str.append(std::to_string(data_scene->scene_index));
-                    //    str.append(", set repeat Start, ");
-                    //    str.append(std::to_string(av_gettime_relative()));
-
-                    //    auto logger = spdlog::get("wplayer_logger");
-                    //    logger->debug(str.c_str());
-                    //}
-
                     ////cpp_ffmpeg_wrapper_seek_pts(data_scene->ffmpeg_instance, 0);
                     //cpp_ffmpeg_wrapper_repeat_sync_group(data_scene->ffmpeg_instance);
-
-                    //if (_flag_set_logger)
-                    //{
-                    //    std::string str = "";
-                    //    str.append("thread_scene, scene index = ");
-                    //    str.append(std::to_string(data_scene->scene_index));
-                    //    str.append(", set repeat End, ");
-                    //    str.append(std::to_string(av_gettime_relative()));
-
-                    //    auto logger = spdlog::get("wplayer_logger");
-                    //    logger->debug(str.c_str());
-                    //}
-
-                    //if (_use_wait_for_vblank_repeat)
-                    //{
-                    //    if (_flag_scene_repeat == false)
-                    //    {
-                    //        _flag_scene_repeat = true;
-                    //    }
-                    //}
                 }
             }
         }
