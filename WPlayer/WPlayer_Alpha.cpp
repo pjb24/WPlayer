@@ -405,7 +405,14 @@ uint16_t _port = UINT16_MAX;
 
 bool _flag_set_logger = false;
 
+// 로그 레벨.trace: 0, debug : 1, info : 2, warn : 3, err : 4, critical : 5, off : 6
 int _log_level = 6;
+
+// 1개 로그 파일 크기. MB 단위
+int _log_file_size = 1;
+
+// 로그 파일 순환 개수.
+int _log_file_rotation_count = 3;
 
 // 텍스처 타입 선택. 0: NV12, 1: YUV
 int _texture_type = 0;
@@ -3645,6 +3652,12 @@ void config_setting()
     GetPrivateProfileString(L"WPlayer", L"log_level", L"6", result_w, 255, str_ini_path_w.c_str());
     _log_level = _ttoi(result_w);
 
+    GetPrivateProfileString(L"WPlayer", L"log_file_size", L"1", result_w, 255, str_ini_path_w.c_str());
+    _log_file_size = _ttoi(result_w);
+
+    GetPrivateProfileString(L"WPlayer", L"log_file_rotation_count", L"3", result_w, 255, str_ini_path_w.c_str());
+    _log_file_rotation_count = _ttoi(result_w);
+
     GetPrivateProfileString(L"WPlayer", L"wait_for_multiple_objects_wait_time", L"1000", result_w, 255, str_ini_path_w.c_str());
     _wait_for_multiple_objects_wait_time = _ttoi(result_w);
 
@@ -5334,11 +5347,12 @@ void normalize_rect(RECT base_rect, RECT target_rect, NormalizedRect& normalized
 
 void set_logger()
 {
-    auto max_size = 1024 * 1024;
-    auto max_files = 3;
+    auto max_size = 1024 * 1024 * _log_file_size;
+    auto max_files = _log_file_rotation_count;
 
     spdlog::init_thread_pool(8192, 1);
-    auto logger = spdlog::rotating_logger_mt<spdlog::async_factory>("wplayer_logger", "spdlogs/wplayer_log.txt", max_size, max_files);
+    //auto logger = spdlog::rotating_logger_mt<spdlog::async_factory>("wplayer_logger", "spdlogs/wplayer_log.txt", max_size, max_files);
+    auto logger = spdlog::rotating_logger_mt("wplayer_logger", "spdlogs/wplayer_log.txt", max_size, max_files);
 
     spdlog::set_level(spdlog::level::level_enum(_log_level));
     spdlog::flush_every(std::chrono::seconds(3));
