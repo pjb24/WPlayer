@@ -244,7 +244,7 @@ typedef struct st_pipeline_state_object
 
 typedef struct st_command_list
 {
-    ID3D12GraphicsCommandList* command_list = nullptr;
+    std::vector<ID3D12GraphicsCommandList*> vector_command_list;
 
     UINT device_index = UINT_MAX;
 
@@ -394,6 +394,8 @@ constexpr UINT _frame_buffer_count = 3;
 constexpr UINT _rtv_descriptor_count = 4096;
 constexpr UINT _srv_descriptor_count = 4096;
 constexpr int _texture_resource_count_nv12 = 2;
+constexpr int _count_command_allocator = 3;
+constexpr int _count_command_list = 3;
 
 #pragma region Config Values
 
@@ -640,9 +642,9 @@ void delete_outputs();
 void delete_adapters();
 void delete_factory();
 
-void create_vertex_buffer(pst_device data_device);
+void create_vertex_buffer(pst_device data_device, int index_command_list);
 void delete_vertex_buffers();
-void create_index_buffer(pst_device data_device);
+void create_index_buffer(pst_device data_device, int index_command_list);
 void delete_index_buffers();
 void create_texture(pst_device data_device, UINT64 width, UINT height, int counter_texture);
 void delete_textures();
@@ -1110,7 +1112,7 @@ void create_command_allocators()
 
         pst_command_allocator data_command_allocator = new st_command_allocator();
 
-        for (UINT i = 0; i < _frame_buffer_count * 2; i++)
+        for (UINT i = 0; i < _count_command_allocator * 2; i++)
         {
             ID3D12CommandAllocator* command_allocator = nullptr;
 
@@ -1255,17 +1257,21 @@ void create_command_lists()
         auto it_pso = _map_pso.find(data_device->device_index);
         pst_pso data_pso = it_pso->second;
 
-        ID3D12GraphicsCommandList* command_list = nullptr;
-
-        hr = data_device->device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, data_command_allocator->vector_command_allocator[0], data_pso->pso, IID_PPV_ARGS(&command_list));
-        command_list->Close();
-
-        NAME_D3D12_OBJECT_INDEXED(command_list, data_device->device_index, L"ID3D12GraphicsCommandList");
-
         pst_command_list data_command_list = new st_command_list();
 
-        data_command_list->command_list = command_list;
         data_command_list->device_index = data_device->device_index;
+
+        for (size_t i = 0; i < _count_command_list * 2; i++)
+        {
+            ID3D12GraphicsCommandList* command_list = nullptr;
+
+            hr = data_device->device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, data_command_allocator->vector_command_allocator[0], data_pso->pso, IID_PPV_ARGS(&command_list));
+            command_list->Close();
+
+            NAME_D3D12_OBJECT_INDEXED_2(command_list, data_device->device_index, i, L"ID3D12GraphicsCommandList");
+
+            data_command_list->vector_command_list.push_back(command_list);
+        }
 
         _map_command_list.insert({ data_command_list->device_index, data_command_list });
     }
@@ -1628,10 +1634,17 @@ void delete_command_lists()
     {
         pst_command_list data_command_list = it_command_list->second;
 
-        if (data_command_list->command_list)
+        if (data_command_list->vector_command_list.size() != 0)
         {
-            data_command_list->command_list->Release();
-            data_command_list->command_list = nullptr;
+            for (auto it_vector = data_command_list->vector_command_list.begin(); it_vector != data_command_list->vector_command_list.end();)
+            {
+                ID3D12GraphicsCommandList* command_list = *it_vector;
+
+                command_list->Release();
+                command_list = nullptr;
+
+                it_vector = data_command_list->vector_command_list.erase(it_vector);
+            }
         }
 
         delete data_command_list;
@@ -1843,7 +1856,7 @@ void delete_factory()
 }
 
 
-void create_vertex_buffer(pst_device data_device)
+void create_vertex_buffer(pst_device data_device, int index_command_list)
 {
     HRESULT hr = S_OK;
 
@@ -1919,10 +1932,10 @@ void create_vertex_buffer(pst_device data_device)
         pst_command_list data_command_list = it_command_list->second;
 
         CD3DX12_RESOURCE_BARRIER transition_barrier = CD3DX12_RESOURCE_BARRIER::Transition(vertex_buffer, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_COPY_DEST);
-        data_command_list->command_list->ResourceBarrier(1, &transition_barrier);
-        UpdateSubresources(data_command_list->command_list, vertex_buffer, vertex_upload_buffer, 0, 0, 1, &vertex_data);
+        data_command_list->vector_command_list.at(index_command_list)->ResourceBarrier(1, &transition_barrier);
+        UpdateSubresources(data_command_list->vector_command_list.at(index_command_list), vertex_buffer, vertex_upload_buffer, 0, 0, 1, &vertex_data);
         transition_barrier = CD3DX12_RESOURCE_BARRIER::Transition(vertex_buffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-        data_command_list->command_list->ResourceBarrier(1, &transition_barrier);
+        data_command_list->vector_command_list.at(index_command_list)->ResourceBarrier(1, &transition_barrier);
 
         vertex_buffer_view.BufferLocation = vertex_buffer->GetGPUVirtualAddress();
         vertex_buffer_view.StrideInBytes = sizeof(Vertex);
@@ -2007,7 +2020,7 @@ void delete_vertex_buffers()
     _mutex_map_vertex_buffer_view->unlock();
 }
 
-void create_index_buffer(pst_device data_device)
+void create_index_buffer(pst_device data_device, int index_command_list)
 {
     HRESULT hr = S_OK;
 
@@ -2056,10 +2069,10 @@ void create_index_buffer(pst_device data_device)
     pst_command_list data_command_list = it_command_list->second;
 
     CD3DX12_RESOURCE_BARRIER transition_barrier = CD3DX12_RESOURCE_BARRIER::Transition(index_buffer, D3D12_RESOURCE_STATE_INDEX_BUFFER, D3D12_RESOURCE_STATE_COPY_DEST);
-    data_command_list->command_list->ResourceBarrier(1, &transition_barrier);
-    UpdateSubresources(data_command_list->command_list, index_buffer, index_upload_buffer, 0, 0, 1, &index_data);
+    data_command_list->vector_command_list.at(index_command_list)->ResourceBarrier(1, &transition_barrier);
+    UpdateSubresources(data_command_list->vector_command_list.at(index_command_list), index_buffer, index_upload_buffer, 0, 0, 1, &index_data);
     transition_barrier = CD3DX12_RESOURCE_BARRIER::Transition(index_buffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER);
-    data_command_list->command_list->ResourceBarrier(1, &transition_barrier);
+    data_command_list->vector_command_list.at(index_command_list)->ResourceBarrier(1, &transition_barrier);
 
     index_buffer_view.BufferLocation = index_buffer->GetGPUVirtualAddress();
     index_buffer_view.Format = DXGI_FORMAT_R32_UINT;
@@ -3582,21 +3595,29 @@ void thread_device(pst_device data_device)
 
     bool flag_created = false;
 
-    int rtv_index = -1;
+    int index_command_allocator = -1;
     int srv_index = -1;
 
     float color_offset = 0.0f;
 
     std::vector<pst_scene> vector_scene;
 
+    int index_command_list = -1;
+
     while (data_device->flag_thread_device)
     {
         //std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time_main_loop));
 
-        rtv_index += 1;
-        if (!(rtv_index < _frame_buffer_count))
+        index_command_allocator += 1;
+        if (!(index_command_allocator < _frame_buffer_count))
         {
-            rtv_index = 0;
+            index_command_allocator = 0;
+        }
+
+        index_command_list += 1;
+        if (!(index_command_list < _count_command_list))
+        {
+            index_command_list = 0;
         }
 
         srv_index += 1;
@@ -3631,8 +3652,8 @@ void thread_device(pst_device data_device)
             break;
         }
 
-        ID3D12CommandAllocator* command_allocator = data_command_allocator->vector_command_allocator.at(rtv_index);
-        ID3D12GraphicsCommandList* command_list = data_command_list->command_list;
+        ID3D12CommandAllocator* command_allocator = data_command_allocator->vector_command_allocator.at(index_command_allocator);
+        ID3D12GraphicsCommandList* command_list = data_command_list->vector_command_list.at(index_command_list);
         ID3D12PipelineState* pso = data_pso->pso;
 
         command_allocator->Reset();
@@ -3674,7 +3695,6 @@ void thread_device(pst_device data_device)
         auto it_srv_handle_chrominance = _map_srv_handle_chrominance.find(data_device->device_index);
         _mutex_map_srv_handle_chrominance->unlock();
         pst_srv_handle data_srv_handle_chrominance = it_srv_handle_chrominance->second;
-
 
         command_list->SetGraphicsRootSignature(data_root_sig->root_sig);
 
@@ -3777,19 +3797,27 @@ void thread_upload(pst_device data_device)
 
     bool flag_created = false;
 
-    int upload_index = 2;
+    int index_command_allocator_upload = _count_command_allocator - 1;
     int srv_index = -1;
 
     std::vector<pst_scene> vector_scene;
+
+    int index_command_list_upload = _count_command_list - 1;
 
     while (data_device->flag_thread_upload)
     {
         //std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time_main_loop));
 
-        upload_index += 1;
-        if (!(upload_index < 6))
+        index_command_allocator_upload += 1;
+        if (!(index_command_allocator_upload < _count_command_allocator * 2))
         {
-            upload_index = 3;
+            index_command_allocator_upload = _count_command_allocator;
+        }
+
+        index_command_list_upload += 1;
+        if (!(index_command_list_upload < _count_command_list * 2))
+        {
+            index_command_list_upload = _count_command_list;
         }
 
         srv_index += 1;
@@ -3845,8 +3873,8 @@ void thread_upload(pst_device data_device)
             break;
         }
 
-        ID3D12CommandAllocator* command_allocator = data_command_allocator->vector_command_allocator.at(upload_index);
-        ID3D12GraphicsCommandList* command_list = data_command_list->command_list;
+        ID3D12CommandAllocator* command_allocator = data_command_allocator->vector_command_allocator.at(index_command_allocator_upload);
+        ID3D12GraphicsCommandList* command_list = data_command_list->vector_command_list.at(index_command_list_upload);
         ID3D12PipelineState* pso = data_pso->pso;
 
         command_allocator->Reset();
@@ -3854,8 +3882,8 @@ void thread_upload(pst_device data_device)
 
         if (flag_created == false)
         {
-            create_vertex_buffer(data_device);
-            create_index_buffer(data_device);
+            create_vertex_buffer(data_device, index_command_list_upload);
+            create_index_buffer(data_device, index_command_list_upload);
 
             int counter_scene = 0;
             for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
