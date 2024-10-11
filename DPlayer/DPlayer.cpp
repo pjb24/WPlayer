@@ -416,7 +416,6 @@ constexpr UINT _frame_buffer_count = 3;
 constexpr UINT _rtv_descriptor_count = 4096;
 constexpr UINT _srv_descriptor_count = 4096;
 constexpr int _texture_resource_count_nv12 = 2;
-constexpr int _texture_resource_count_yuv = 3;
 
 #pragma region Config Values
 
@@ -435,9 +434,6 @@ int _log_file_size = 1;
 
 // 로그 파일 순환 개수.
 int _log_file_rotation_count = 3;
-
-// 텍스처 타입 선택. 0: NV12, 1: YUV
-int _texture_type = 0;
 
 // nvapi 사용
 bool _use_nvapi = false;
@@ -607,25 +603,6 @@ std::mutex* _mutex_map_srv_handle_luminance = nullptr;
 std::map<UINT, pst_srv_handle> _map_srv_handle_chrominance;
 std::mutex* _mutex_map_srv_handle_chrominance = nullptr;
 
-std::map<UINT, pst_texture> _map_texture_y;
-std::mutex* _mutex_map_texture_y = nullptr;
-std::map<UINT, pst_texture> _map_texture_u;
-std::mutex* _mutex_map_texture_u = nullptr;
-std::map<UINT, pst_texture> _map_texture_v;
-std::mutex* _mutex_map_texture_v = nullptr;
-std::map<UINT, pst_upload_texture> _map_upload_texture_y;
-std::mutex* _mutex_map_upload_texture_y = nullptr;
-std::map<UINT, pst_upload_texture> _map_upload_texture_u;
-std::mutex* _mutex_map_upload_texture_u = nullptr;
-std::map<UINT, pst_upload_texture> _map_upload_texture_v;
-std::mutex* _mutex_map_upload_texture_v = nullptr;
-std::map<UINT, pst_srv_handle> _map_srv_handle_y;
-std::mutex* _mutex_map_srv_handle_y = nullptr;
-std::map<UINT, pst_srv_handle> _map_srv_handle_u;
-std::mutex* _mutex_map_srv_handle_u = nullptr;
-std::map<UINT, pst_srv_handle> _map_srv_handle_v;
-std::mutex* _mutex_map_srv_handle_v = nullptr;
-
 std::map<UINT, pst_window> _map_window;
 std::map<UINT, pst_swap_chain> _map_swap_chain;
 std::map<UINT, pst_viewport> _map_viewport;
@@ -658,7 +635,6 @@ void create_command_lists();
 void create_rtv_heaps();
 void create_srv_heaps();
 void create_root_sigs();
-void create_root_sigs_yuv();
 void create_pipeline_state_objects();
 void create_fences();
 void create_swap_chains();
@@ -689,12 +665,8 @@ void create_index_buffer(pst_device data_device);
 void delete_index_buffers();
 void create_texture(pst_device data_device, UINT64 width, UINT height, int counter_texture);
 void delete_textures();
-void create_texture_yuv(pst_device data_device, UINT64 width, UINT height, int counter_texture);
-void delete_textures_yuv();
 
 void upload_texture(pst_device data_device, AVFrame* frame, int counter_texture, int srv_index);
-void upload_texture_yuv(pst_device data_device, AVFrame* frame, int counter_texture, int srv_index);
-
 
 void initialize_swap_lock(ID3D12Device* device, IDXGISwapChain1* swap_chain);
 void initialize_swap_locks();
@@ -730,9 +702,7 @@ void vector_input(st_input_object data);
 void thread_wait_for_multiple_objects(WaitType wait_type, bool* flag_thread);
 
 void thread_device(pst_device data_device);
-void thread_device_yuv(pst_device data_device);
 void thread_upload(pst_device data_device);
-void thread_upload_yuv(pst_device data_device);
 void thread_window(pst_window data_window);
 void thread_scene(pst_scene data_scene);
 
@@ -1239,63 +1209,6 @@ void create_root_sigs()
     }
 }
 
-void create_root_sigs_yuv()
-{
-    for (auto it_device = _map_device.begin(); it_device != _map_device.end(); it_device++)
-    {
-        pst_device data_device = it_device->second;
-
-        CD3DX12_DESCRIPTOR_RANGE1 ranges[_texture_resource_count_yuv]{};
-        CD3DX12_ROOT_PARAMETER1 root_parameters[_texture_resource_count_yuv]{};
-
-        // srv 1
-        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
-        root_parameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_PIXEL);
-
-        // srv 2
-        ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 2);
-        root_parameters[1].InitAsDescriptorTable(1, &ranges[1], D3D12_SHADER_VISIBILITY_PIXEL);
-
-        // srv 3
-        ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 3);
-        root_parameters[2].InitAsDescriptorTable(1, &ranges[2], D3D12_SHADER_VISIBILITY_PIXEL);
-
-        D3D12_STATIC_SAMPLER_DESC sampler{};
-        sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-        sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-        sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-        sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-        sampler.MipLODBias = 0;
-        sampler.MaxAnisotropy = 0;
-        sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-        sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-        sampler.MinLOD = 0.0f;
-        sampler.MaxLOD = D3D12_FLOAT32_MAX;
-        sampler.ShaderRegister = 0;
-        sampler.RegisterSpace = 0;
-        sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-
-        CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC root_sig_desc{};
-        root_sig_desc.Init_1_1(_countof(root_parameters), root_parameters, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
-        ID3D12RootSignature* root_sig = nullptr;
-
-        ComPtr<ID3DBlob> signature;
-        ComPtr<ID3DBlob> error;
-        D3D12SerializeVersionedRootSignature(&root_sig_desc, &signature, &error);
-        data_device->device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&root_sig));
-
-        NAME_D3D12_OBJECT_INDEXED(root_sig, data_device->device_index, L"ID3D12RootSignature");
-
-        pst_root_signature data_root_sig = new st_root_signature();
-
-        data_root_sig->root_sig = root_sig;
-        data_root_sig->device_index = data_device->device_index;
-
-        _map_root_sig.insert({ data_root_sig->device_index, data_root_sig });
-    }
-}
-
 void create_pipeline_state_objects()
 {
     HRESULT hr = S_OK;
@@ -1310,18 +1223,9 @@ void create_pipeline_state_objects()
     UINT compile_flags = 0;
 #endif
 
-    if (_texture_type == 0)
-    {
-        // NV12
-        hr = D3DCompileFromFile(get_asset_full_path(L"shaders_nv12.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compile_flags, 0, &vertex_shader, nullptr);
-        hr = D3DCompileFromFile(get_asset_full_path(L"shaders_nv12.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compile_flags, 0, &pixel_shader, nullptr);
-    }
-    else
-    {
-        // YUV
-        hr = D3DCompileFromFile(get_asset_full_path(L"shaders.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compile_flags, 0, &vertex_shader, nullptr);
-        hr = D3DCompileFromFile(get_asset_full_path(L"shaders.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compile_flags, 0, &pixel_shader, nullptr);
-    }
+    // NV12
+    hr = D3DCompileFromFile(get_asset_full_path(L"shaders_nv12.hlsl").c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compile_flags, 0, &vertex_shader, nullptr);
+    hr = D3DCompileFromFile(get_asset_full_path(L"shaders_nv12.hlsl").c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compile_flags, 0, &pixel_shader, nullptr);
 
     D3D12_INPUT_ELEMENT_DESC input_element_descs[] =
     {
@@ -2447,533 +2351,6 @@ void delete_textures()
     _mutex_map_srv_handle_chrominance->unlock();
 }
 
-void create_texture_yuv(pst_device data_device, UINT64 width, UINT height, int counter_texture)
-{
-    HRESULT hr = S_OK;
-
-    auto it_srv_heap = _map_srv_heap.find(data_device->device_index);
-    pst_srv_heap data_srv_heap = it_srv_heap->second;
-    D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu(data_srv_heap->srv_heap->GetCPUDescriptorHandleForHeapStart());
-    D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu(data_srv_heap->srv_heap->GetGPUDescriptorHandleForHeapStart());
-
-    const UINT srv_descriptor_size = data_device->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-    _mutex_map_texture_y->lock();
-    pst_texture data_texture_y = nullptr;
-    auto it_texture_y = _map_texture_y.find(data_device->device_index);
-    if (it_texture_y != _map_texture_y.end())
-    {
-        data_texture_y = it_texture_y->second;
-    }
-    else
-    {
-        data_texture_y = new st_texture();
-        _map_texture_y.insert({ data_device->device_index, data_texture_y });
-    }
-    _mutex_map_texture_y->unlock();
-    _mutex_map_texture_u->lock();
-    pst_texture data_texture_u = nullptr;
-    auto it_texture_u = _map_texture_u.find(data_device->device_index);
-    if (it_texture_u != _map_texture_u.end())
-    {
-        data_texture_u = it_texture_u->second;
-    }
-    else
-    {
-        data_texture_u = new st_texture();
-        _map_texture_u.insert({ data_device->device_index, data_texture_u });
-    }
-    _mutex_map_texture_u->unlock();
-    _mutex_map_texture_v->lock();
-    pst_texture data_texture_v = nullptr;
-    auto it_texture_v = _map_texture_v.find(data_device->device_index);
-    if (it_texture_v != _map_texture_v.end())
-    {
-        data_texture_v = it_texture_v->second;
-    }
-    else
-    {
-        data_texture_v = new st_texture();
-        _map_texture_v.insert({ data_device->device_index, data_texture_v });
-    }
-    _mutex_map_texture_v->unlock();
-
-    _mutex_map_upload_texture_y->lock();
-    pst_upload_texture data_upload_texture_y = nullptr;
-    auto it_upload_texture_y = _map_upload_texture_y.find(data_device->device_index);
-    if (it_upload_texture_y != _map_upload_texture_y.end())
-    {
-        data_upload_texture_y = it_upload_texture_y->second;
-    }
-    else
-    {
-        data_upload_texture_y = new st_upload_texture();
-        _map_upload_texture_y.insert({ data_device->device_index, data_upload_texture_y });
-    }
-    _mutex_map_upload_texture_y->unlock();
-    _mutex_map_upload_texture_u->lock();
-    pst_upload_texture data_upload_texture_u = nullptr;
-    auto it_upload_texture_u = _map_upload_texture_u.find(data_device->device_index);
-    if (it_upload_texture_u != _map_upload_texture_u.end())
-    {
-        data_upload_texture_u = it_upload_texture_u->second;
-    }
-    else
-    {
-        data_upload_texture_u = new st_upload_texture();
-        _map_upload_texture_u.insert({ data_device->device_index, data_upload_texture_u });
-    }
-    _mutex_map_upload_texture_u->unlock();
-    _mutex_map_upload_texture_v->lock();
-    pst_upload_texture data_upload_texture_v = nullptr;
-    auto it_upload_texture_v = _map_upload_texture_v.find(data_device->device_index);
-    if (it_upload_texture_v != _map_upload_texture_v.end())
-    {
-        data_upload_texture_v = it_upload_texture_v->second;
-    }
-    else
-    {
-        data_upload_texture_v = new st_upload_texture();
-        _map_upload_texture_v.insert({ data_device->device_index, data_upload_texture_v });
-    }
-    _mutex_map_upload_texture_v->unlock();
-
-    _mutex_map_srv_handle_y->lock();
-    pst_srv_handle data_srv_handle_y = nullptr;
-    auto it_srv_handle_y = _map_srv_handle_y.find(data_device->device_index);
-    if (it_srv_handle_y != _map_srv_handle_y.end())
-    {
-        data_srv_handle_y = it_srv_handle_y->second;
-    }
-    else
-    {
-        data_srv_handle_y = new st_srv_handle();
-        _map_srv_handle_y.insert({ data_device->device_index, data_srv_handle_y });
-    }
-    _mutex_map_srv_handle_y->unlock();
-    _mutex_map_srv_handle_u->lock();
-    pst_srv_handle data_srv_handle_u = nullptr;
-    auto it_srv_handle_u = _map_srv_handle_u.find(data_device->device_index);
-    if (it_srv_handle_u != _map_srv_handle_u.end())
-    {
-        data_srv_handle_u = it_srv_handle_u->second;
-    }
-    else
-    {
-        data_srv_handle_u = new st_srv_handle();
-        _map_srv_handle_u.insert({ data_device->device_index, data_srv_handle_u });
-    }
-    _mutex_map_srv_handle_u->unlock();
-    _mutex_map_srv_handle_v->lock();
-    pst_srv_handle data_srv_handle_v = nullptr;
-    auto it_srv_handle_v = _map_srv_handle_v.find(data_device->device_index);
-    if (it_srv_handle_v != _map_srv_handle_v.end())
-    {
-        data_srv_handle_v = it_srv_handle_v->second;
-    }
-    else
-    {
-        data_srv_handle_v = new st_srv_handle();
-        _map_srv_handle_v.insert({ data_device->device_index, data_srv_handle_v });
-    }
-    _mutex_map_srv_handle_v->unlock();
-
-    D3D12_RESOURCE_DESC texture_desc{};
-    texture_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-    texture_desc.Alignment = 0;
-    texture_desc.Width = width;
-    texture_desc.Height = height;
-    texture_desc.DepthOrArraySize = 1;
-    texture_desc.MipLevels = 1;
-    texture_desc.Format = DXGI_FORMAT_R8_UNORM;
-    texture_desc.SampleDesc.Count = 1;
-    texture_desc.SampleDesc.Quality = 0;
-    texture_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    texture_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-    CD3DX12_HEAP_PROPERTIES texture_properties(D3D12_HEAP_TYPE_DEFAULT);
-
-    for (int i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
-    {
-        ID3D12Resource* texture_y = nullptr;
-        hr = data_device->device->CreateCommittedResource(
-            &texture_properties,
-            D3D12_HEAP_FLAG_NONE,
-            &texture_desc,
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-            nullptr,
-            IID_PPV_ARGS(&texture_y)
-        );
-        data_texture_y->vector_texture.push_back(texture_y);
-        NAME_D3D12_OBJECT_INDEXED_2(texture_y, data_device->device_index, i, L"ID3D12Resource_texture_y");
-    }
-
-    texture_desc.Width /= 2;
-    texture_desc.Height /= 2;
-
-    for (int i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
-    {
-        ID3D12Resource* texture_u = nullptr;
-        hr = data_device->device->CreateCommittedResource(
-            &texture_properties,
-            D3D12_HEAP_FLAG_NONE,
-            &texture_desc,
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-            nullptr,
-            IID_PPV_ARGS(&texture_u)
-        );
-        data_texture_u->vector_texture.push_back(texture_u);
-        NAME_D3D12_OBJECT_INDEXED_2(texture_u, data_device->device_index, i, L"ID3D12Resource_texture_u");
-    }
-    for (int i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
-    {
-        ID3D12Resource* texture_v = nullptr;
-        hr = data_device->device->CreateCommittedResource(
-            &texture_properties,
-            D3D12_HEAP_FLAG_NONE,
-            &texture_desc,
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-            nullptr,
-            IID_PPV_ARGS(&texture_v)
-        );
-        data_texture_v->vector_texture.push_back(texture_v);
-        NAME_D3D12_OBJECT_INDEXED_2(texture_v, data_device->device_index, i, L"ID3D12Resource_texture_v");
-    }
-
-
-    D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout_y{};
-    UINT numRows_y = 0;
-    UINT64 rowSizeInBytes_y = 0;
-    UINT64 totalBytes_y = 0;
-
-    texture_desc.Format = DXGI_FORMAT_R8_TYPELESS;
-    texture_desc.Width = width;
-    texture_desc.Height = height;
-
-    data_device->device->GetCopyableFootprints(&texture_desc, 0, 1, 0, &layout_y, &numRows_y, &rowSizeInBytes_y, &totalBytes_y);
-
-    D3D12_RESOURCE_DESC upload_desc{};
-    upload_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    upload_desc.Alignment = 0;
-    upload_desc.Width = totalBytes_y;
-    upload_desc.Height = 1;
-    upload_desc.DepthOrArraySize = 1;
-    upload_desc.MipLevels = 1;
-    upload_desc.Format = DXGI_FORMAT_UNKNOWN;
-    upload_desc.SampleDesc.Count = 1;
-    upload_desc.SampleDesc.Quality = 0;
-    upload_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    upload_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-    CD3DX12_HEAP_PROPERTIES texture_upload_heap_properties(D3D12_HEAP_TYPE_UPLOAD);
-
-    data_upload_texture_y->layout = layout_y;
-    data_upload_texture_y->numRows = numRows_y;
-    data_upload_texture_y->rowSizeInBytes = rowSizeInBytes_y;
-    data_upload_texture_y->totalBytes = totalBytes_y;
-
-    for (int i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
-    {
-        ID3D12Resource* upload_texture_y = nullptr;
-        hr = data_device->device->CreateCommittedResource(
-            &texture_upload_heap_properties,
-            D3D12_HEAP_FLAG_NONE,
-            &upload_desc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&upload_texture_y)
-        );
-        data_upload_texture_y->vector_texture.push_back(upload_texture_y);
-
-        NAME_D3D12_OBJECT_INDEXED_2(upload_texture_y, data_device->device_index, i, L"ID3D12Resource_upload_texture_y");
-    }
-
-
-    D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout_u{};
-    UINT numRows_u = 0;
-    UINT64 rowSizeInBytes_u = 0;
-    UINT64 totalBytes_u = 0;
-
-    texture_desc.Width /= 2;
-    texture_desc.Height /= 2;
-
-    data_device->device->GetCopyableFootprints(&texture_desc, 0, 1, 0, &layout_u, &numRows_u, &rowSizeInBytes_u, &totalBytes_u);
-
-    upload_desc.Width = totalBytes_u;
-
-    data_upload_texture_u->layout = layout_u;
-    data_upload_texture_u->numRows = numRows_u;
-    data_upload_texture_u->rowSizeInBytes = rowSizeInBytes_u;
-    data_upload_texture_u->totalBytes = totalBytes_u;
-
-    for (int i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
-    {
-        ID3D12Resource* upload_texture_u = nullptr;
-        hr = data_device->device->CreateCommittedResource(
-            &texture_upload_heap_properties,
-            D3D12_HEAP_FLAG_NONE,
-            &upload_desc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&upload_texture_u)
-        );
-        data_upload_texture_u->vector_texture.push_back(upload_texture_u);
-
-        NAME_D3D12_OBJECT_INDEXED_2(upload_texture_u, data_device->device_index, i, L"ID3D12Resource_upload_texture_u");
-    }
-
-    D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout_v{};
-    UINT numRows_v = 0;
-    UINT64 rowSizeInBytes_v = 0;
-    UINT64 totalBytes_v = 0;
-
-    data_device->device->GetCopyableFootprints(&texture_desc, 0, 1, 0, &layout_v, &numRows_v, &rowSizeInBytes_v, &totalBytes_v);
-
-    upload_desc.Width = totalBytes_v;
-
-    data_upload_texture_v->layout = layout_v;
-    data_upload_texture_v->numRows = numRows_v;
-    data_upload_texture_v->rowSizeInBytes = rowSizeInBytes_v;
-    data_upload_texture_v->totalBytes = totalBytes_v;
-
-    for (int i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
-    {
-        ID3D12Resource* upload_texture_v = nullptr;
-        hr = data_device->device->CreateCommittedResource(
-            &texture_upload_heap_properties,
-            D3D12_HEAP_FLAG_NONE,
-            &upload_desc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&upload_texture_v)
-        );
-        data_upload_texture_v->vector_texture.push_back(upload_texture_v);
-
-        NAME_D3D12_OBJECT_INDEXED_2(upload_texture_v, data_device->device_index, i, L"ID3D12Resource_upload_texture_v");
-    }
-
-
-    D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc{};
-    srv_desc.Format = DXGI_FORMAT_R8_UNORM;
-    srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srv_desc.Texture2D.MostDetailedMip = 0;
-    srv_desc.Texture2D.MipLevels = 1;
-    srv_desc.Texture2D.PlaneSlice = 0;
-    srv_desc.Texture2D.ResourceMinLODClamp = 0.0f;
-
-    srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + INT64(srv_descriptor_size * (_count_texture_store * counter_texture * _texture_resource_count_yuv)));
-    srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + INT64(srv_descriptor_size * (_count_texture_store * counter_texture * _texture_resource_count_yuv)));
-
-    for (int i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
-    {
-        ID3D12Resource* texture_y = data_texture_y->vector_texture.at(i);
-        ID3D12Resource* texture_u = data_texture_u->vector_texture.at(i);
-        ID3D12Resource* texture_v = data_texture_v->vector_texture.at(i);
-
-        D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_y = srv_handle_cpu;
-        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
-        D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_u = srv_handle_cpu;
-        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
-        D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_v = srv_handle_cpu;
-        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
-
-        data_device->device->CreateShaderResourceView(texture_y, &srv_desc, srv_handle_cpu_y);
-        data_srv_handle_y->vector_handle_cpu.push_back(srv_handle_cpu_y);
-        data_device->device->CreateShaderResourceView(texture_u, &srv_desc, srv_handle_cpu_u);
-        data_srv_handle_u->vector_handle_cpu.push_back(srv_handle_cpu_u);
-        data_device->device->CreateShaderResourceView(texture_v, &srv_desc, srv_handle_cpu_v);
-        data_srv_handle_v->vector_handle_cpu.push_back(srv_handle_cpu_v);
-
-
-        D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu_y = srv_handle_gpu;
-        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
-        data_srv_handle_y->vector_handle_gpu.push_back(srv_handle_gpu_y);
-
-        D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu_u = srv_handle_gpu;
-        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
-        data_srv_handle_u->vector_handle_gpu.push_back(srv_handle_gpu_u);
-
-        D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu_v = srv_handle_gpu;
-        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
-        data_srv_handle_v->vector_handle_gpu.push_back(srv_handle_gpu_v);
-    }
-}
-
-void delete_textures_yuv()
-{
-    _mutex_map_texture_y->lock();
-    for (auto it_texture_y = _map_texture_y.begin(); it_texture_y != _map_texture_y.end();)
-    {
-        pst_texture data_texture_y = it_texture_y->second;
-
-        for (auto it_vector = data_texture_y->vector_texture.begin(); it_vector != data_texture_y->vector_texture.end();)
-        {
-            ID3D12Resource* resource = *it_vector;
-
-            resource->Release();
-            resource = nullptr;
-
-            it_vector = data_texture_y->vector_texture.erase(it_vector);
-        }
-
-        delete data_texture_y;
-        data_texture_y = nullptr;
-
-        it_texture_y = _map_texture_y.erase(it_texture_y);
-    }
-    _mutex_map_texture_y->unlock();
-    _mutex_map_texture_u->lock();
-    for (auto it_texture_u = _map_texture_u.begin(); it_texture_u != _map_texture_u.end();)
-    {
-        pst_texture data_texture_u = it_texture_u->second;
-
-        for (auto it_vector = data_texture_u->vector_texture.begin(); it_vector != data_texture_u->vector_texture.end();)
-        {
-            ID3D12Resource* resource = *it_vector;
-
-            resource->Release();
-            resource = nullptr;
-
-            it_vector = data_texture_u->vector_texture.erase(it_vector);
-        }
-
-        delete data_texture_u;
-        data_texture_u = nullptr;
-
-        it_texture_u = _map_texture_u.erase(it_texture_u);
-    }
-    _mutex_map_texture_u->unlock();
-    _mutex_map_texture_v->lock();
-    for (auto it_texture_v = _map_texture_v.begin(); it_texture_v != _map_texture_v.end();)
-    {
-        pst_texture data_texture_v = it_texture_v->second;
-
-        for (auto it_vector = data_texture_v->vector_texture.begin(); it_vector != data_texture_v->vector_texture.end();)
-        {
-            ID3D12Resource* resource = *it_vector;
-
-            resource->Release();
-            resource = nullptr;
-
-            it_vector = data_texture_v->vector_texture.erase(it_vector);
-        }
-
-        delete data_texture_v;
-        data_texture_v = nullptr;
-
-        it_texture_v = _map_texture_v.erase(it_texture_v);
-    }
-    _mutex_map_texture_v->unlock();
-
-    _mutex_map_upload_texture_y->lock();
-    for (auto it_upload_texture_y = _map_upload_texture_y.begin(); it_upload_texture_y != _map_upload_texture_y.end();)
-    {
-        pst_upload_texture data_upload_texture_y = it_upload_texture_y->second;
-
-        for (auto it_vector = data_upload_texture_y->vector_texture.begin(); it_vector != data_upload_texture_y->vector_texture.end();)
-        {
-            ID3D12Resource* resource = *it_vector;
-
-            resource->Release();
-            resource = nullptr;
-
-            it_vector = data_upload_texture_y->vector_texture.erase(it_vector);
-        }
-
-        delete data_upload_texture_y;
-        data_upload_texture_y = nullptr;
-
-        it_upload_texture_y = _map_upload_texture_y.erase(it_upload_texture_y);
-    }
-    _mutex_map_upload_texture_y->unlock();
-    _mutex_map_upload_texture_u->lock();
-    for (auto it_upload_texture_u = _map_upload_texture_u.begin(); it_upload_texture_u != _map_upload_texture_u.end();)
-    {
-        pst_upload_texture data_upload_texture_u = it_upload_texture_u->second;
-
-        for (auto it_vector = data_upload_texture_u->vector_texture.begin(); it_vector != data_upload_texture_u->vector_texture.end();)
-        {
-            ID3D12Resource* resource = *it_vector;
-
-            resource->Release();
-            resource = nullptr;
-
-            it_vector = data_upload_texture_u->vector_texture.erase(it_vector);
-        }
-
-        delete data_upload_texture_u;
-        data_upload_texture_u = nullptr;
-
-        it_upload_texture_u = _map_upload_texture_u.erase(it_upload_texture_u);
-    }
-    _mutex_map_upload_texture_u->unlock();
-    _mutex_map_upload_texture_v->lock();
-    for (auto it_upload_texture_v = _map_upload_texture_v.begin(); it_upload_texture_v != _map_upload_texture_v.end();)
-    {
-        pst_upload_texture data_upload_texture_v = it_upload_texture_v->second;
-
-        for (auto it_vector = data_upload_texture_v->vector_texture.begin(); it_vector != data_upload_texture_v->vector_texture.end();)
-        {
-            ID3D12Resource* resource = *it_vector;
-
-            resource->Release();
-            resource = nullptr;
-
-            it_vector = data_upload_texture_v->vector_texture.erase(it_vector);
-        }
-
-        delete data_upload_texture_v;
-        data_upload_texture_v = nullptr;
-
-        it_upload_texture_v = _map_upload_texture_v.erase(it_upload_texture_v);
-    }
-    _mutex_map_upload_texture_v->unlock();
-
-    _mutex_map_srv_handle_y->lock();
-    for (auto it_srv_handle_y = _map_srv_handle_y.begin(); it_srv_handle_y != _map_srv_handle_y.end();)
-    {
-        pst_srv_handle data_srv_handle = it_srv_handle_y->second;
-
-        data_srv_handle->vector_handle_cpu.clear();
-        data_srv_handle->vector_handle_gpu.clear();
-
-        delete data_srv_handle;
-        data_srv_handle = nullptr;
-
-        it_srv_handle_y = _map_srv_handle_y.erase(it_srv_handle_y);
-    }
-    _mutex_map_srv_handle_y->unlock();
-    _mutex_map_srv_handle_u->lock();
-    for (auto it_srv_handle_u = _map_srv_handle_u.begin(); it_srv_handle_u != _map_srv_handle_u.end();)
-    {
-        pst_srv_handle data_srv_handle = it_srv_handle_u->second;
-
-        data_srv_handle->vector_handle_cpu.clear();
-        data_srv_handle->vector_handle_gpu.clear();
-
-        delete data_srv_handle;
-        data_srv_handle = nullptr;
-
-        it_srv_handle_u = _map_srv_handle_u.erase(it_srv_handle_u);
-    }
-    _mutex_map_srv_handle_u->unlock();
-    _mutex_map_srv_handle_v->lock();
-    for (auto it_srv_handle_v = _map_srv_handle_v.begin(); it_srv_handle_v != _map_srv_handle_v.end();)
-    {
-        pst_srv_handle data_srv_handle = it_srv_handle_v->second;
-
-        data_srv_handle->vector_handle_cpu.clear();
-        data_srv_handle->vector_handle_gpu.clear();
-
-        delete data_srv_handle;
-        data_srv_handle = nullptr;
-
-        it_srv_handle_v = _map_srv_handle_v.erase(it_srv_handle_v);
-    }
-    _mutex_map_srv_handle_v->unlock();
-}
-
 void upload_texture(pst_device data_device, AVFrame* frame, int counter_texture, int srv_index)
 {
     //auto it_command_list = _map_command_list.find(data_device->device_index);
@@ -3016,97 +2393,6 @@ void upload_texture(pst_device data_device, AVFrame* frame, int counter_texture,
     srv_desc.Texture2D.PlaneSlice = 1;
     data_device->device->CreateShaderResourceView(srcResource, &srv_desc, srv_handle_cpu_chrominance);
 }
-
-void upload_texture_yuv(pst_device data_device, AVFrame* frame, int counter_texture, int srv_index)
-{
-    auto it_command_list = _map_command_list.find(data_device->device_index);
-    pst_command_list data_command_list = it_command_list->second;
-
-    _mutex_map_texture_y->lock();
-    auto it_texture_y = _map_texture_y.find(data_device->device_index);
-    pst_texture data_texture_y = it_texture_y->second;
-    _mutex_map_texture_y->unlock();
-    _mutex_map_texture_u->lock();
-    auto it_texture_u = _map_texture_u.find(data_device->device_index);
-    pst_texture data_texture_u = it_texture_u->second;
-    _mutex_map_texture_u->unlock();
-    _mutex_map_texture_v->lock();
-    auto it_texture_v = _map_texture_v.find(data_device->device_index);
-    pst_texture data_texture_v = it_texture_v->second;
-    _mutex_map_texture_v->unlock();
-
-    _mutex_map_upload_texture_y->lock();
-    auto it_upload_texture_y = _map_upload_texture_y.find(data_device->device_index);
-    pst_upload_texture data_upload_texture_y = it_upload_texture_y->second;
-    _mutex_map_upload_texture_y->unlock();
-    _mutex_map_upload_texture_u->lock();
-    auto it_upload_texture_u = _map_upload_texture_u.find(data_device->device_index);
-    pst_upload_texture data_upload_texture_u = it_upload_texture_u->second;
-    _mutex_map_upload_texture_u->unlock();
-    _mutex_map_upload_texture_v->lock();
-    auto it_upload_texture_v = _map_upload_texture_v.find(data_device->device_index);
-    pst_upload_texture data_upload_texture_v = it_upload_texture_v->second;
-    _mutex_map_upload_texture_v->unlock();
-
-    int texture_index = (_count_texture_store * counter_texture) + srv_index;
-
-    ID3D12Resource* texture_y = nullptr;
-    ID3D12Resource* texture_u = nullptr;
-    ID3D12Resource* texture_v = nullptr;
-    ID3D12Resource* upload_texture_y = nullptr;
-    ID3D12Resource* upload_texture_u = nullptr;
-    ID3D12Resource* upload_texture_v = nullptr;
-
-    texture_y = data_texture_y->vector_texture.at(texture_index);
-    texture_u = data_texture_u->vector_texture.at(texture_index);
-    texture_v = data_texture_v->vector_texture.at(texture_index);
-    upload_texture_y = data_upload_texture_y->vector_texture.at(texture_index);
-    upload_texture_u = data_upload_texture_u->vector_texture.at(texture_index);
-    upload_texture_v = data_upload_texture_v->vector_texture.at(texture_index);
-
-    D3D12_SUBRESOURCE_DATA texture_data_y{};
-    texture_data_y.pData = frame->data[0];
-    texture_data_y.RowPitch = frame->linesize[0];
-    texture_data_y.SlicePitch = texture_data_y.RowPitch * frame->height;
-    D3D12_SUBRESOURCE_DATA texture_data_u{};
-    texture_data_u.pData = frame->data[1];
-    texture_data_u.RowPitch = frame->linesize[1];
-    texture_data_u.SlicePitch = texture_data_u.RowPitch * frame->height / 2;
-    D3D12_SUBRESOURCE_DATA texture_data_v{};
-    texture_data_v.pData = frame->data[2];
-    texture_data_v.RowPitch = frame->linesize[2];
-    texture_data_v.SlicePitch = texture_data_v.RowPitch * frame->height / 2;
-
-    CD3DX12_RESOURCE_BARRIER transition_barrier_y = CD3DX12_RESOURCE_BARRIER::Transition(texture_y, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
-    data_command_list->command_list->ResourceBarrier(1, &transition_barrier_y);
-
-    UpdateSubresources(data_command_list->command_list, texture_y, upload_texture_y, 0, 0, 1, &texture_data_y);
-
-    transition_barrier_y = CD3DX12_RESOURCE_BARRIER::Transition(texture_y, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    data_command_list->command_list->ResourceBarrier(1, &transition_barrier_y);
-
-
-    CD3DX12_RESOURCE_BARRIER transition_barrier_u = CD3DX12_RESOURCE_BARRIER::Transition(texture_u, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
-    data_command_list->command_list->ResourceBarrier(1, &transition_barrier_u);
-
-    UpdateSubresources(data_command_list->command_list, texture_u, upload_texture_u, 0, 0, 1, &texture_data_u);
-
-    transition_barrier_u = CD3DX12_RESOURCE_BARRIER::Transition(texture_u, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    data_command_list->command_list->ResourceBarrier(1, &transition_barrier_u);
-
-
-    CD3DX12_RESOURCE_BARRIER transition_barrier_v = CD3DX12_RESOURCE_BARRIER::Transition(texture_v, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
-    data_command_list->command_list->ResourceBarrier(1, &transition_barrier_v);
-
-    UpdateSubresources(data_command_list->command_list, texture_v, upload_texture_v, 0, 0, 1, &texture_data_v);
-
-    transition_barrier_v = CD3DX12_RESOURCE_BARRIER::Transition(texture_v, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    data_command_list->command_list->ResourceBarrier(1, &transition_barrier_v);
-
-
-    av_frame_unref(frame);
-}
-
 
 void initialize_swap_lock(ID3D12Device* device, IDXGISwapChain1* swap_chain)
 {
@@ -3278,20 +2564,13 @@ void create_scenes()
         void* instance = cpp_ffmpeg_wrapper_create();
         cpp_ffmpeg_wrapper_initialize(instance, callback_ffmpeg_wrapper_ptr);
 
-        if (_texture_type == 0)
-        {
-            // NV12
-            cpp_ffmpeg_wrapper_set_hw_decode(instance);
-            cpp_ffmpeg_wrapper_set_hw_device_type(instance, _hw_device_type);
-            cpp_ffmpeg_wrapper_set_hw_decode_adapter_index(instance, device_index);
+        // NV12
+        cpp_ffmpeg_wrapper_set_hw_decode(instance);
+        cpp_ffmpeg_wrapper_set_hw_device_type(instance, _hw_device_type);
+        cpp_ffmpeg_wrapper_set_hw_decode_adapter_index(instance, device_index);
 
-            cpp_ffmpeg_wrapper_set_scale(instance, false);
-        }
-        else
-        {
-            // YUV
-            cpp_ffmpeg_wrapper_set_scale(instance, true);
-        }
+        cpp_ffmpeg_wrapper_set_scale(instance, false);
+
 
         cpp_ffmpeg_wrapper_set_file_path(instance, (char*)url.c_str());
         if (cpp_ffmpeg_wrapper_open_file(instance) != 0)
@@ -3498,9 +2777,6 @@ void config_setting()
 
     GetPrivateProfileString(L"DPlayer", L"wait_for_multiple_objects_wait_time", L"1000", result_w, 255, str_ini_path_w.c_str());
     _wait_for_multiple_objects_wait_time = _ttoi(result_w);
-
-    GetPrivateProfileString(L"DPlayer", L"texture_type", L"0", result_w, 255, str_ini_path_w.c_str());
-    _texture_type = _ttoi(result_w);
 
     GetPrivateProfileString(L"DPlayer", L"use_nvapi", L"0", result_w, 255, str_ini_path_w.c_str());
     result_i = _ttoi(result_w);
@@ -4353,208 +3629,6 @@ void thread_device(pst_device data_device)
     }
 }
 
-void thread_device_yuv(pst_device data_device)
-{
-    auto it_command_allocator = _map_command_allocator.find(data_device->device_index);
-    pst_command_allocator data_command_allocator = it_command_allocator->second;
-
-    auto it_command_list = _map_command_list.find(data_device->device_index);
-    pst_command_list data_command_list = it_command_list->second;
-
-    auto it_pso = _map_pso.find(data_device->device_index);
-    pst_pso data_pso = it_pso->second;
-
-    auto it_root_sig = _map_root_sig.find(data_device->device_index);
-    pst_root_signature data_root_sig = it_root_sig->second;
-
-    auto it_srv_heap = _map_srv_heap.find(data_device->device_index);
-    pst_srv_heap data_srv_heap = it_srv_heap->second;
-
-    auto it_rtv = _map_rtv.find(data_device->device_index);
-    pst_rtv data_rtv = it_rtv->second;
-
-    auto it_viewport = _map_viewport.find(data_device->device_index);
-    pst_viewport data_viewport = it_viewport->second;
-
-    auto it_command_queue = _map_command_queue.find(data_device->device_index);
-    pst_command_queue data_command_queue = it_command_queue->second;
-
-    auto it_fence = _map_fence.find(data_device->device_index);
-    pst_fence data_fence = it_fence->second;
-
-    bool flag_created = false;
-
-    int rtv_index = -1;
-    int srv_index = -1;
-
-    float color_offset = 0.0f;
-
-    std::vector<pst_scene> vector_scene;
-
-    while (data_device->flag_thread_device)
-    {
-        //std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time_main_loop));
-
-        rtv_index += 1;
-        if (!(rtv_index < _frame_buffer_count))
-        {
-            rtv_index = 0;
-        }
-
-        srv_index += 1;
-        if (!(srv_index < _count_texture_store))
-        {
-            srv_index = 0;
-        }
-
-        {
-            std::unique_lock<std::mutex> lk(*data_device->mutex_upload_to_device);
-            if (data_device->flag_upload_to_device == false)
-            {
-                data_device->condition_variable_upload_to_device->wait(lk);
-            }
-            data_device->flag_upload_to_device = false;
-        }
-
-        if (_flag_set_logger)
-        {
-            std::string str = "";
-            str.append("thread_device, device index = ");
-            str.append(std::to_string(data_device->device_index));
-            str.append(", wait notified, ");
-            str.append(std::to_string(av_gettime_relative()));
-
-            auto logger = spdlog::get(_logger_name.c_str());
-            logger->debug(str.c_str());
-        }
-
-        ID3D12CommandAllocator* command_allocator = data_command_allocator->vector_command_allocator.at(rtv_index);
-        ID3D12GraphicsCommandList* command_list = data_command_list->command_list;
-        ID3D12PipelineState* pso = data_pso->pso;
-
-        command_allocator->Reset();
-        command_list->Reset(command_allocator, pso);
-
-        if (flag_created == false)
-        {
-            for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
-            {
-                pst_scene data_scene = it_scene->second;
-
-                if (data_scene->device_index != data_device->device_index)
-                {
-                    continue;
-                }
-
-                vector_scene.push_back(data_scene);
-            }
-
-            flag_created = true;
-        }
-
-        _mutex_map_index_buffer_view->lock();
-        auto it_index_buffer_view = _map_index_buffer_view.find(data_device->device_index);
-        pst_index_buffer_view data_index_buffer_view = it_index_buffer_view->second;
-        _mutex_map_index_buffer_view->unlock();
-
-        _mutex_map_vertex_buffer_view->lock();
-        auto it_vertex_buffer_view = _map_vertex_buffer_view.find(data_device->device_index);
-        pst_vertex_buffer_view data_vertex_buffer_view = it_vertex_buffer_view->second;
-        _mutex_map_vertex_buffer_view->unlock();
-
-        _mutex_map_srv_handle_y->lock();
-        auto it_srv_handle_y = _map_srv_handle_y.find(data_device->device_index);
-        pst_srv_handle data_srv_handle_y = it_srv_handle_y->second;
-        _mutex_map_srv_handle_y->unlock();
-        _mutex_map_srv_handle_u->lock();
-        auto it_srv_handle_u = _map_srv_handle_u.find(data_device->device_index);
-        pst_srv_handle data_srv_handle_u = it_srv_handle_u->second;
-        _mutex_map_srv_handle_u->unlock();
-        _mutex_map_srv_handle_v->lock();
-        auto it_srv_handle_v = _map_srv_handle_v.find(data_device->device_index);
-        pst_srv_handle data_srv_handle_v = it_srv_handle_v->second;
-        _mutex_map_srv_handle_v->unlock();
-
-        command_list->SetGraphicsRootSignature(data_root_sig->root_sig);
-
-        ID3D12DescriptorHeap* pp_heaps[] = { data_srv_heap->srv_heap };
-
-        command_list->SetDescriptorHeaps(_countof(pp_heaps), pp_heaps);
-
-        CD3DX12_RESOURCE_BARRIER barrier_before = CD3DX12_RESOURCE_BARRIER::Transition(data_rtv->vector_rtv.at(rtv_index), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        command_list->ResourceBarrier(1, &barrier_before);
-
-        command_list->OMSetRenderTargets(1, &data_rtv->vector_rtv_handle.at(rtv_index), FALSE, nullptr);
-        float color[4] = { color_offset, color_offset, color_offset, color_offset };
-        command_list->ClearRenderTargetView(data_rtv->vector_rtv_handle.at(rtv_index), color, 0, nullptr);
-        command_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-        command_list->IASetIndexBuffer(&data_index_buffer_view->index_buffer_view);
-
-        uint64_t counter = 0;
-        for (auto it_vector = vector_scene.begin(); it_vector != vector_scene.end(); it_vector++)
-        {
-            pst_scene data_scene = *it_vector;
-
-            command_list->IASetVertexBuffers(0, 1, &data_vertex_buffer_view->vector_vertex_buffer_view.at(counter));
-
-            command_list->RSSetViewports(1, &data_viewport->viewport);
-            command_list->RSSetScissorRects(1, &data_viewport->scissor_rect);
-
-            command_list->SetGraphicsRootDescriptorTable(0, data_srv_handle_y->vector_handle_gpu.at((_count_texture_store * counter) + srv_index));
-            command_list->SetGraphicsRootDescriptorTable(1, data_srv_handle_u->vector_handle_gpu.at((_count_texture_store * counter) + srv_index));
-            command_list->SetGraphicsRootDescriptorTable(2, data_srv_handle_v->vector_handle_gpu.at((_count_texture_store * counter) + srv_index));
-
-            command_list->DrawIndexedInstanced(6, 1, 0, 0, 0);
-
-            counter++;
-        }
-
-        CD3DX12_RESOURCE_BARRIER barrier_after = CD3DX12_RESOURCE_BARRIER::Transition(data_rtv->vector_rtv.at(rtv_index), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-        command_list->ResourceBarrier(1, &barrier_after);
-
-        command_list->Close();
-
-        ID3D12CommandList* command_lists[] = { command_list };
-
-        ID3D12CommandQueue* command_queue = data_command_queue->command_queue;
-
-        command_queue->ExecuteCommandLists(_countof(command_lists), command_lists);
-
-
-        data_fence->fence_value_device++;
-        if (data_fence->fence_value_device == UINT64_MAX)
-        {
-            data_fence->fence_value_device = 0;
-        }
-        data_fence->fence_device->SetEventOnCompletion(data_fence->fence_value_device, data_fence->fence_event_device);
-        command_queue->Signal(data_fence->fence_device, data_fence->fence_value_device);
-
-        WaitForSingleObject(data_fence->fence_event_device, INFINITE);
-
-
-        color_offset += 0.1f;
-        if (color_offset > 1.0f)
-        {
-            color_offset = 0.0f;
-        }
-
-        SetEvent(data_device->event_device_to_window);
-
-        if (_flag_set_logger)
-        {
-            std::string str = "";
-            str.append("thread_device, device index = ");
-            str.append(std::to_string(data_device->device_index));
-            str.append(", set event, ");
-            str.append(std::to_string(av_gettime_relative()));
-
-            auto logger = spdlog::get(_logger_name.c_str());
-            logger->debug(str.c_str());
-        }
-    }
-}
-
 void thread_upload(pst_device data_device)
 {
     auto it_command_allocator = _map_command_allocator.find(data_device->device_index);
@@ -4715,154 +3789,6 @@ void thread_upload(pst_device data_device)
 
         //    av_frame_unref(data_scene->vector_frame.at(srv_index));
         //}
-
-
-        SetEvent(data_device->event_upload_to_device);
-
-        if (_flag_set_logger)
-        {
-            std::string str = "";
-            str.append("thread_upload, device index = ");
-            str.append(std::to_string(data_device->device_index));
-            str.append(", set event, ");
-            str.append(std::to_string(av_gettime_relative()));
-
-            auto logger = spdlog::get(_logger_name.c_str());
-            logger->debug(str.c_str());
-        }
-    }
-}
-
-void thread_upload_yuv(pst_device data_device)
-{
-    auto it_command_allocator = _map_command_allocator.find(data_device->device_index);
-    pst_command_allocator data_command_allocator = it_command_allocator->second;
-
-    auto it_command_list = _map_command_list.find(data_device->device_index);
-    pst_command_list data_command_list = it_command_list->second;
-
-    auto it_pso = _map_pso.find(data_device->device_index);
-    pst_pso data_pso = it_pso->second;
-
-    auto it_command_queue = _map_command_queue.find(data_device->device_index);
-    pst_command_queue data_command_queue = it_command_queue->second;
-
-    auto it_fence = _map_fence.find(data_device->device_index);
-    pst_fence data_fence = it_fence->second;
-
-    bool flag_created = false;
-
-    int upload_index = 2;
-    int srv_index = -1;
-
-    std::vector<pst_scene> vector_scene;
-
-    while (data_device->flag_thread_upload)
-    {
-        //std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time_main_loop));
-
-        upload_index += 1;
-        if (!(upload_index < 6))
-        {
-            upload_index = 3;
-        }
-
-        srv_index += 1;
-        if (!(srv_index < _count_texture_store))
-        {
-            srv_index = 0;
-        }
-
-        {
-            std::unique_lock<std::mutex> lk(*data_device->mutex_scene_to_upload);
-            if (data_device->flag_scene_to_upload == false)
-            {
-                data_device->condition_variable_scene_to_upload->wait(lk);
-            }
-            data_device->flag_scene_to_upload = false;
-        }
-
-        if (_flag_set_logger)
-        {
-            std::string str = "";
-            str.append("thread_upload, device index = ");
-            str.append(std::to_string(data_device->device_index));
-            str.append(", wait notified, ");
-            str.append(std::to_string(av_gettime_relative()));
-
-            auto logger = spdlog::get(_logger_name.c_str());
-            logger->debug(str.c_str());
-        }
-
-        if (!data_device->flag_thread_upload)
-        {
-            break;
-        }
-
-        ID3D12CommandAllocator* command_allocator = data_command_allocator->vector_command_allocator.at(upload_index);
-        ID3D12GraphicsCommandList* command_list = data_command_list->command_list;
-        ID3D12PipelineState* pso = data_pso->pso;
-
-        command_allocator->Reset();
-        command_list->Reset(command_allocator, pso);
-
-        if (flag_created == false)
-        {
-            create_vertex_buffer(data_device);
-            create_index_buffer(data_device);
-
-            int counter_scene = 0;
-            for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
-            {
-                pst_scene data_scene = it_scene->second;
-
-                if (data_scene->device_index != data_device->device_index)
-                {
-                    continue;
-                }
-
-                AVFrame* frame = data_scene->vector_frame.at(srv_index);
-
-                uint64_t width = frame->width;
-                uint32_t height = frame->height;
-
-                create_texture_yuv(data_device, width, height, counter_scene);
-
-                vector_scene.push_back(data_scene);
-
-                counter_scene++;
-            }
-
-            flag_created = true;
-        }
-
-        int counter_texture = 0;
-        for (auto it_vector = vector_scene.begin(); it_vector != vector_scene.end(); it_vector++)
-        {
-            pst_scene data_scene = *it_vector;
-            upload_texture_yuv(data_device, data_scene->vector_frame.at(srv_index), counter_texture, srv_index);
-
-            counter_texture++;
-        }
-
-        command_list->Close();
-
-        ID3D12CommandList* command_lists[] = { command_list };
-
-        ID3D12CommandQueue* command_queue = data_command_queue->command_queue;
-
-        command_queue->ExecuteCommandLists(_countof(command_lists), command_lists);
-
-
-        data_fence->fence_value_upload++;
-        if (data_fence->fence_value_upload == UINT64_MAX)
-        {
-            data_fence->fence_value_upload = 0;
-        }
-        data_fence->fence_upload->SetEventOnCompletion(data_fence->fence_value_upload, data_fence->fence_event_upload);
-        command_queue->Signal(data_fence->fence_upload, data_fence->fence_value_upload);
-
-        WaitForSingleObject(data_fence->fence_event_upload, INFINITE);
 
 
         SetEvent(data_device->event_upload_to_device);
@@ -5339,19 +4265,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _mutex_map_srv_handle_luminance = new std::mutex();
     _mutex_map_srv_handle_chrominance = new std::mutex();
 
-    _mutex_map_texture_y = new std::mutex();
-    _mutex_map_texture_u = new std::mutex();
-    _mutex_map_texture_v = new std::mutex();
-
-    _mutex_map_upload_texture_y = new std::mutex();
-    _mutex_map_upload_texture_u = new std::mutex();
-    _mutex_map_upload_texture_v = new std::mutex();
-
-    _mutex_map_srv_handle_y = new std::mutex();
-    _mutex_map_srv_handle_u = new std::mutex();
-    _mutex_map_srv_handle_v = new std::mutex();
-
-
     if (_use_nvapi)
     {
         _nvapi_status = NvAPI_Initialize();
@@ -5373,16 +4286,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         create_command_queues();
         create_command_allocators();
 
-        if (_texture_type == 0)
-        {
-            // NV12
-            create_root_sigs();
-        }
-        else
-        {
-            // YUV
-            create_root_sigs_yuv();
-        }
+        // NV12
+        create_root_sigs();
 
         create_pipeline_state_objects();
         create_command_lists();
@@ -5570,16 +4475,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     delete_scenes();
 
-    if (_texture_type == 0)
-    {
-        // NV12
-        delete_textures();
-    }
-    else
-    {
-        // YUV
-        delete_textures_yuv();
-    }
+    // NV12
+    delete_textures();
 
     delete_vertex_buffers();
     delete_index_buffers();
@@ -5635,27 +4532,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _mutex_map_srv_handle_luminance = nullptr;
     delete _mutex_map_srv_handle_chrominance;
     _mutex_map_srv_handle_chrominance = nullptr;
-
-    delete _mutex_map_texture_y;
-    _mutex_map_texture_y = nullptr;
-    delete _mutex_map_texture_u;
-    _mutex_map_texture_u = nullptr;
-    delete _mutex_map_texture_v;
-    _mutex_map_texture_v = nullptr;
-
-    delete _mutex_map_upload_texture_y;
-    _mutex_map_upload_texture_y = nullptr;
-    delete _mutex_map_upload_texture_u;
-    _mutex_map_upload_texture_u = nullptr;
-    delete _mutex_map_upload_texture_v;
-    _mutex_map_upload_texture_v = nullptr;
-
-    delete _mutex_map_srv_handle_y;
-    _mutex_map_srv_handle_y = nullptr;
-    delete _mutex_map_srv_handle_u;
-    _mutex_map_srv_handle_u = nullptr;
-    delete _mutex_map_srv_handle_v;
-    _mutex_map_srv_handle_v = nullptr;
 
 #if _DEBUG
     d3d_memory_check();
@@ -5743,16 +4619,8 @@ void start_playback()
 
         std::thread* data_thread_device = nullptr;
 
-        if (_texture_type == 0)
-        {
-            // NV12
-            data_thread_device = new std::thread(thread_device, data_device);
-        }
-        else
-        {
-            // YUV
-            data_thread_device = new std::thread(thread_device_yuv, data_device);
-        }
+        // NV12
+        data_thread_device = new std::thread(thread_device, data_device);
 
         _map_thread_device.insert({ data_device->device_index, data_thread_device });
     }
@@ -5763,16 +4631,8 @@ void start_playback()
 
         std::thread* data_thread_upload = nullptr;
 
-        if (_texture_type == 0)
-        {
-            // NV12
-            data_thread_upload = new std::thread(thread_upload, data_device);
-        }
-        else
-        {
-            // YUV
-            data_thread_upload = new std::thread(thread_upload_yuv, data_device);
-        }
+        // NV12
+        data_thread_upload = new std::thread(thread_upload, data_device);
 
         _map_thread_upload.insert({ data_device->device_index, data_thread_upload });
     }
@@ -5972,16 +4832,8 @@ int play_repeat_instance_delete()
 
     delete_scenes();
 
-    if (_texture_type == 0)
-    {
-        // NV12
-        delete_textures();
-    }
-    else
-    {
-        // YUV
-        delete_textures_yuv();
-    }
+    // NV12
+    delete_textures();
 
     delete_vertex_buffers();
     delete_index_buffers();
