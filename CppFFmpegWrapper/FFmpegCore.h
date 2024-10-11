@@ -8,6 +8,8 @@ static AVPixelFormat _hw_pix_fmt;
 class FFmpegCore
 {
 public:
+    FFmpegCore();
+
     bool initialize(CALLBACK_PTR cb);
     void shutdown();
 
@@ -55,29 +57,29 @@ private:
     const int _thread_count_4k = 8;
     const int _thread_count_4k_higher = 16;
 
-    int _logical_processor_count = 0;
-    int _logical_processor_count_half = 0;
+    int _logical_processor_count;
+    int _logical_processor_count_half;
 
-    void* _connection_play_start = nullptr;
+    void* _connection_play_start;
 
-    bool    _first_decode = false;
-    int64_t _previous_frame_pts = 0;
-    double _time_started = 0.0;
+    bool    _first_decode;
+    int64_t _previous_frame_pts;
+    double _time_started;
+    
+    bool _sync_group_frame_numbering;
 
-    bool _sync_group_frame_numbering = false;
+    uint32_t _frame_numbering;  // sync_group_frame_numbering 호출되면 올라감
+    uint32_t _frame_count;  // 다음 frame으로 이동할 때 올라감
 
-    uint32_t _frame_numbering = 0;  // sync_group_frame_numbering 호출되면 올라감
-    uint32_t _frame_count = 0;  // 다음 frame으로 이동할 때 올라감
-
-    bool _repeat_flag = false;
+    bool _repeat_flag;
 
 #pragma region HW_Decode
-    bool _hw_decode = false;
+    bool _hw_decode;
     AVHWDeviceType _hw_device_type = AVHWDeviceType::AV_HWDEVICE_TYPE_NONE;
-    AVBufferRef* _hw_device_ctx = nullptr;
-    int _hw_decode_adapter_index = -1;
+    AVBufferRef* _hw_device_ctx;
+    int _hw_decode_adapter_index;
 
-    AVFrame* _hw_frame = nullptr;
+    AVFrame* _hw_frame;
 #pragma endregion
 
 #pragma region Read
@@ -96,75 +98,76 @@ private:
     void pause();
     void play_continue();
 
-    bool                _pause_flag = false;
+    bool                _pause_flag;
     std::mutex          _pause_mutex;
 #pragma endregion
 
 #pragma region Seek
     void set_timestamp(s64 pts);
 
-    bool                _seek_flag = false;
+    bool                _seek_flag;
 
-    bool                _seek_ready_flag_reader = false;
+    bool                _seek_ready_flag_reader;
     std::mutex          _seek_mutex_reader;
     std::condition_variable _seek_condition_reader;
-    bool                _seek_flag_reader = false;
+    bool                _seek_flag_reader;
 
-    bool                _seek_ready_flag_decoder = false;
+    bool                _seek_ready_flag_decoder;
     std::mutex          _seek_mutex_decoder;
     std::condition_variable _seek_condition_decoder;
-    bool                _seek_flag_decoder = false;
+    bool                _seek_flag_decoder;
 #pragma endregion
 
-    AVFormatContext* _format_ctx = nullptr;
-    AVCodecContext* _codec_ctx = nullptr;
-    s32                 _stream_index = -1;
+    AVFormatContext*    _format_ctx;
+    AVCodecContext*     _codec_ctx;
 
-    const AVCodec* _codec = nullptr;
+    int                 _stream_index = -1;
+
+    const AVCodec*      _codec;
 
     std::string         _file_path;
 
-    AVDictionary* _option = nullptr;
+    AVDictionary*       _option;
 
-    AVRational          _time_base = { 0, 1 };
-    double              _time_base_d = 0.0f;
-    s64                 _duration = 0;  // 스트림 총 길이
-    s64                 _duration_frame = 0; // 1 Frame의 길이
-    double              _duration_frame_half = 0.0;    // 1 Frame의 길이 절반
-    s64                 _start_time = 0;
+    AVRational          _time_base;
+    double              _time_base_d;
+    s64                 _duration;  // 스트림 총 길이
+    s64                 _duration_frame; // 1 Frame의 길이
+    double              _duration_frame_half;    // 1 Frame의 길이 절반
+    s64                 _start_time;
 
-    bool                _read_flag = false;
-    bool                _decode_flag = false;
+    bool                _read_flag;
+    bool                _decode_flag;
 
     std::thread         _read_thread;
     std::thread         _decode_thread;
 
 
-    bool                _codec_opened = false;
-    bool                _eof_read = false;
-    bool                _eof_decode = false;
-    bool                _eof_read2 = false;
+    bool                _codec_opened;
+    bool                _eof_read;
+    bool                _eof_decode;
+    bool                _eof_read2;
 
     std::mutex          _play_mutex;
 
 
-    CALLBACK_PTR _callback_ffmpeg = nullptr;
-    u32 _scene_index = u32_invalid_id;
-    RECT _rect = { 0, 0, 0, 0 };
-    u32 _sync_group_index = u32_invalid_id;
-    u16 _sync_group_count = 0;
-    u16 _url_size = 0;
+    CALLBACK_PTR _callback_ffmpeg;
+    u32 _scene_index;
+    RECT _rect;
+    u32 _sync_group_index;
+    u16 _sync_group_count;
+    u16 _url_size;
 
 #pragma region Scale
     void scale(AVFrame* frame);
 
-    AVPixelFormat       _scale_dest_format = AVPixelFormat::AV_PIX_FMT_YUV420P;
-    AVFrame* _scale_frame = nullptr;
-    SwsContext* _sws_ctx = nullptr;
+    AVPixelFormat       _scale_dest_format;
+    AVFrame*            _scale_frame;
+    SwsContext*         _sws_ctx;
 
-    int                 _scale_alloc_size = 0;
+    int                 _scale_alloc_size;
 
-    bool                _scale = true;
+    bool                _scale;
 #pragma endregion
 
 #pragma region circular queue
@@ -212,16 +215,16 @@ private:
     s32 get_frame_queue_size();
 
     AVPacket* _packet_queue[_packet_queue_size];
-    s32                 _input_packet_index = 0;
-    s32                 _output_packet_index = 0;
+    s32                 _input_packet_index;
+    s32                 _output_packet_index;
     std::mutex          _packet_mutex;
-    bool                _packet_queue_free = false;
+    bool                _packet_queue_free;
 
     AVFrame* _frame_queue[_frame_queue_size];
-    s32                 _input_frame_index = 0;
-    s32                 _output_frame_index = 0;
+    s32                 _input_frame_index;
+    s32                 _output_frame_index;
     std::mutex          _frame_mutex;
-    bool                _frame_queue_free = false;
+    bool                _frame_queue_free;
 
 #pragma endregion
 

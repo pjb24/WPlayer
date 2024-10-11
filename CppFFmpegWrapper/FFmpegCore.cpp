@@ -2,6 +2,88 @@
 
 #include "FFmpegCore.h"
 
+FFmpegCore::FFmpegCore()
+{
+    _logical_processor_count = 0;
+    _logical_processor_count_half = 0;
+
+    _connection_play_start = nullptr;
+
+    _first_decode = false;
+    _previous_frame_pts = 0;
+    _time_started = 0.0;
+
+    _sync_group_frame_numbering = false;
+
+    _frame_numbering = 0;
+    _frame_count = 0;
+
+    _repeat_flag = false;
+
+    _hw_decode = false;
+    _hw_device_type = AVHWDeviceType::AV_HWDEVICE_TYPE_NONE;
+    _hw_device_ctx = nullptr;
+    _hw_decode_adapter_index = -1;
+
+    _hw_frame = nullptr;
+
+    _pause_flag = false;
+
+    _seek_flag = false;
+
+    _seek_ready_flag_reader = false;
+    _seek_flag_reader = false;
+
+    _seek_ready_flag_decoder = false;
+    _seek_flag_decoder = false;
+
+    _format_ctx = nullptr;
+    _codec_ctx = nullptr;
+
+    _stream_index = -1;
+
+    _codec = nullptr;
+
+    _option = nullptr;
+
+    _time_base = { 0, 1 };
+    _time_base_d = 0.0;
+    _duration = 0;
+    _duration_frame = 0;
+    _duration_frame_half = 0.0;
+    _start_time = 0;
+
+    _read_flag = false;
+    _decode_flag = false;
+
+    _codec_opened = false;
+    _eof_read = false;
+    _eof_decode = false;
+    _eof_read2 = false;
+
+    _callback_ffmpeg = nullptr;
+
+    _scene_index = u32_invalid_id;
+    _rect = { 0, 0, 0, 0 };
+    _sync_group_index = u32_invalid_id;
+    _sync_group_count = 0;
+    _url_size = 0;
+
+    _scale_dest_format = AVPixelFormat::AV_PIX_FMT_YUV420P;
+    _scale_frame = nullptr;
+    _sws_ctx = nullptr;
+
+    _scale_alloc_size = 0;
+    _scale = true;
+
+    _input_packet_index = 0;
+    _output_packet_index = 0;
+    _packet_queue_free = false;
+
+    _input_frame_index = 0;
+    _output_frame_index = 0;
+    _frame_queue_free = false;
+}
 bool FFmpegCore::initialize(CALLBACK_PTR cb)
 {
     UINT packet_index = 0;
@@ -50,14 +132,23 @@ bool FFmpegCore::initialize(CALLBACK_PTR cb)
 
 void FFmpegCore::shutdown()
 {
-    av_frame_free(&_hw_frame);
-    _hw_frame = nullptr;
+    if (_hw_frame)
+    {
+        av_frame_free(&_hw_frame);
+        _hw_frame = nullptr;
+    }
 
-    av_frame_free(&_scale_frame);
-    _scale_frame = nullptr;
+    if (_scale_frame)
+    {
+        av_frame_free(&_scale_frame);
+        _scale_frame = nullptr;
+    }
 
-    sws_freeContext(_sws_ctx);
-    _sws_ctx = nullptr;
+    if (_sws_ctx)
+    {
+        sws_freeContext(_sws_ctx);
+        _sws_ctx = nullptr;
+    }
 
     if (_codec_ctx != nullptr)
     {
@@ -456,10 +547,12 @@ void FFmpegCore::read()
 
         while (true)
         {
+            open_codec();
+
             result = read_internal(packet);
             if (result == error_type::ok)
             {
-                open_codec();
+                //open_codec();
 
                 while (true)
                 {

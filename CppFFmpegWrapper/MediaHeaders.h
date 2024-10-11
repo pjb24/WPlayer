@@ -18,7 +18,7 @@ extern "C"
 #pragma comment(lib, "swscale.lib")
 
 constexpr u32 _packet_queue_size = 60;
-constexpr u32 _frame_queue_size = frame_buffer_count;
+constexpr u32 _frame_queue_size = 3;
 constexpr u32 _jump_length = 5000;  // milliseconds
 
 constexpr u32 _sleep_time = 1;
