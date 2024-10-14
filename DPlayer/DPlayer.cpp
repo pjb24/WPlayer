@@ -370,7 +370,11 @@ typedef struct st_srv_handle
 
 typedef struct st_scene
 {
-    void* ffmpeg_instance = nullptr;
+    std::map<int, void*> map_ffmpeg_instance;
+    int map_ffmpeg_instance_capacity = 3;
+    int index_ffmpeg_instance_current = 0;
+    int index_ffmpeg_instance_last = 0;
+    int index_ffmpeg_instance_delete = 0;
 
     std::string url;
     RECT rect{ 0, 0, 0, 0 };
@@ -609,8 +613,6 @@ std::map<UINT, pst_viewport> _map_viewport;
 
 std::string _logger_name;
 
-bool _flag_repeat = false;
-
 DWORD _wait_for_multiple_objects_wait_time = 1000;
 
 // --------------------------------
@@ -717,6 +719,11 @@ void start_playback();
 int play_repeat_instance_recreate();
 int play_repeat_instance_delete();
 int play_repeat_instance_create();
+
+int create_ffmpeg_instance(void*& instance, UINT device_index, std::string url, UINT scene_index, RECT rect);
+int create_ffmpeg_instance_with_scene_index(void*& instance, UINT device_index, std::string url, UINT scene_index, RECT rect);
+
+int check_map_ffmpeg_instance_repeat(pst_scene data_scene);
 
 // --------------------------------
 
@@ -2569,34 +2576,25 @@ void create_scenes()
             }
         }
 
-        void* instance = cpp_ffmpeg_wrapper_create();
-        cpp_ffmpeg_wrapper_initialize(instance, callback_ffmpeg_wrapper_ptr);
-
-        // NV12
-        cpp_ffmpeg_wrapper_set_hw_decode(instance);
-        cpp_ffmpeg_wrapper_set_hw_device_type(instance, _hw_device_type);
-        cpp_ffmpeg_wrapper_set_hw_decode_adapter_index(instance, device_index);
-
-        cpp_ffmpeg_wrapper_set_scale(instance, false);
-
-
-        cpp_ffmpeg_wrapper_set_file_path(instance, (char*)url.c_str());
-        if (cpp_ffmpeg_wrapper_open_file(instance) != 0)
+        int result = 0;
+        void* instance_0 = nullptr;
+        result = create_ffmpeg_instance(instance_0, device_index, url, scene_index, rect);
+        if (result != 0)
         {
-            cpp_ffmpeg_wrapper_shutdown(instance);
-            cpp_ffmpeg_wrapper_delete(instance);
-
             continue;
         }
 
-
-        cpp_ffmpeg_wrapper_set_scene_index(instance, scene_index);
-        cpp_ffmpeg_wrapper_set_rect(instance, rect);
-        cpp_ffmpeg_wrapper_play_start(instance, nullptr);
-
+        void* instance_1 = nullptr;
+        create_ffmpeg_instance_with_scene_index(instance_1, device_index, url, scene_index, rect);
+        
+        void* instance_2 = nullptr;
+        create_ffmpeg_instance_with_scene_index(instance_2, device_index, url, scene_index, rect);
 
         pst_scene data_scene = new st_scene();
-        data_scene->ffmpeg_instance = instance;
+
+        data_scene->map_ffmpeg_instance.insert({ 0, instance_0 });
+        data_scene->map_ffmpeg_instance.insert({ 1, instance_1 });
+        data_scene->map_ffmpeg_instance.insert({ 2, instance_2 });
 
         data_scene->url = url;
         data_scene->rect = rect;
@@ -2670,12 +2668,17 @@ void delete_scenes()
     {
         pst_scene data_scene = it_scene->second;
 
-        if (data_scene->ffmpeg_instance)
+        for (auto it = data_scene->map_ffmpeg_instance.begin(); it != data_scene->map_ffmpeg_instance.end();)
         {
-            cpp_ffmpeg_wrapper_play_stop(data_scene->ffmpeg_instance, nullptr);
-            cpp_ffmpeg_wrapper_shutdown(data_scene->ffmpeg_instance);
-            cpp_ffmpeg_wrapper_delete(data_scene->ffmpeg_instance);
-            data_scene->ffmpeg_instance = nullptr;
+            if (it->second != nullptr)
+            {
+                cpp_ffmpeg_wrapper_play_stop(it->second, nullptr);
+                cpp_ffmpeg_wrapper_shutdown(it->second);
+                cpp_ffmpeg_wrapper_delete(it->second);
+                it->second = nullptr;
+            }
+
+            it = data_scene->map_ffmpeg_instance.erase(it);
         }
 
         for (auto it_vector = data_scene->vector_frame.begin(); it_vector != data_scene->vector_frame.end();)
@@ -2872,15 +2875,6 @@ void thread_packet_processing()
 
         if (flag_processing_command_is_empty)
         {
-            if (_flag_repeat)
-            {
-                if (!(_map_scene_url.empty() || _map_scene_coordinate.empty()))
-                {
-                    play_repeat_instance_recreate();
-                }
-
-                _flag_repeat = false;
-            }
             std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time_processing));
             continue;
         }
@@ -3956,7 +3950,13 @@ void thread_scene(pst_scene data_scene)
 
     bool flag_to_next = false;
 
+    void* ffmpeg_instance_current = nullptr;
+    auto it_ffmpeg_instance_current = data_scene->map_ffmpeg_instance.find(data_scene->index_ffmpeg_instance_current);
+    ffmpeg_instance_current = it_ffmpeg_instance_current->second;
+
     bool flag_first = true;
+
+    bool flag_repeat = false;
 
     while (data_scene->flag_thread_scene)
     {
@@ -3969,7 +3969,7 @@ void thread_scene(pst_scene data_scene)
         result = INT32_MIN;
         while (result < 0)
         {
-            result = cpp_ffmpeg_wrapper_get_frame(data_scene->ffmpeg_instance, data_scene->vector_frame.at(frame_index));
+            result = cpp_ffmpeg_wrapper_get_frame(ffmpeg_instance_current, data_scene->vector_frame.at(frame_index));
 
             // queue empty
             if (result == -1)
@@ -3982,11 +3982,41 @@ void thread_scene(pst_scene data_scene)
             // EOS / EOF
             else if (result == -2)
             {
-                _flag_repeat = true;
-                break;
+                // 사용하는 ffmpeg instance의 index 변경
 
-                ////cpp_ffmpeg_wrapper_seek_pts(data_scene->ffmpeg_instance, 0);
-                //cpp_ffmpeg_wrapper_repeat_sync_group(data_scene->ffmpeg_instance);
+                if (flag_repeat == false)
+                {
+                    data_scene->index_ffmpeg_instance_current++;
+                    if (data_scene->index_ffmpeg_instance_current == data_scene->map_ffmpeg_instance_capacity)
+                    {
+                        data_scene->index_ffmpeg_instance_current = 0;
+                    }
+
+                    if (data_scene->index_ffmpeg_instance_current == 0)
+                    {
+                        data_scene->index_ffmpeg_instance_last = data_scene->map_ffmpeg_instance_capacity - 1;
+                    }
+                    else
+                    {
+                        data_scene->index_ffmpeg_instance_last = data_scene->index_ffmpeg_instance_current - 1;
+                    }
+
+                    if (data_scene->index_ffmpeg_instance_last == 0)
+                    {
+                        data_scene->index_ffmpeg_instance_delete = data_scene->map_ffmpeg_instance_capacity - 1;
+                    }
+                    else
+                    {
+                        data_scene->index_ffmpeg_instance_delete = data_scene->index_ffmpeg_instance_last - 1;
+                    }
+
+                    it_ffmpeg_instance_current = data_scene->map_ffmpeg_instance.find(data_scene->index_ffmpeg_instance_current);
+                    ffmpeg_instance_current = it_ffmpeg_instance_current->second;
+
+                    check_map_ffmpeg_instance_repeat(data_scene);
+
+                    flag_repeat = true;
+                }
             }
             // return >= 0
             // success
@@ -4001,16 +4031,11 @@ void thread_scene(pst_scene data_scene)
 
                 data_scene->flag_ready_to_frame_use = true;
 
-                if (_flag_repeat == true)
+                if (flag_repeat == true)
                 {
-                    _flag_repeat = false;
+                    flag_repeat = false;
                 }
             }
-        }
-
-        if (_flag_repeat)
-        {
-            continue;
         }
 
         // CppFFmpegWrapper frame_to_next
@@ -4022,11 +4047,7 @@ void thread_scene(pst_scene data_scene)
             {
                 counter_scene_fps = -1;
 
-                result = INT32_MIN;
-                while (result != 0)
-                {
-                    result = cpp_ffmpeg_wrapper_frame_to_next_non_waiting(data_scene->ffmpeg_instance);
-                }
+                cpp_ffmpeg_wrapper_frame_to_next_non_waiting(ffmpeg_instance_current);
             }
 
             flag_to_next = false;
@@ -4859,6 +4880,80 @@ int play_repeat_instance_delete()
 int play_repeat_instance_create()
 {
     start_playback();
+
+    return 0;
+}
+
+int create_ffmpeg_instance(void*& instance, UINT device_index, std::string url, UINT scene_index, RECT rect)
+{
+    instance = cpp_ffmpeg_wrapper_create();
+    cpp_ffmpeg_wrapper_initialize(instance, callback_ffmpeg_wrapper_ptr);
+
+    // NV12
+    cpp_ffmpeg_wrapper_set_hw_decode(instance);
+    cpp_ffmpeg_wrapper_set_hw_device_type(instance, _hw_device_type);
+    cpp_ffmpeg_wrapper_set_hw_decode_adapter_index(instance, device_index);
+
+    cpp_ffmpeg_wrapper_set_scale(instance, false);
+
+    cpp_ffmpeg_wrapper_set_file_path(instance, (char*)url.c_str());
+    if (cpp_ffmpeg_wrapper_open_file(instance) != 0)
+    {
+        cpp_ffmpeg_wrapper_shutdown(instance);
+        cpp_ffmpeg_wrapper_delete(instance);
+
+        return 1;
+    }
+
+    cpp_ffmpeg_wrapper_set_scene_index(instance, scene_index);
+    cpp_ffmpeg_wrapper_set_rect(instance, rect);
+    cpp_ffmpeg_wrapper_play_start(instance, nullptr);
+
+    return 0;
+}
+
+int create_ffmpeg_instance_with_scene_index(void*& instance, UINT device_index, std::string url, UINT scene_index, RECT rect)
+{
+    instance = cpp_ffmpeg_wrapper_create();
+    cpp_ffmpeg_wrapper_initialize(instance, callback_ffmpeg_wrapper_ptr);
+
+    // NV12
+    cpp_ffmpeg_wrapper_set_hw_decode(instance);
+    cpp_ffmpeg_wrapper_set_hw_device_type(instance, _hw_device_type);
+    cpp_ffmpeg_wrapper_set_hw_decode_adapter_index(instance, device_index);
+
+    cpp_ffmpeg_wrapper_set_scale(instance, false);
+
+    cpp_ffmpeg_wrapper_set_file_path(instance, (char*)url.c_str());
+    if (cpp_ffmpeg_wrapper_open_file(instance) != 0)
+    {
+        cpp_ffmpeg_wrapper_shutdown(instance);
+        cpp_ffmpeg_wrapper_delete(instance);
+
+        return 1;
+    }
+
+    cpp_ffmpeg_wrapper_set_scene_index(instance, scene_index);
+    cpp_ffmpeg_wrapper_set_rect(instance, rect);
+    cpp_ffmpeg_wrapper_play_start(instance, nullptr);
+
+    return 0;
+}
+
+int check_map_ffmpeg_instance_repeat(pst_scene data_scene)
+{
+    void* ffmpeg_instance_delete = nullptr;
+
+    auto it_ffmpeg_instance_delete = data_scene->map_ffmpeg_instance.find(data_scene->index_ffmpeg_instance_delete);
+    if (it_ffmpeg_instance_delete->second != nullptr)
+    {
+        ffmpeg_instance_delete = it_ffmpeg_instance_delete->second;
+    }
+
+    if (ffmpeg_instance_delete != nullptr)
+    {
+        cpp_ffmpeg_wrapper_start_thread_repeat(ffmpeg_instance_delete);
+    }
 
     return 0;
 }
