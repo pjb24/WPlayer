@@ -140,6 +140,8 @@ typedef struct st_device
     std::mutex* mutex_scene_to_upload = nullptr;
     bool flag_scene_to_upload = false;
 
+    bool flag_ready_to_device_use = false;
+
 }*pst_device;
 
 typedef struct st_output
@@ -373,6 +375,8 @@ typedef struct st_scene
     bool flag_window_to_scene = false;
 
     std::vector<AVFrame*> vector_frame;
+
+    bool flag_ready_to_frame_use = false;
 
 }*pst_scene;
 
@@ -3541,6 +3545,40 @@ void thread_wait_for_multiple_objects(WaitType wait_type, bool* flag_thread)
             continue;
         }
 
+        if (wait_type == WaitType::scene_to_upload)
+        {
+            int count_scene = _map_scene.size();
+
+            for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
+            {
+                pst_scene data_scene = it_scene->second;
+
+                if (data_scene->flag_ready_to_frame_use == true)
+                {
+                    count_scene--;
+                }
+            }
+
+            if (count_scene == 0)
+            {
+                for (auto it_device = _map_device.begin(); it_device != _map_device.end(); it_device++)
+                {
+                    pst_device data_device = it_device->second;
+
+                    data_device->flag_ready_to_device_use = true;
+                }
+            }
+            else
+            {
+                for (auto it_device = _map_device.begin(); it_device != _map_device.end(); it_device++)
+                {
+                    pst_device data_device = it_device->second;
+
+                    data_device->flag_ready_to_device_use = false;
+                }
+            }
+        }
+
         // Notify to condition variables
         for (int i = 0; i < n_cv_count; i++)
         {
@@ -3593,7 +3631,7 @@ void thread_device(pst_device data_device)
         }
     }
 
-    bool flag_created = false;
+    bool flag_vector_ready = false;
 
     int index_command_allocator = -1;
     int srv_index = -1;
@@ -3606,25 +3644,7 @@ void thread_device(pst_device data_device)
 
     while (data_device->flag_thread_device)
     {
-        //std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time_main_loop));
-
-        index_command_allocator += 1;
-        if (!(index_command_allocator < _frame_buffer_count))
-        {
-            index_command_allocator = 0;
-        }
-
-        index_command_list += 1;
-        if (!(index_command_list < _count_command_list))
-        {
-            index_command_list = 0;
-        }
-
-        srv_index += 1;
-        if (!(srv_index < _count_texture_store))
-        {
-            srv_index = 0;
-        }
+        // flag_ready_to_device_use false - index to 0
 
         {
             std::unique_lock<std::mutex> lk(*data_device->mutex_upload_to_device);
@@ -3647,6 +3667,27 @@ void thread_device(pst_device data_device)
             logger->debug(str.c_str());
         }
 
+        index_command_allocator += 1;
+        if (!(index_command_allocator < _count_command_allocator))
+        {
+            index_command_allocator = 0;
+        }
+
+        index_command_list += 1;
+        if (!(index_command_list < _count_command_list))
+        {
+            index_command_list = 0;
+        }
+
+        if (data_device->flag_ready_to_device_use)
+        {
+            srv_index += 1;
+            if (!(srv_index < _count_texture_store))
+            {
+                srv_index = 0;
+            }
+        }
+
         if (!data_device->flag_thread_device)
         {
             break;
@@ -3659,7 +3700,7 @@ void thread_device(pst_device data_device)
         command_allocator->Reset();
         command_list->Reset(command_allocator, pso);
 
-        if (flag_created == false)
+        if (flag_vector_ready == false)
         {
             for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
             {
@@ -3673,7 +3714,7 @@ void thread_device(pst_device data_device)
                 vector_scene.push_back(data_scene);
             }
 
-            flag_created = true;
+            flag_vector_ready = true;
         }
 
         _mutex_map_index_buffer_view->lock();
@@ -3795,7 +3836,7 @@ void thread_upload(pst_device data_device)
     auto it_fence = _map_fence.find(data_device->device_index);
     pst_fence data_fence = it_fence->second;
 
-    bool flag_created = false;
+    bool flag_buffer_created = false;
 
     int index_command_allocator_upload = _count_command_allocator - 1;
     int srv_index = -1;
@@ -3806,25 +3847,7 @@ void thread_upload(pst_device data_device)
 
     while (data_device->flag_thread_upload)
     {
-        //std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time_main_loop));
-
-        index_command_allocator_upload += 1;
-        if (!(index_command_allocator_upload < _count_command_allocator * 2))
-        {
-            index_command_allocator_upload = _count_command_allocator;
-        }
-
-        index_command_list_upload += 1;
-        if (!(index_command_list_upload < _count_command_list * 2))
-        {
-            index_command_list_upload = _count_command_list;
-        }
-
-        srv_index += 1;
-        if (!(srv_index < _count_texture_store))
-        {
-            srv_index = 0;
-        }
+        // flag_ready_to_frame_use false - index to 0
 
         {
             std::unique_lock<std::mutex> lk(*data_device->mutex_scene_to_upload);
@@ -3847,7 +3870,28 @@ void thread_upload(pst_device data_device)
             logger->debug(str.c_str());
         }
 
-        if (flag_created == true)
+        index_command_allocator_upload += 1;
+        if (!(index_command_allocator_upload < _count_command_allocator * 2))
+        {
+            index_command_allocator_upload = _count_command_allocator;
+        }
+
+        index_command_list_upload += 1;
+        if (!(index_command_list_upload < _count_command_list * 2))
+        {
+            index_command_list_upload = _count_command_list;
+        }
+
+        if (data_device->flag_ready_to_device_use)
+        {
+            srv_index += 1;
+            if (!(srv_index < _count_texture_store))
+            {
+                srv_index = 0;
+            }
+        }
+
+        if (flag_buffer_created == true)
         {
             int temp_index = 0;
 
@@ -3880,7 +3924,7 @@ void thread_upload(pst_device data_device)
         command_allocator->Reset();
         command_list->Reset(command_allocator, pso);
 
-        if (flag_created == false)
+        if (flag_buffer_created == false)
         {
             create_vertex_buffer(data_device, index_command_list_upload);
             create_index_buffer(data_device, index_command_list_upload);
@@ -3907,17 +3951,19 @@ void thread_upload(pst_device data_device)
                 counter_scene++;
             }
 
-            flag_created = true;
+            flag_buffer_created = true;
         }
 
-
-        int counter_texture = 0;
-        for (auto it_vector = vector_scene.begin(); it_vector != vector_scene.end(); it_vector++)
+        if (data_device->flag_ready_to_device_use)
         {
-            pst_scene data_scene = *it_vector;
-            upload_texture(data_device, data_scene->vector_frame.at(srv_index), counter_texture, srv_index);
+            int counter_texture = 0;
+            for (auto it_vector = vector_scene.begin(); it_vector != vector_scene.end(); it_vector++)
+            {
+                pst_scene data_scene = *it_vector;
+                upload_texture(data_device, data_scene->vector_frame.at(srv_index), counter_texture, srv_index);
 
-            counter_texture++;
+                counter_texture++;
+            }
         }
 
         command_list->Close();
@@ -4058,6 +4104,10 @@ void thread_scene(pst_scene data_scene)
 
     int64_t counter_scene_fps = -1;
 
+    bool flag_to_next = false;
+
+    bool flag_first = true;
+
     while (data_scene->flag_thread_scene)
     {
         frame_index += 1;
@@ -4071,15 +4121,39 @@ void thread_scene(pst_scene data_scene)
         {
             result = cpp_ffmpeg_wrapper_get_frame(data_scene->ffmpeg_instance, data_scene->vector_frame.at(frame_index));
 
-            if (_use_play_repeat)
+            // queue empty
+            if (result == -1)
             {
-                if (result == -2)
+                if (flag_first == true)
                 {
-                    _flag_repeat = true;
-                    break;
+                    continue;
+                }
+            }
+            // EOS / EOF
+            else if (result == -2)
+            {
+                _flag_repeat = true;
+                break;
 
-                    ////cpp_ffmpeg_wrapper_seek_pts(data_scene->ffmpeg_instance, 0);
-                    //cpp_ffmpeg_wrapper_repeat_sync_group(data_scene->ffmpeg_instance);
+                ////cpp_ffmpeg_wrapper_seek_pts(data_scene->ffmpeg_instance, 0);
+                //cpp_ffmpeg_wrapper_repeat_sync_group(data_scene->ffmpeg_instance);
+            }
+            // return >= 0
+            // success
+            else
+            {
+                if (flag_first == true)
+                {
+                    flag_first = false;
+                }
+
+                flag_to_next = true;
+
+                data_scene->flag_ready_to_frame_use = true;
+
+                if (_flag_repeat == true)
+                {
+                    _flag_repeat = false;
                 }
             }
         }
@@ -4089,31 +4163,23 @@ void thread_scene(pst_scene data_scene)
             continue;
         }
 
-        counter_scene_fps++;
-        if (!(counter_scene_fps < _count_scene_fps))
+        // CppFFmpegWrapper frame_to_next
+        // get_frame - result >= 0
+        if (flag_to_next == true)
         {
-            counter_scene_fps = -1;
-
-            result = INT32_MIN;
-            while (result != 0)
+            counter_scene_fps++;
+            if (!(counter_scene_fps < _count_scene_fps))
             {
-                result = cpp_ffmpeg_wrapper_frame_to_next_non_waiting(data_scene->ffmpeg_instance);
+                counter_scene_fps = -1;
 
-                if (_flag_set_logger)
+                result = INT32_MIN;
+                while (result != 0)
                 {
-                    if (result == 10)
-                    {
-                        std::string str = "";
-                        str.append("thread_scene, scene index = ");
-                        str.append(std::to_string(data_scene->scene_index));
-                        str.append(", frame queue empty, ");
-                        str.append(std::to_string(av_gettime_relative()));
-
-                        auto logger = spdlog::get("wplayer_logger");
-                        logger->debug(str.c_str());
-                    }
+                    result = cpp_ffmpeg_wrapper_frame_to_next_non_waiting(data_scene->ffmpeg_instance);
                 }
             }
+            
+            flag_to_next = false;
         }
 
         SetEvent(data_scene->event_scene_to_upload);
