@@ -187,3 +187,8 @@ int32_t cpp_ffmpeg_wrapper_check_frame_to_next_sync_group(void* instance)
     return core->check_frame_to_next_sync_group();
 }
 
+void cpp_ffmpeg_wrapper_start_thread_repeat(void* instance)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->start_thread_repeat();
+}

@@ -106,14 +106,6 @@ bool FFmpegCore::initialize(CALLBACK_PTR cb)
 
     _format_ctx = avformat_alloc_context();
 
-    //_codec_ctx = avcodec_alloc_context3(nullptr);
-    //if (!_codec_ctx)
-    //{
-    //    failed_free_frame_queue(frame_index);
-    //    failed_free_packet_queue(packet_index);
-    //    return false;
-    //}
-
     _first_decode = true;
 
     _callback_ffmpeg = cb;
@@ -1159,6 +1151,88 @@ void FFmpegCore::repeat_sync_group()
 void FFmpegCore::set_scale(bool scale)
 {
     _scale = scale;
+}
+
+void FFmpegCore::thread_repeat()
+{
+    if (_read_flag == false && _decode_flag == false)
+    {
+        return;
+    }
+
+    if (_seek_flag == true)
+    {
+        return;
+    }
+
+    // 재생 일시정지
+    _seek_flag = true;
+
+    // 정지할 때까지 대기
+    while (!(_seek_ready_flag_reader && _seek_ready_flag_decoder))
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time));
+    }
+
+    _frame_count = 0;
+    _frame_numbering = 0;
+
+    _time_started = 0.0;
+
+    // 코덱 버퍼 클리어
+    flush_codec();
+
+    //if (_codec_ctx != nullptr)
+    //{
+    //    avcodec_free_context(&_codec_ctx);
+    //}
+    //
+    //_codec_opened = false;
+
+    // 큐 클리어
+    clear_packet_queue();
+    clear_frame_queue();
+
+    // 위치 이동
+    set_timestamp(0);
+
+    if (_eof_read == true)
+    {
+        _eof_read = false;
+    }
+
+    if (_eof_read2 == true)
+    {
+        _eof_read2 = false;
+    }
+
+    if (_eof_decode == true)
+    {
+        _eof_decode = false;
+    }
+
+    // 재생 시작
+    _seek_flag = false;
+
+    _seek_ready_flag_reader = false;
+    _seek_ready_flag_decoder = false;
+
+    _seek_mutex_reader.lock();
+    _seek_condition_reader.notify_one();
+    _seek_flag_reader = true;
+    _seek_mutex_reader.unlock();
+
+    _seek_mutex_decoder.lock();
+    _seek_condition_decoder.notify_one();
+    _seek_flag_decoder = true;
+    _seek_mutex_decoder.unlock();
+}
+
+void FFmpegCore::start_thread_repeat()
+{
+    std::thread thread = std::thread(&FFmpegCore::thread_repeat, this);
+
+    thread.detach();
 }
 
 static AVPixelFormat get_hw_format(AVCodecContext* ctx, const AVPixelFormat* pix_fmts)

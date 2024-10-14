@@ -51,6 +51,10 @@ public:
 
     void set_scale(bool scale);
 
+    void thread_repeat();
+
+    void start_thread_repeat();
+
 private:
 
     const int _thread_count_fhd = 4;
