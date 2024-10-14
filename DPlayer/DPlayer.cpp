@@ -687,7 +687,6 @@ void create_vertex_buffer(pst_device data_device, int index_command_list);
 void delete_vertex_buffers();
 void create_index_buffer(pst_device data_device, int index_command_list);
 void delete_index_buffers();
-void create_texture(pst_device data_device, UINT64 width, UINT height, int counter_texture);
 void create_srv_handles(pst_device data_device, int counter_texture);
 void delete_textures();
 
@@ -2213,132 +2212,6 @@ void delete_index_buffers()
     _mutex_map_index_buffer_view->unlock();
 }
 
-void create_texture(pst_device data_device, UINT64 width, UINT height, int counter_texture)
-{
-    HRESULT hr = S_OK;
-
-    auto it_srv_heap = _map_srv_heap.find(data_device->device_index);
-    pst_srv_heap data_srv_heap = it_srv_heap->second;
-    D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu(data_srv_heap->srv_heap->GetCPUDescriptorHandleForHeapStart());
-    D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu(data_srv_heap->srv_heap->GetGPUDescriptorHandleForHeapStart());
-
-    const UINT srv_descriptor_size = data_device->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-
-    _mutex_map_texture->lock();
-    pst_texture data_texture = nullptr;
-    auto it_texture = _map_texture.find(data_device->device_index);
-    if (it_texture != _map_texture.end())
-    {
-        data_texture = it_texture->second;
-    }
-    else
-    {
-        data_texture = new st_texture();
-        _map_texture.insert({ data_device->device_index, data_texture });
-    }
-    _mutex_map_texture->unlock();
-
-    _mutex_map_srv_handle_luminance->lock();
-    pst_srv_handle data_srv_handle_luminance = nullptr;
-    auto it_srv_handle_luminance = _map_srv_handle_luminance.find(data_device->device_index);
-    if (it_srv_handle_luminance != _map_srv_handle_luminance.end())
-    {
-        data_srv_handle_luminance = it_srv_handle_luminance->second;
-    }
-    else
-    {
-        data_srv_handle_luminance = new st_srv_handle();
-        _map_srv_handle_luminance.insert({ data_device->device_index, data_srv_handle_luminance });
-    }
-    _mutex_map_srv_handle_luminance->unlock();
-    
-    _mutex_map_srv_handle_chrominance->lock();
-    pst_srv_handle data_srv_handle_chrominance = nullptr;
-    auto it_srv_handle_chrominance = _map_srv_handle_chrominance.find(data_device->device_index);
-    if (it_srv_handle_chrominance != _map_srv_handle_chrominance.end())
-    {
-        data_srv_handle_chrominance = it_srv_handle_chrominance->second;
-    }
-    else
-    {
-        data_srv_handle_chrominance = new st_srv_handle();
-        _map_srv_handle_chrominance.insert({ data_device->device_index, data_srv_handle_chrominance });
-    }
-    _mutex_map_srv_handle_chrominance->unlock();
-
-    D3D12_RESOURCE_DESC texture_desc{};
-    texture_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-    texture_desc.Alignment = 0;
-    texture_desc.Width = width;
-    texture_desc.Height = height;
-    texture_desc.DepthOrArraySize = 1;
-    texture_desc.MipLevels = 1;
-    texture_desc.Format = DXGI_FORMAT_NV12;
-    texture_desc.SampleDesc.Count = 1;
-    texture_desc.SampleDesc.Quality = 0;
-    texture_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    texture_desc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-    CD3DX12_HEAP_PROPERTIES texture_properties(D3D12_HEAP_TYPE_DEFAULT);
-
-    for (int i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
-    {
-        ID3D12Resource* texture = nullptr;
-        hr = data_device->device->CreateCommittedResource(
-            &texture_properties,
-            D3D12_HEAP_FLAG_NONE,
-            &texture_desc,
-            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-            nullptr,
-            IID_PPV_ARGS(&texture)
-        );
-        data_texture->vector_texture.push_back(texture);
-        NAME_D3D12_OBJECT_INDEXED_2(texture, data_device->device_index, i, L"ID3D12Resource_texture");
-    }
-
-
-    D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc{};
-    srv_desc.Format = DXGI_FORMAT_R8_UNORM;
-    srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srv_desc.Texture2D.MostDetailedMip = 0;
-    srv_desc.Texture2D.MipLevels = 1;
-    srv_desc.Texture2D.PlaneSlice = 0;
-    srv_desc.Texture2D.ResourceMinLODClamp = 0.0f;
-
-    srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + INT64(srv_descriptor_size * (_count_texture_store * counter_texture * _texture_resource_count_nv12)));
-    srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + INT64(srv_descriptor_size * (_count_texture_store * counter_texture * _texture_resource_count_nv12)));
-
-    for (int i = (_count_texture_store * counter_texture); i < _count_texture_store * (counter_texture + 1); i++)
-    {
-        ID3D12Resource* texture = data_texture->vector_texture.at(i);
-
-        D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_luminance = srv_handle_cpu;
-        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
-        D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_chrominance = srv_handle_cpu;
-        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
-
-        srv_desc.Format = DXGI_FORMAT_R8_UNORM;
-        srv_desc.Texture2D.PlaneSlice = 0;
-        data_device->device->CreateShaderResourceView(texture, &srv_desc, srv_handle_cpu_luminance);
-        data_srv_handle_luminance->vector_handle_cpu.push_back(srv_handle_cpu_luminance);
-
-        srv_desc.Format = DXGI_FORMAT_R8G8_UNORM;
-        srv_desc.Texture2D.PlaneSlice = 1;
-        data_device->device->CreateShaderResourceView(texture, &srv_desc, srv_handle_cpu_chrominance);
-        data_srv_handle_chrominance->vector_handle_cpu.push_back(srv_handle_cpu_chrominance);
-
-
-        D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu_luminance = srv_handle_gpu;
-        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
-        data_srv_handle_luminance->vector_handle_gpu.push_back(srv_handle_gpu_luminance);
-
-        D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu_chrominance = srv_handle_gpu;
-        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
-        data_srv_handle_chrominance->vector_handle_gpu.push_back(srv_handle_gpu_chrominance);
-    }
-}
-
 void create_srv_handles(pst_device data_device, int counter_texture)
 {
     HRESULT hr = S_OK;
@@ -3592,8 +3465,17 @@ void thread_device(pst_device data_device)
     auto it_rtv = _map_rtv.find(data_device->device_index);
     pst_rtv data_rtv = it_rtv->second;
 
-    auto it_viewport = _map_viewport.find(data_device->device_index);
-    pst_viewport data_viewport = it_viewport->second;
+    pst_viewport data_viewport = nullptr;
+    for (auto it_viewport = _map_viewport.begin(); it_viewport != _map_viewport.end(); it_viewport++)
+    {
+        pst_viewport data_viewport_temp = it_viewport->second;
+
+        if (data_viewport_temp->device_index == data_device->device_index)
+        {
+            data_viewport = data_viewport_temp;
+            break;
+        }
+    }
 
     auto it_command_queue = _map_command_queue.find(data_device->device_index);
     pst_command_queue data_command_queue = it_command_queue->second;
@@ -3973,14 +3855,6 @@ void thread_upload(pst_device data_device)
         command_queue->Signal(data_fence->fence_upload, data_fence->fence_value_upload);
 
         WaitForSingleObject(data_fence->fence_event_upload, INFINITE);
-
-
-        //for (auto it_vector = vector_scene.begin(); it_vector != vector_scene.end(); it_vector++)
-        //{
-        //    pst_scene data_scene = *it_vector;
-
-        //    av_frame_unref(data_scene->vector_frame.at(srv_index));
-        //}
 
 
         SetEvent(data_device->event_upload_to_device);
