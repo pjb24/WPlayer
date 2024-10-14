@@ -142,6 +142,8 @@ typedef struct st_device
 
     bool flag_ready_to_device_use = false;
 
+    bool flag_use_last_frame = false;
+
 }*pst_device;
 
 typedef struct st_output
@@ -382,6 +384,26 @@ typedef struct st_scene
 
     bool flag_ready_to_frame_use = false;
 
+    bool flag_frame_unref = false;
+
+    int index_input = 0;
+    int index_output = 0;
+
+    int frame_index = 0;
+
+    std::deque<int> deque_index_used;
+    std::mutex* mutex_deque_index_used = nullptr;
+
+    // value : 3
+    int count_used_frame_store = 3;
+
+    bool flag_use_last_frame = false;
+
+    bool flag_thread_scene_unref = true;
+
+    std::mutex* mutex_deque_index_unref;
+    std::deque<int> deque_index_unref;
+
 }*pst_scene;
 
 #pragma endregion
@@ -547,6 +569,7 @@ bool _flag_wait_for_multiple_objects_window_to_scene = true;
 
 
 std::map<UINT, std::thread*> _map_thread_scene;
+std::map<UINT, std::thread*> _map_thread_scene_unref;
 std::map<UINT, std::thread*> _map_thread_upload;
 std::map<UINT, std::thread*> _map_thread_device;
 std::map<UINT, std::thread*> _map_thread_window;
@@ -653,6 +676,7 @@ void delete_vertex_buffers();
 void create_index_buffer(pst_device data_device, int index_command_list);
 void delete_index_buffers();
 void create_texture(pst_device data_device, UINT64 width, UINT height, int counter_texture);
+void create_srv_handles(pst_device data_device, int counter_texture);
 void delete_textures();
 
 void upload_texture(pst_device data_device, AVFrame* frame, int counter_texture, int srv_index);
@@ -696,12 +720,18 @@ void thread_upload(pst_device data_device);
 void thread_window(pst_window data_window);
 void thread_scene(pst_scene data_scene);
 
+void thread_scene_unref(pst_scene data_scene);
+
 void wait_gpus_end();
 
 float normalize_min_max(int min, int max, int target, int normalized_min, int normalized_max);
 void normalize_rect(RECT base_rect, RECT target_rect, NormalizedRect& normalized_rect);
 
 void start_playback();
+
+bool is_queue_full(int index_input, int index_output, int queue_size);
+bool is_queue_empty(int index_input, int index_output);
+int get_queue_size(int index_input, int index_output, int queue_size);
 
 int create_ffmpeg_instance(void*& instance, UINT device_index, std::string url, UINT& scene_index, RECT rect);
 int create_ffmpeg_instance_with_scene_index(void*& instance, UINT device_index, std::string url, UINT scene_index, RECT rect);
@@ -2383,6 +2413,68 @@ void create_texture(pst_device data_device, UINT64 width, UINT height, int count
     }
 }
 
+void create_srv_handles(pst_device data_device, int counter_texture)
+{
+    HRESULT hr = S_OK;
+
+    auto it_srv_heap = _map_srv_heap.find(data_device->device_index);
+    pst_srv_heap data_srv_heap = it_srv_heap->second;
+    D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu(data_srv_heap->srv_heap->GetCPUDescriptorHandleForHeapStart());
+    D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu(data_srv_heap->srv_heap->GetGPUDescriptorHandleForHeapStart());
+
+    const UINT srv_descriptor_size = data_device->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+    _mutex_map_srv_handle_luminance->lock();
+    pst_srv_handle data_srv_handle_luminance = nullptr;
+    auto it_srv_handle_luminance = _map_srv_handle_luminance.find(data_device->device_index);
+    if (it_srv_handle_luminance != _map_srv_handle_luminance.end())
+    {
+        data_srv_handle_luminance = it_srv_handle_luminance->second;
+    }
+    else
+    {
+        data_srv_handle_luminance = new st_srv_handle();
+        _map_srv_handle_luminance.insert({ data_device->device_index, data_srv_handle_luminance });
+    }
+    _mutex_map_srv_handle_luminance->unlock();
+
+    _mutex_map_srv_handle_chrominance->lock();
+    pst_srv_handle data_srv_handle_chrominance = nullptr;
+    auto it_srv_handle_chrominance = _map_srv_handle_chrominance.find(data_device->device_index);
+    if (it_srv_handle_chrominance != _map_srv_handle_chrominance.end())
+    {
+        data_srv_handle_chrominance = it_srv_handle_chrominance->second;
+    }
+    else
+    {
+        data_srv_handle_chrominance = new st_srv_handle();
+        _map_srv_handle_chrominance.insert({ data_device->device_index, data_srv_handle_chrominance });
+    }
+    _mutex_map_srv_handle_chrominance->unlock();
+
+
+    for (int i = 0; i < (_count_texture_store * counter_texture); i++)
+    {
+        D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_luminance = srv_handle_cpu;
+        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
+        D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_chrominance = srv_handle_cpu;
+        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
+
+        data_srv_handle_luminance->vector_handle_cpu.push_back(srv_handle_cpu_luminance);
+
+        data_srv_handle_chrominance->vector_handle_cpu.push_back(srv_handle_cpu_chrominance);
+
+
+        D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu_luminance = srv_handle_gpu;
+        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
+        data_srv_handle_luminance->vector_handle_gpu.push_back(srv_handle_gpu_luminance);
+
+        D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu_chrominance = srv_handle_gpu;
+        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
+        data_srv_handle_chrominance->vector_handle_gpu.push_back(srv_handle_gpu_chrominance);
+    }
+}
+
 void delete_textures()
 {
     _mutex_map_texture->lock();
@@ -2810,6 +2902,10 @@ void create_scenes()
             data_scene->vector_frame.push_back(frame);
         }
 
+        data_scene->mutex_deque_index_used = new std::mutex();
+
+        data_scene->mutex_deque_index_unref = new std::mutex();
+
         _map_scene.insert({ scene_index, data_scene });
     }
 }
@@ -2841,6 +2937,24 @@ void delete_scenes()
 
             it_vector = data_scene->vector_frame.erase(it_vector);
         }
+
+        data_scene->mutex_deque_index_used->lock();
+        for (auto it_vector = data_scene->deque_index_used.begin(); it_vector != data_scene->deque_index_used.end();)
+        {
+            it_vector = data_scene->deque_index_used.erase(it_vector);
+        }
+        data_scene->mutex_deque_index_used->unlock();
+        delete data_scene->mutex_deque_index_used;
+        data_scene->mutex_deque_index_used = nullptr;
+
+        data_scene->mutex_deque_index_unref->lock();
+        for (auto it_vector = data_scene->deque_index_unref.begin(); it_vector != data_scene->deque_index_unref.end();)
+        {
+            it_vector = data_scene->deque_index_unref.erase(it_vector);
+        }
+        data_scene->mutex_deque_index_unref->unlock();
+        delete data_scene->mutex_deque_index_unref;
+        data_scene->mutex_deque_index_unref = nullptr;
 
         if (data_scene->event_scene_to_upload)
         {
@@ -3539,6 +3653,7 @@ void thread_wait_for_multiple_objects(WaitType wait_type, bool* flag_thread)
         if (wait_type == WaitType::scene_to_upload)
         {
             int count_scene = _map_scene.size();
+            bool flag_use_last_frame = false;
 
             for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
             {
@@ -3547,6 +3662,11 @@ void thread_wait_for_multiple_objects(WaitType wait_type, bool* flag_thread)
                 if (data_scene->flag_ready_to_frame_use == true)
                 {
                     count_scene--;
+                }
+
+                if (data_scene->flag_use_last_frame == true)
+                {
+                    flag_use_last_frame = true;
                 }
             }
 
@@ -3557,6 +3677,15 @@ void thread_wait_for_multiple_objects(WaitType wait_type, bool* flag_thread)
                     pst_device data_device = it_device->second;
 
                     data_device->flag_ready_to_device_use = true;
+
+                    if (flag_use_last_frame == true)
+                    {
+                        data_device->flag_use_last_frame = true;
+                    }
+                    else
+                    {
+                        data_device->flag_use_last_frame = false;
+                    }
                 }
             }
             else
@@ -3566,6 +3695,15 @@ void thread_wait_for_multiple_objects(WaitType wait_type, bool* flag_thread)
                     pst_device data_device = it_device->second;
 
                     data_device->flag_ready_to_device_use = false;
+
+                    if (flag_use_last_frame == true)
+                    {
+                        data_device->flag_use_last_frame = true;
+                    }
+                    else
+                    {
+                        data_device->flag_use_last_frame = false;
+                    }
                 }
             }
         }
@@ -3672,10 +3810,13 @@ void thread_device(pst_device data_device)
 
         if (data_device->flag_ready_to_device_use)
         {
-            srv_index += 1;
-            if (!(srv_index < _count_texture_store))
+            if (data_device->flag_use_last_frame == false)
             {
-                srv_index = 0;
+                srv_index += 1;
+                if (!(srv_index < _count_texture_store))
+                {
+                    srv_index = 0;
+                }
             }
         }
 
@@ -3834,6 +3975,8 @@ void thread_upload(pst_device data_device)
 
     std::vector<pst_scene> vector_scene;
 
+    bool flag_vector_ready = false;
+
     int index_command_list_upload = _count_command_list - 1;
 
     while (data_device->flag_thread_upload)
@@ -3861,6 +4004,33 @@ void thread_upload(pst_device data_device)
             logger->debug(str.c_str());
         }
 
+        if (flag_vector_ready == false)
+        {
+            for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
+            {
+                pst_scene data_scene = it_scene->second;
+
+                if (data_scene->device_index != data_device->device_index)
+                {
+                    continue;
+                }
+
+                vector_scene.push_back(data_scene);
+            }
+
+            flag_vector_ready = true;
+        }
+
+        if (data_device->flag_ready_to_device_use == false)
+        {
+            for (auto it = vector_scene.begin(); it != vector_scene.end(); it++)
+            {
+                pst_scene data_scene = *it;
+
+                data_scene->flag_frame_unref = false;
+            }
+        }
+
         index_command_allocator_upload += 1;
         if (!(index_command_allocator_upload < _count_command_allocator * 2))
         {
@@ -3875,31 +4045,24 @@ void thread_upload(pst_device data_device)
 
         if (data_device->flag_ready_to_device_use)
         {
-            srv_index += 1;
-            if (!(srv_index < _count_texture_store))
+            if (data_device->flag_use_last_frame == false)
             {
-                srv_index = 0;
-            }
-        }
+                srv_index += 1;
+                if (!(srv_index < _count_texture_store))
+                {
+                    srv_index = 0;
+                }
 
-        if (flag_buffer_created == true)
-        {
-            int temp_index = 0;
+                for (auto it = vector_scene.begin(); it != vector_scene.end(); it++)
+                {
+                    pst_scene data_scene = *it;
 
-            if (srv_index != 0)
-            {
-                temp_index = srv_index - 1;
-            }
-            else
-            {
-                temp_index = _count_texture_store - 1;
-            }
+                    data_scene->flag_frame_unref = true;
 
-            for (auto it_vector = vector_scene.begin(); it_vector != vector_scene.end(); it_vector++)
-            {
-                pst_scene data_scene = *it_vector;
-                
-                av_frame_unref(data_scene->vector_frame.at(temp_index));
+                    data_scene->mutex_deque_index_used->lock();
+                    data_scene->deque_index_used.push_back(srv_index);
+                    data_scene->mutex_deque_index_used->unlock();
+                }
             }
         }
 
@@ -3920,27 +4083,8 @@ void thread_upload(pst_device data_device)
             create_vertex_buffer(data_device, index_command_list_upload);
             create_index_buffer(data_device, index_command_list_upload);
 
-            int counter_scene = 0;
-            for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
-            {
-                pst_scene data_scene = it_scene->second;
-
-                if (data_scene->device_index != data_device->device_index)
-                {
-                    continue;
-                }
-
-                AVFrame* frame = data_scene->vector_frame.at(srv_index);
-
-                uint64_t width = frame->width;
-                uint32_t height = frame->height;
-
-                create_texture(data_device, width, height, counter_scene);
-
-                vector_scene.push_back(data_scene);
-
-                counter_scene++;
-            }
+            int counter_scene = vector_scene.size();
+            create_srv_handles(data_device, counter_scene);
 
             flag_buffer_created = true;
         }
@@ -4025,8 +4169,6 @@ void thread_window(pst_window data_window)
 
     while (data_window->flag_thread_window)
     {
-        //std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time_main_loop));
-
         {
             std::unique_lock<std::mutex> lk(*data_window->mutex_device_to_window);
             if (data_window->flag_device_to_window == false)
@@ -4091,8 +4233,6 @@ void thread_scene(pst_scene data_scene)
 {
     int32_t result = INT32_MIN;
 
-    int frame_index = -1;
-
     int64_t counter_scene_fps = -1;
 
     bool flag_to_next = false;
@@ -4107,20 +4247,79 @@ void thread_scene(pst_scene data_scene)
 
     while (data_scene->flag_thread_scene)
     {
-        frame_index += 1;
-        if (!(frame_index < _count_texture_store))
+        // CppFFmpegWrapper get_frame
+        // vector_frame is not full - is_queue_full() == false
+        //
+        // return == -1 : repeat
+        // return >=  0 : ok
+        // return == -2 : EOS, repeat
+        //
+        // av_frame_unref(data_scene->index_used_frame)
+        // index_output++
+
+        if (data_scene->flag_frame_unref == true && data_scene->flag_use_last_frame == false)
         {
-            frame_index = 0;
+            data_scene->mutex_deque_index_used->lock();
+            
+            // deque의 숫자가 전부 동일하면 unref 하지 않음.
+            // 숫자가 전부 동일하면 2개만 남기도록 함.
+            if (data_scene->deque_index_used.size() > data_scene->count_used_frame_store)
+            {
+                int count_used_index = data_scene->deque_index_used.size();
+                int check_same_index = data_scene->deque_index_used.front();
+                int counter_same_index = 0;
+
+                for (auto it = data_scene->deque_index_used.begin(); it != data_scene->deque_index_used.end(); it++)
+                {
+                    if (check_same_index == *it)
+                    {
+                        count_used_index--;
+                        counter_same_index++;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                if (counter_same_index > data_scene->count_used_frame_store)
+                {
+                    for (size_t i = 0; i < counter_same_index - data_scene->count_used_frame_store; i++)
+                    {
+                        data_scene->deque_index_used.pop_front();
+                    }
+                }
+
+                if (count_used_index != 0)
+                {
+                    int index_used_frame = data_scene->deque_index_used.front();
+
+                    {
+                        std::lock_guard<std::mutex> lk(*data_scene->mutex_deque_index_unref);
+                        data_scene->deque_index_unref.push_back(index_used_frame);
+                    }
+
+                    data_scene->deque_index_used.pop_front();
+                }
+            }
+
+            data_scene->mutex_deque_index_used->unlock();
         }
 
-        result = INT32_MIN;
-        while (result < 0)
+        if (data_scene->flag_use_last_frame == true)
         {
-            result = cpp_ffmpeg_wrapper_get_frame(ffmpeg_instance_current, data_scene->vector_frame.at(frame_index));
+            data_scene->flag_use_last_frame = false;
+        }
+
+        if (is_queue_full(data_scene->index_input, data_scene->index_output, _count_texture_store) == false)
+        {
+            result = cpp_ffmpeg_wrapper_get_frame(ffmpeg_instance_current, data_scene->vector_frame.at(data_scene->frame_index));
 
             // queue empty
             if (result == -1)
             {
+                data_scene->flag_use_last_frame = true;
+
                 if (flag_first == true)
                 {
                     continue;
@@ -4164,6 +4363,8 @@ void thread_scene(pst_scene data_scene)
 
                     flag_repeat = true;
                 }
+                
+                data_scene->flag_use_last_frame = true;
             }
             // return >= 0
             // success
@@ -4172,6 +4373,18 @@ void thread_scene(pst_scene data_scene)
                 if (flag_first == true)
                 {
                     flag_first = false;
+                }
+
+                data_scene->frame_index += 1;
+                if (!(data_scene->frame_index < _count_texture_store))
+                {
+                    data_scene->frame_index = 0;
+                }
+
+                data_scene->index_input += 1;
+                if (!(data_scene->index_input < _count_texture_store))
+                {
+                    data_scene->index_input = 0;
                 }
 
                 flag_to_next = true;
@@ -4233,6 +4446,42 @@ void thread_scene(pst_scene data_scene)
 
             auto logger = spdlog::get("wplayer_logger");
             logger->debug(str.c_str());
+        }
+    }
+}
+
+void thread_scene_unref(pst_scene data_scene)
+{
+    while (data_scene->flag_thread_scene_unref)
+    {
+        bool flag_deque_index_unref_is_empty = false;
+        {
+            std::lock_guard<std::mutex> lk(*data_scene->mutex_deque_index_unref);
+            flag_deque_index_unref_is_empty = data_scene->deque_index_unref.empty();
+        }
+
+        if (flag_deque_index_unref_is_empty)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time_processing));
+            continue;
+        }
+
+        int index_unref = -1;
+        {
+            std::lock_guard<std::mutex> lk(*data_scene->mutex_deque_index_unref);
+            index_unref = data_scene->deque_index_unref.front();
+            data_scene->deque_index_unref.pop_front();
+        }
+
+        av_frame_unref(data_scene->vector_frame.at(index_unref));
+
+        if (is_queue_empty(data_scene->index_input, data_scene->index_output) == false)
+        {
+            data_scene->index_output += 1;
+            if (!(data_scene->index_output < _count_texture_store))
+            {
+                data_scene->index_output = 0;
+            }
         }
     }
 }
@@ -4565,6 +4814,25 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         it_thread_scene = _map_thread_scene.erase(it_thread_scene);
     }
 
+    for (auto it_thread_scene_unref = _map_thread_scene_unref.begin(); it_thread_scene_unref != _map_thread_scene_unref.end();)
+    {
+        std::thread* data_thread_scene_unref = it_thread_scene_unref->second;
+
+        auto it_scene = _map_scene.find(it_thread_scene_unref->first);
+        pst_scene data_scene = it_scene->second;
+
+        if (data_thread_scene_unref->joinable())
+        {
+            data_scene->flag_thread_scene_unref = false;
+            data_thread_scene_unref->join();
+        }
+
+        delete data_thread_scene_unref;
+        data_thread_scene_unref = nullptr;
+
+        it_thread_scene_unref = _map_thread_scene_unref.erase(it_thread_scene_unref);
+    }
+
     wait_gpus_end();
 
     if (_thread_vector_input.joinable())
@@ -4698,9 +4966,44 @@ void start_playback()
     {
         pst_scene data_scene = it_scene->second;
 
+        std::thread* data_thread_scene_unref = new std::thread(thread_scene_unref, data_scene);
+
+        _map_thread_scene_unref.insert({ data_scene->scene_index, data_thread_scene_unref });
+    }
+
+    for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
+    {
+        pst_scene data_scene = it_scene->second;
+
         std::thread* data_thread_scene = new std::thread(thread_scene, data_scene);
 
         _map_thread_scene.insert({ data_scene->scene_index, data_thread_scene });
+    }
+}
+
+bool is_queue_full(int index_input, int index_output, int queue_size)
+{
+    return (index_output == 0 && index_input == queue_size - 1) || (index_output == index_input + 1);
+}
+
+bool is_queue_empty(int index_input, int index_output)
+{
+    return index_output == index_input;
+}
+
+int get_queue_size(int index_input, int index_output, int queue_size)
+{
+    if (is_queue_empty(index_input, index_output))
+    {
+        return 0;
+    }
+    else if (index_output <= index_input)
+    {
+        return index_input - index_output + 1;
+    }
+    else
+    {
+        return queue_size - index_output + index_input + 1;
     }
 }
 
