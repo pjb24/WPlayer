@@ -638,6 +638,8 @@ std::string _logger_name;
 
 DWORD _wait_for_multiple_objects_wait_time = 1000;
 
+int _count_use_last_frame_at_repeat = 30;
+
 // --------------------------------
 
 // 이 코드 모듈에 포함된 함수의 선언을 전달합니다:
@@ -2899,6 +2901,9 @@ void config_setting()
     GetPrivateProfileString(L"DPlayer", L"wait_for_multiple_objects_wait_time", L"1000", result_w, 255, str_ini_path_w.c_str());
     _wait_for_multiple_objects_wait_time = _ttoi(result_w);
 
+    GetPrivateProfileString(L"DPlayer", L"count_use_last_frame_at_repeat", L"30", result_w, 255, str_ini_path_w.c_str());
+    _count_use_last_frame_at_repeat = _ttoi(result_w);
+
     GetPrivateProfileString(L"DPlayer", L"use_nvapi", L"0", result_w, 255, str_ini_path_w.c_str());
     result_i = _ttoi(result_w);
     _use_nvapi = result_i == 0 ? false : true;
@@ -4094,6 +4099,8 @@ void thread_scene(pst_scene data_scene)
 
     bool flag_repeat = false;
 
+    int count_use_last_frame = 0;
+
     while (data_scene->flag_thread_scene)
     {
         // CppFFmpegWrapper get_frame
@@ -4211,6 +4218,8 @@ void thread_scene(pst_scene data_scene)
                     check_map_ffmpeg_instance_repeat(data_scene);
 
                     flag_repeat = true;
+
+                    count_use_last_frame = _count_use_last_frame_at_repeat;
                 }
                 
                 data_scene->flag_use_last_frame = true;
@@ -4245,6 +4254,13 @@ void thread_scene(pst_scene data_scene)
                     flag_repeat = false;
                 }
             }
+        }
+
+        if (count_use_last_frame > 0)
+        {
+            count_use_last_frame--;
+
+            data_scene->flag_use_last_frame = true;
         }
 
         // CppFFmpegWrapper frame_to_next
