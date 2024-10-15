@@ -653,20 +653,8 @@ void FFmpegCore::open_codec()
 
         _codec_ctx->get_format = get_hw_format;
 
-        if (_hw_decode_adapter_index == -1)
-        {
-            result = av_hwdevice_ctx_create(&_hw_device_ctx, _hw_device_type, NULL, NULL, 0);
-        }
-        else
-        {
-            result = av_hwdevice_ctx_create(&_hw_device_ctx, _hw_device_type, std::to_string(_hw_decode_adapter_index).c_str(), NULL, 0);
-        }
-        if (result < 0)
-        {
-            // TODO:
-            // HW Device 생성 실패
-            return;
-        }
+        create_hw_codec();
+
         _codec_ctx->hw_device_ctx = av_buffer_ref(_hw_device_ctx);
         av_buffer_unref(&_hw_device_ctx);
     }
@@ -1501,6 +1489,23 @@ int FFmpegCore::get_frame_queue_size()
     else
     {
         return _frame_queue_size - _output_frame_index + _input_frame_index + 1;
+    }
+}
+
+void FFmpegCore::create_hw_codec()
+{
+    int result = -1;
+
+    while (result != 0)
+    {
+        if (_hw_decode_adapter_index == -1)
+        {
+            result = av_hwdevice_ctx_create(&_hw_device_ctx, _hw_device_type, NULL, NULL, 0);
+        }
+        else
+        {
+            result = av_hwdevice_ctx_create(&_hw_device_ctx, _hw_device_type, std::to_string(_hw_decode_adapter_index).c_str(), NULL, 0);
+        }
     }
 }
 

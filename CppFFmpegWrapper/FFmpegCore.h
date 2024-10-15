@@ -232,4 +232,6 @@ private:
 
 #pragma endregion
 
+    void create_hw_codec();
+
 };
