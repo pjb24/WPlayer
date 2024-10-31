@@ -467,6 +467,21 @@ int _log_file_size = 1;
 // 로그 파일 순환 개수.
 int _log_file_rotation_count = 3;
 
+// WaitForMultipleObjects 에 사용할 대기시간
+DWORD _wait_for_multiple_objects_wait_time = 1000;
+
+// repeat할 때 이전 프레임을 사용하는 시행 횟수
+int _count_use_last_frame_at_repeat = 30;
+
+// background color, 0~255
+int _background_color_r = 0;
+int _background_color_g = 0;
+int _background_color_b = 0;
+
+float _background_color_r_float = 0.0f;
+float _background_color_g_float = 0.0f;
+float _background_color_b_float = 0.0f;
+
 // nvapi 사용
 bool _use_nvapi = false;
 
@@ -638,10 +653,6 @@ std::map<UINT, pst_swap_chain> _map_swap_chain;
 std::map<UINT, pst_viewport> _map_viewport;
 
 std::string _logger_name;
-
-DWORD _wait_for_multiple_objects_wait_time = 1000;
-
-int _count_use_last_frame_at_repeat = 30;
 
 // --------------------------------
 
@@ -2790,6 +2801,30 @@ void config_setting()
     GetPrivateProfileString(L"DPlayer", L"count_use_last_frame_at_repeat", L"30", result_w, 255, str_ini_path_w.c_str());
     _count_use_last_frame_at_repeat = _ttoi(result_w);
 
+    GetPrivateProfileString(L"DPlayer", L"background_color_r", L"0", result_w, 255, str_ini_path_w.c_str());
+    _background_color_r = _ttoi(result_w);
+    GetPrivateProfileString(L"DPlayer", L"background_color_g", L"0", result_w, 255, str_ini_path_w.c_str());
+    _background_color_g = _ttoi(result_w);
+    GetPrivateProfileString(L"DPlayer", L"background_color_b", L"0", result_w, 255, str_ini_path_w.c_str());
+    _background_color_b = _ttoi(result_w);
+
+    if (_background_color_r > 255 || _background_color_r < 0)
+    {
+        _background_color_r = 0;
+    }
+    if (_background_color_g > 255 || _background_color_g < 0)
+    {
+        _background_color_g = 0;
+    }
+    if (_background_color_b > 255 || _background_color_b < 0)
+    {
+        _background_color_b = 0;
+    }
+
+    _background_color_r_float = _background_color_r / 255.0f;
+    _background_color_g_float = _background_color_g / 255.0f;
+    _background_color_b_float = _background_color_b / 255.0f;
+
     GetPrivateProfileString(L"DPlayer", L"use_nvapi", L"0", result_w, 255, str_ini_path_w.c_str());
     result_i = _ttoi(result_w);
     _use_nvapi = result_i == 0 ? false : true;
@@ -3518,8 +3553,6 @@ void thread_device(pst_device data_device)
     int index_command_allocator = -1;
     int srv_index = -1;
 
-    float color_offset = 0.0f;
-
     std::vector<pst_scene> vector_scene;
 
     int index_command_list = -1;
@@ -3639,7 +3672,7 @@ void thread_device(pst_device data_device)
 
         command_list->OMSetRenderTargets(1, &data_rtv->vector_rtv_handle.at(backbuffer_index), FALSE, nullptr);
 
-        float color[4] = { color_offset, color_offset, color_offset, color_offset };
+        float color[4] = { _background_color_r_float, _background_color_g_float, _background_color_b_float, 1.0f };
         command_list->ClearRenderTargetView(data_rtv->vector_rtv_handle.at(backbuffer_index), color, 0, nullptr);
         command_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         command_list->IASetIndexBuffer(&data_index_buffer_view->index_buffer_view);
@@ -3682,12 +3715,6 @@ void thread_device(pst_device data_device)
         command_queue->Signal(data_fence->fence_device, data_fence->fence_value_device);
 
         WaitForSingleObject(data_fence->fence_event_device, INFINITE);
-
-        color_offset += 0.1f;
-        if (color_offset > 1.0f)
-        {
-            color_offset = 0.0f;
-        }
 
         SetEvent(data_device->event_device_to_window);
 
