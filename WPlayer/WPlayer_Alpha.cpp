@@ -1810,6 +1810,15 @@ void delete_devices()
 
         it_device = _map_device.erase(it_device);
     }
+
+    _vector_event_upload_to_device.clear();
+    _vector_event_device_to_window.clear();
+    _vector_condition_variable_scene_to_upload.clear();
+    _vector_condition_variable_upload_to_device.clear();
+    _vector_mutex_scene_to_upload.clear();
+    _vector_mutex_upload_to_device.clear();
+    _vector_flag_scene_to_upload.clear();
+    _vector_flag_upload_to_device.clear();
 }
 
 void delete_windows()
@@ -1841,6 +1850,11 @@ void delete_windows()
 
         it_window = _map_window.erase(it_window);
     }
+
+    _vector_event_window_to_scene.clear();
+    _vector_condition_variable_device_to_window.clear();
+    _vector_mutex_device_to_window.clear();
+    _vector_flag_device_to_window.clear();
 }
 
 void delete_outputs()
@@ -2644,6 +2658,11 @@ void delete_scenes()
 
         it_scene = _map_scene.erase(it_scene);
     }
+
+    _vector_event_scene_to_upload.clear();
+    _vector_condition_variable_window_to_scene.clear();
+    _vector_mutex_window_to_scene.clear();
+    _vector_flag_window_to_scene.clear();
 }
 
 void callback_ffmpeg_wrapper_ptr(void* param)
