@@ -505,9 +505,6 @@ int _control_monitor_top = 0;
 int _control_monitor_right = 0;
 int _control_monitor_bottom = 0;
 
-// 반복 재생 사용
-bool _use_play_repeat = false;
-
 // scene fps. 0: 60fps, 1: 30fps
 int _count_scene_fps = 0;
 
@@ -2854,10 +2851,6 @@ void config_setting()
     _control_monitor_right = _ttoi(result_w);
     GetPrivateProfileString(L"DPlayer", L"control_monitor_bottom", L"0", result_w, 255, str_ini_path_w.c_str());
     _control_monitor_bottom = _ttoi(result_w);
-
-    GetPrivateProfileString(L"DPlayer", L"use_play_repeat", L"0", result_w, 255, str_ini_path_w.c_str());
-    result_i = _ttoi(result_w);
-    _use_play_repeat = result_i == 0 ? false : true;
 
     GetPrivateProfileString(L"DPlayer", L"count_scene_fps", L"0", result_w, 255, str_ini_path_w.c_str());
     _count_scene_fps = _ttoi(result_w);

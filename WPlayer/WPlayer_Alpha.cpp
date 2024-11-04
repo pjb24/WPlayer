@@ -487,9 +487,6 @@ std::map<UINT, int> _map_manual_window_rect_top;
 std::map<UINT, int> _map_manual_window_rect_width;
 std::map<UINT, int> _map_manual_window_rect_height;
 
-// 반복 재생 사용
-bool _use_play_repeat = false;
-
 // scene fps. 0: 60fps, 1: 30fps
 int _count_scene_fps = 0;
 
@@ -2833,10 +2830,6 @@ void config_setting()
         _map_manual_window_rect_width.insert({ i, width });
         _map_manual_window_rect_height.insert({ i, height });
     }
-
-    GetPrivateProfileString(L"WPlayer", L"use_play_repeat", L"0", result_w, 255, str_ini_path_w.c_str());
-    result_i = _ttoi(result_w);
-    _use_play_repeat = result_i == 0 ? false : true;
 
     GetPrivateProfileString(L"WPlayer", L"count_scene_fps", L"0", result_w, 255, str_ini_path_w.c_str());
     _count_scene_fps = _ttoi(result_w);
