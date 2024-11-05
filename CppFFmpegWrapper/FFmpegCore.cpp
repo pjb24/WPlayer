@@ -1223,6 +1223,11 @@ void FFmpegCore::start_thread_repeat()
     thread.detach();
 }
 
+void FFmpegCore::get_timebase(AVRational& timebase)
+{
+    timebase = _time_base;
+}
+
 static AVPixelFormat get_hw_format(AVCodecContext* ctx, const AVPixelFormat* pix_fmts)
 {
     const enum AVPixelFormat* p;

@@ -192,3 +192,9 @@ void cpp_ffmpeg_wrapper_start_thread_repeat(void* instance)
     FFmpegCore* core = (FFmpegCore*)instance;
     core->start_thread_repeat();
 }
+
+void cpp_ffmpeg_wrapper_get_timebase(void* instance, AVRational& timebase)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->get_timebase(timebase);
+}

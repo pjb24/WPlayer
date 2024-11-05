@@ -55,6 +55,8 @@ public:
 
     void start_thread_repeat();
 
+    void get_timebase(AVRational& timebase);
+
 private:
 
     const int _thread_count_fhd = 4;

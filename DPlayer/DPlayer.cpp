@@ -422,6 +422,11 @@ typedef struct st_scene
     std::mutex* mutex_deque_index_unref;
     std::deque<int> deque_index_unref;
 
+    int64_t time_now = 0;
+    int64_t time_last = 0;
+    int64_t pts_in_milliseconds_now = 0;
+    int64_t pts_in_milliseconds_last = 0;
+
 }*pst_scene;
 
 typedef struct st_coordinate
@@ -4197,8 +4202,6 @@ void thread_scene(pst_scene data_scene)
 
     int64_t counter_scene_fps = -1;
 
-    bool flag_to_next = false;
-
     void* ffmpeg_instance_current = nullptr;
     auto it_ffmpeg_instance_current = data_scene->map_ffmpeg_instance.find(data_scene->index_ffmpeg_instance_current);
     ffmpeg_instance_current = it_ffmpeg_instance_current->second;
@@ -4208,6 +4211,9 @@ void thread_scene(pst_scene data_scene)
     bool flag_repeat = false;
 
     int count_use_last_frame = 0;
+
+    AVFrame* frame = nullptr;
+    int index_frame_check_delay = 0;
 
     while (data_scene->flag_thread_scene)
     {
@@ -4353,14 +4359,47 @@ void thread_scene(pst_scene data_scene)
                     data_scene->index_input = 0;
                 }
 
-                flag_to_next = true;
-
                 data_scene->flag_ready_to_frame_use = true;
 
                 if (flag_repeat == true)
                 {
                     flag_repeat = false;
                 }
+
+                do
+                {
+                    // CppFFmpegWrapper frame_to_next
+                    result = cpp_ffmpeg_wrapper_frame_to_next_non_waiting(ffmpeg_instance_current);
+                } while (result != 0);
+            }
+        }
+
+        frame = data_scene->vector_frame.at(index_frame_check_delay);
+        if (frame->data[0] != nullptr)
+        {
+            data_scene->time_now = av_gettime_relative();
+            AVRational timebase{};
+            cpp_ffmpeg_wrapper_get_timebase(ffmpeg_instance_current, timebase);
+            data_scene->pts_in_milliseconds_now = av_rescale_q(frame->pts, timebase, AVRational{ 1, 1'000'000 });
+
+            int64_t delay = data_scene->pts_in_milliseconds_now - data_scene->pts_in_milliseconds_last - (data_scene->time_now - data_scene->time_last);
+
+            if (delay < 14'000)
+            {
+                data_scene->time_last = data_scene->time_now;
+                data_scene->pts_in_milliseconds_last = data_scene->pts_in_milliseconds_now;
+
+                data_scene->flag_use_last_frame = false;
+
+                index_frame_check_delay += 1;
+                if (!(index_frame_check_delay < _count_texture_store))
+                {
+                    index_frame_check_delay = 0;
+                }
+            }
+            else
+            {
+                data_scene->flag_use_last_frame = true;
             }
         }
 
@@ -4369,21 +4408,6 @@ void thread_scene(pst_scene data_scene)
             count_use_last_frame--;
 
             data_scene->flag_use_last_frame = true;
-        }
-
-        // CppFFmpegWrapper frame_to_next
-        // get_frame - result >= 0
-        if (flag_to_next == true)
-        {
-            counter_scene_fps++;
-            if (!(counter_scene_fps < _count_scene_fps))
-            {
-                counter_scene_fps = -1;
-
-                cpp_ffmpeg_wrapper_frame_to_next_non_waiting(ffmpeg_instance_current);
-            }
-
-            flag_to_next = false;
         }
 
         SetEvent(data_scene->event_scene_to_upload);
