@@ -4766,6 +4766,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
+
+        if (_flag_use_default_image)
+        {
+            if (_vector_event_scene_to_upload.size() != 0)
+            {
+                _vector_event_scene_to_upload.clear();
+            }
+        }
     }
 
     if (_thread_wait_for_multiple_objects_window_to_scene.joinable())
@@ -5511,22 +5519,7 @@ void delete_scenes_data()
             CloseHandle(data_scene->event_scene_to_upload);
             data_scene->event_scene_to_upload = nullptr;
         }
-
-        if (data_scene->condition_variable_window_to_scene)
-        {
-            delete data_scene->condition_variable_window_to_scene;
-            data_scene->condition_variable_window_to_scene = nullptr;
-        }
-
-        if (data_scene->mutex_window_to_scene)
-        {
-            delete data_scene->mutex_window_to_scene;
-            data_scene->mutex_window_to_scene = nullptr;
-        }
     }
 
     _vector_event_scene_to_upload.clear();
-    _vector_condition_variable_window_to_scene.clear();
-    _vector_mutex_window_to_scene.clear();
-    _vector_flag_window_to_scene.clear();
 }
