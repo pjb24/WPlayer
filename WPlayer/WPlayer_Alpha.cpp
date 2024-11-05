@@ -4918,8 +4918,6 @@ int start_playback()
         }
     }
 
-    _vector_event_scene_to_upload.clear();
-
     return result;
 }
 
