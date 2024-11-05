@@ -144,6 +144,10 @@ typedef struct st_device
 
     bool flag_use_last_frame = false;
 
+    ID3D12Resource* texture_default = nullptr;
+    ID3D12Resource* upload_heap_texture_default_luminance = nullptr;
+    ID3D12Resource* upload_heap_texture_default_chrominance = nullptr;
+
 }*pst_device;
 
 typedef struct st_output
@@ -452,6 +456,9 @@ float _background_color_r_float = 0.0f;
 float _background_color_g_float = 0.0f;
 float _background_color_b_float = 0.0f;
 
+// 기본 이미지 url
+std::string _default_texture_url;
+
 // nvapi 사용
 bool _use_nvapi = false;
 
@@ -625,6 +632,10 @@ std::map<UINT, pst_window> _map_window;
 std::map<UINT, pst_swap_chain> _map_swap_chain;
 std::map<UINT, pst_viewport> _map_viewport;
 
+void* _ffmpeg_instance_default_image = nullptr;
+AVFrame* _frame_default_image = nullptr;
+
+bool _flag_use_default_image = false;
 
 // --------------------------------
 
@@ -675,6 +686,7 @@ void delete_vertex_buffers();
 void create_index_buffer(pst_device data_device, int index_command_list);
 void delete_index_buffers();
 void create_srv_handles(pst_device data_device, int counter_texture);
+void create_srv_handles_texture_default(pst_device data_device);
 void delete_textures();
 
 void upload_texture(pst_device data_device, AVFrame* frame, int counter_texture, int srv_index);
@@ -686,7 +698,7 @@ void delete_swap_lock(ID3D12Device* device, IDXGISwapChain1* swap_chain);
 void delete_swap_locks();
 
 
-void create_scenes();
+int create_scenes();
 void delete_scenes();
 
 void callback_ffmpeg_wrapper_ptr(void* param);
@@ -725,7 +737,7 @@ void wait_gpus_end();
 float normalize_min_max(int min, int max, int target, int normalized_min, int normalized_max);
 void normalize_rect(RECT base_rect, RECT target_rect, NormalizedRect& normalized_rect);
 
-void start_playback();
+int start_playback();
 
 bool is_queue_full(int index_input, int index_output, int queue_size);
 bool is_queue_empty(int index_input, int index_output);
@@ -735,6 +747,17 @@ int create_ffmpeg_instance(void*& instance, UINT device_index, std::string url, 
 int create_ffmpeg_instance_with_scene_index(void*& instance, UINT device_index, std::string url, UINT scene_index, RECT rect);
 
 int check_map_ffmpeg_instance_repeat(pst_scene data_scene);
+
+int create_ffmpeg_instance_check_open_file(void*& instance, UINT index_device, std::string url);
+int create_ffmpeg_instance_play_start(void* instance, UINT& index_scene, RECT rect);
+
+int create_texture_default(pst_device data_device);
+int delete_texture_default(pst_device data_device);
+int upload_texture_default(pst_device data_device, int index_command_list);
+
+int create_ffmpeg_instance_default_image(void*& instance);
+
+void delete_scenes_data();
 
 // --------------------------------
 
@@ -2203,6 +2226,67 @@ void delete_index_buffers()
     _mutex_map_index_buffer_view->unlock();
 }
 
+void create_srv_handles_texture_default(pst_device data_device)
+{
+    HRESULT hr = S_OK;
+
+    auto it_srv_heap = _map_srv_heap.find(data_device->device_index);
+    pst_srv_heap data_srv_heap = it_srv_heap->second;
+    D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu(data_srv_heap->srv_heap->GetCPUDescriptorHandleForHeapStart());
+    D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu(data_srv_heap->srv_heap->GetGPUDescriptorHandleForHeapStart());
+
+    const UINT srv_descriptor_size = data_device->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+    _mutex_map_srv_handle_luminance->lock();
+    pst_srv_handle data_srv_handle_luminance = nullptr;
+    auto it_srv_handle_luminance = _map_srv_handle_luminance.find(data_device->device_index);
+    if (it_srv_handle_luminance != _map_srv_handle_luminance.end())
+    {
+        data_srv_handle_luminance = it_srv_handle_luminance->second;
+    }
+    else
+    {
+        data_srv_handle_luminance = new st_srv_handle();
+        _map_srv_handle_luminance.insert({ data_device->device_index, data_srv_handle_luminance });
+    }
+    _mutex_map_srv_handle_luminance->unlock();
+
+    _mutex_map_srv_handle_chrominance->lock();
+    pst_srv_handle data_srv_handle_chrominance = nullptr;
+    auto it_srv_handle_chrominance = _map_srv_handle_chrominance.find(data_device->device_index);
+    if (it_srv_handle_chrominance != _map_srv_handle_chrominance.end())
+    {
+        data_srv_handle_chrominance = it_srv_handle_chrominance->second;
+    }
+    else
+    {
+        data_srv_handle_chrominance = new st_srv_handle();
+        _map_srv_handle_chrominance.insert({ data_device->device_index, data_srv_handle_chrominance });
+    }
+    _mutex_map_srv_handle_chrominance->unlock();
+
+
+    {
+        D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_luminance = srv_handle_cpu;
+        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
+        D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_chrominance = srv_handle_cpu;
+        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
+
+        data_srv_handle_luminance->vector_handle_cpu.push_back(srv_handle_cpu_luminance);
+
+        data_srv_handle_chrominance->vector_handle_cpu.push_back(srv_handle_cpu_chrominance);
+
+
+        D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu_luminance = srv_handle_gpu;
+        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
+        data_srv_handle_luminance->vector_handle_gpu.push_back(srv_handle_gpu_luminance);
+
+        D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu_chrominance = srv_handle_gpu;
+        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
+        data_srv_handle_chrominance->vector_handle_gpu.push_back(srv_handle_gpu_chrominance);
+    }
+}
+
 void create_srv_handles(pst_device data_device, int counter_texture)
 {
     HRESULT hr = S_OK;
@@ -2242,6 +2326,12 @@ void create_srv_handles(pst_device data_device, int counter_texture)
     }
     _mutex_map_srv_handle_chrominance->unlock();
 
+
+    srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
+    srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
+
+    srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
+    srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
 
     for (int i = 0; i < (_count_texture_store * counter_texture); i++)
     {
@@ -2300,7 +2390,7 @@ void delete_textures()
 
 void upload_texture(pst_device data_device, AVFrame* frame, int counter_texture, int srv_index)
 {
-    int texture_index = (_count_texture_store * counter_texture) + srv_index;
+    int texture_index = (_count_texture_store * counter_texture) + srv_index + 1;
 
     ID3D12Resource* srcResource = ((AVD3D12VAFrame*)frame->data[0])->texture;
 
@@ -2464,10 +2554,14 @@ void delete_swap_locks()
 }
 
 
-void create_scenes()
+int create_scenes()
 {
+    bool flag_open_file_fail = false;
+
     for (int i = 0; i < _count_scene; i++)
     {
+        bool flag_open_file_fail_internal = false;
+
         auto it_scene_url = _map_scene_url.find(i);
         auto it_scene_rect_left = _map_scene_rect_left.find(i);
         auto it_scene_rect_top = _map_scene_rect_top.find(i);
@@ -2507,23 +2601,42 @@ void create_scenes()
         int result = 0;
         void* instance_0 = nullptr;
         UINT scene_index = UINT_MAX;
-        result = create_ffmpeg_instance(instance_0, device_index, url, scene_index, rect);
+
+        result = create_ffmpeg_instance_check_open_file(instance_0, device_index, url);
         if (result != 0)
         {
-            continue;
+            flag_open_file_fail = true;
+            flag_open_file_fail_internal = true;
+
+            if (_flag_set_logger)
+            {
+                std::string str = "";
+                str.append("file is not exist, ");
+                str.append(", url = ");
+                str.append(url);
+
+                auto logger = spdlog::get("wplayer_logger");
+                logger->warn(str.c_str());
+            }
         }
 
         void* instance_1 = nullptr;
-        create_ffmpeg_instance_with_scene_index(instance_1, device_index, url, scene_index, rect);
-        
         void* instance_2 = nullptr;
-        create_ffmpeg_instance_with_scene_index(instance_2, device_index, url, scene_index, rect);
+        if (flag_open_file_fail_internal == false)
+        {
+            create_ffmpeg_instance_play_start(instance_0, scene_index, rect);
+            create_ffmpeg_instance_with_scene_index(instance_1, device_index, url, scene_index, rect);
+            create_ffmpeg_instance_with_scene_index(instance_2, device_index, url, scene_index, rect);
+        }
 
         pst_scene data_scene = new st_scene();
 
-        data_scene->map_ffmpeg_instance.insert({ 0, instance_0 });
-        data_scene->map_ffmpeg_instance.insert({ 1, instance_1 });
-        data_scene->map_ffmpeg_instance.insert({ 2, instance_2 });
+        if (flag_open_file_fail_internal == false)
+        {
+            data_scene->map_ffmpeg_instance.insert({ 0, instance_0 });
+            data_scene->map_ffmpeg_instance.insert({ 1, instance_1 });
+            data_scene->map_ffmpeg_instance.insert({ 2, instance_2 });
+        }
 
         data_scene->url = url;
         data_scene->rect = rect;
@@ -2593,6 +2706,13 @@ void create_scenes()
 
         _map_scene.insert({ scene_index, data_scene });
     }
+
+    if (flag_open_file_fail == true)
+    {
+        return 1;
+    }
+
+    return 0;
 }
 
 void delete_scenes()
@@ -2623,23 +2743,29 @@ void delete_scenes()
             it_vector = data_scene->vector_frame.erase(it_vector);
         }
 
-        data_scene->mutex_deque_index_used->lock();
-        for (auto it_vector = data_scene->deque_index_used.begin(); it_vector != data_scene->deque_index_used.end();)
+        if (data_scene->mutex_deque_index_used != nullptr)
         {
-            it_vector = data_scene->deque_index_used.erase(it_vector);
+            data_scene->mutex_deque_index_used->lock();
+            for (auto it_vector = data_scene->deque_index_used.begin(); it_vector != data_scene->deque_index_used.end();)
+            {
+                it_vector = data_scene->deque_index_used.erase(it_vector);
+            }
+            data_scene->mutex_deque_index_used->unlock();
+            delete data_scene->mutex_deque_index_used;
+            data_scene->mutex_deque_index_used = nullptr;
         }
-        data_scene->mutex_deque_index_used->unlock();
-        delete data_scene->mutex_deque_index_used;
-        data_scene->mutex_deque_index_used = nullptr;
 
-        data_scene->mutex_deque_index_unref->lock();
-        for (auto it_vector = data_scene->deque_index_unref.begin(); it_vector != data_scene->deque_index_unref.end();)
+        if (data_scene->mutex_deque_index_unref != nullptr)
         {
-            it_vector = data_scene->deque_index_unref.erase(it_vector);
+            data_scene->mutex_deque_index_unref->lock();
+            for (auto it_vector = data_scene->deque_index_unref.begin(); it_vector != data_scene->deque_index_unref.end();)
+            {
+                it_vector = data_scene->deque_index_unref.erase(it_vector);
+            }
+            data_scene->mutex_deque_index_unref->unlock();
+            delete data_scene->mutex_deque_index_unref;
+            data_scene->mutex_deque_index_unref = nullptr;
         }
-        data_scene->mutex_deque_index_unref->unlock();
-        delete data_scene->mutex_deque_index_unref;
-        data_scene->mutex_deque_index_unref = nullptr;
 
         if (data_scene->event_scene_to_upload)
         {
@@ -2647,14 +2773,23 @@ void delete_scenes()
             data_scene->event_scene_to_upload = nullptr;
         }
 
-        delete data_scene->condition_variable_window_to_scene;
-        data_scene->condition_variable_window_to_scene = nullptr;
+        if (data_scene->condition_variable_window_to_scene)
+        {
+            delete data_scene->condition_variable_window_to_scene;
+            data_scene->condition_variable_window_to_scene = nullptr;
+        }
 
-        delete data_scene->mutex_window_to_scene;
-        data_scene->mutex_window_to_scene = nullptr;
+        if (data_scene->mutex_window_to_scene)
+        {
+            delete data_scene->mutex_window_to_scene;
+            data_scene->mutex_window_to_scene = nullptr;
+        }
 
-        delete data_scene;
-        data_scene = nullptr;
+        if (data_scene)
+        {
+            delete data_scene;
+            data_scene = nullptr;
+        }
 
         it_scene = _map_scene.erase(it_scene);
     }
@@ -2776,6 +2911,9 @@ void config_setting()
     _background_color_r_float = _background_color_r / 255.0f;
     _background_color_g_float = _background_color_g / 255.0f;
     _background_color_b_float = _background_color_b / 255.0f;
+
+    GetPrivateProfileStringA("WPlayer", "default_texture_url", "", result_a, 255, str_ini_path_a.c_str());
+    _default_texture_url = result_a;
 
     GetPrivateProfileString(L"WPlayer", L"use_nvapi", L"0", result_w, 255, str_ini_path_w.c_str());
     result_i = _ttoi(result_w);
@@ -3187,6 +3325,16 @@ void thread_wait_for_multiple_objects(WaitType wait_type, bool* flag_thread)
                 flag_vector_need_more = true;
             }
             _mutex_vector_event_scene_to_upload.unlock();
+            for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
+            {
+                pst_scene data_scene = it_scene->second;
+
+                if (data_scene->map_ffmpeg_instance.size() == 0)
+                {
+                    flag_vector_need_more = false;
+                    break;
+                }
+            }
 
             vector_condition_variable = &_vector_condition_variable_scene_to_upload;
             _mutex_vector_condition_variable_scene_to_upload.lock();
@@ -3285,14 +3433,6 @@ void thread_wait_for_multiple_objects(WaitType wait_type, bool* flag_thread)
         break;
         case WaitType::window_to_scene:
         {
-            vector_handle = &_vector_event_window_to_scene;
-            _mutex_vector_event_window_to_scene.lock();
-            if (vector_handle->size() < _map_window.size())
-            {
-                flag_vector_need_more = true;
-            }
-            _mutex_vector_event_window_to_scene.unlock();
-
             vector_condition_variable = &_vector_condition_variable_window_to_scene;
             _mutex_vector_condition_variable_window_to_scene.lock();
             if (vector_condition_variable->size() < _map_scene.size())
@@ -3316,6 +3456,25 @@ void thread_wait_for_multiple_objects(WaitType wait_type, bool* flag_thread)
                 flag_vector_need_more = true;
             }
             _mutex_vector_flag_window_to_scene.unlock();
+
+            for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
+            {
+                pst_scene data_scene = it_scene->second;
+
+                if (data_scene->map_ffmpeg_instance.size() == 0)
+                {
+                    flag_vector_need_more = false;
+                    break;
+                }
+            }
+
+            vector_handle = &_vector_event_window_to_scene;
+            _mutex_vector_event_window_to_scene.lock();
+            if (vector_handle->size() < _map_window.size())
+            {
+                flag_vector_need_more = true;
+            }
+            _mutex_vector_event_window_to_scene.unlock();
         }
         break;
         default:
@@ -3338,22 +3497,25 @@ void thread_wait_for_multiple_objects(WaitType wait_type, bool* flag_thread)
         DWORD hr = 0;
         HANDLE* lp_handles = vector_handle->data();
         bool b_wait_all = true;
-        hr = WaitForMultipleObjects(n_count, lp_handles, b_wait_all, _wait_for_multiple_objects_wait_time);
+        if (n_count != 0)
         {
-            if (hr >= WAIT_OBJECT_0 && hr < WAIT_ABANDONED_0)
+            hr = WaitForMultipleObjects(n_count, lp_handles, b_wait_all, _wait_for_multiple_objects_wait_time);
             {
-            }
-            else if (hr >= WAIT_ABANDONED_0 && hr < WAIT_TIMEOUT)
-            {
-                flag_timeout = true;
-            }
-            else if (hr == WAIT_TIMEOUT)
-            {
-                flag_timeout = true;
-            }
-            else if (hr == WAIT_FAILED)
-            {
-                flag_timeout = true;
+                if (hr >= WAIT_OBJECT_0 && hr < WAIT_ABANDONED_0)
+                {
+                }
+                else if (hr >= WAIT_ABANDONED_0 && hr < WAIT_TIMEOUT)
+                {
+                    flag_timeout = true;
+                }
+                else if (hr == WAIT_TIMEOUT)
+                {
+                    flag_timeout = true;
+                }
+                else if (hr == WAIT_FAILED)
+                {
+                    flag_timeout = true;
+                }
             }
         }
 
@@ -3620,8 +3782,16 @@ void thread_device(pst_device data_device)
             command_list->RSSetViewports(1, &data_viewport->viewport);
             command_list->RSSetScissorRects(1, &data_viewport->scissor_rect);
 
-            command_list->SetGraphicsRootDescriptorTable(0, data_srv_handle_luminance->vector_handle_gpu.at((_count_texture_store * counter) + srv_index));
-            command_list->SetGraphicsRootDescriptorTable(1, data_srv_handle_chrominance->vector_handle_gpu.at((_count_texture_store * counter) + srv_index));
+            if (data_scene->map_ffmpeg_instance.size() != 0)
+            {
+                command_list->SetGraphicsRootDescriptorTable(0, data_srv_handle_luminance->vector_handle_gpu.at((_count_texture_store * counter) + srv_index + 1));
+                command_list->SetGraphicsRootDescriptorTable(1, data_srv_handle_chrominance->vector_handle_gpu.at((_count_texture_store * counter) + srv_index + 1));
+            }
+            else
+            {
+                command_list->SetGraphicsRootDescriptorTable(0, data_srv_handle_luminance->vector_handle_gpu.at(0));
+                command_list->SetGraphicsRootDescriptorTable(1, data_srv_handle_chrominance->vector_handle_gpu.at(0));
+            }
 
             command_list->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
@@ -3797,10 +3967,16 @@ void thread_upload(pst_device data_device)
             create_vertex_buffer(data_device, index_command_list_upload);
             create_index_buffer(data_device, index_command_list_upload);
 
+            create_srv_handles_texture_default(data_device);
+
             int counter_scene = vector_scene.size();
             create_srv_handles(data_device, counter_scene);
 
             flag_buffer_created = true;
+
+            create_texture_default(data_device);
+
+            upload_texture_default(data_device, index_command_list_upload);
         }
 
         if (data_device->flag_ready_to_device_use)
@@ -3910,7 +4086,7 @@ void thread_window(pst_window data_window)
             }
         }
 
-        if (_nvapi_initialized)
+        if (_nvapi_initialized && _flag_use_default_image == false)
         {
             NvAPI_Status status = NvAPI_D3D1x_Present(device, swap_chain, (UINT)1, (UINT)0);
         }
@@ -4400,6 +4576,24 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         create_viewports();
     }
 
+    {
+        int result = 0;
+        result = create_ffmpeg_instance_default_image(_ffmpeg_instance_default_image);
+        if (result == 0)
+        {
+            _frame_default_image = av_frame_alloc();
+
+            do
+            {
+                result = cpp_ffmpeg_wrapper_get_frame(_ffmpeg_instance_default_image, _frame_default_image);
+            } while (result != 0);
+
+            cpp_ffmpeg_wrapper_play_stop(_ffmpeg_instance_default_image, nullptr);
+            cpp_ffmpeg_wrapper_shutdown(_ffmpeg_instance_default_image);
+            cpp_ffmpeg_wrapper_delete(_ffmpeg_instance_default_image);
+        }
+    }
+
     // swap_lock
     if (_nvapi_initialized)
     {
@@ -4419,6 +4613,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
+        }
+
+        if (_flag_use_default_image)
+        {
+            if (_vector_event_scene_to_upload.size() != 0)
+            {
+                _vector_event_scene_to_upload.clear();
+            }
         }
     }
 
@@ -4574,6 +4776,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // NV12
     delete_textures();
 
+    for (auto it_device = _map_device.begin(); it_device != _map_device.end(); it_device++)
+    {
+        pst_device data_device = it_device->second;
+
+        delete_texture_default(data_device);
+    }
     delete_vertex_buffers();
     delete_index_buffers();
 
@@ -4627,6 +4835,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     delete _mutex_map_srv_handle_chrominance;
     _mutex_map_srv_handle_chrominance = nullptr;
 
+    if (_frame_default_image)
+    {
+        av_frame_free(&_frame_default_image);
+    }
+
 #if _DEBUG
     d3d_memory_check();
 #endif
@@ -4634,9 +4847,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     return (int)msg.wParam;
 }
 
-void start_playback()
+int start_playback()
 {
-    create_scenes();
+    int result = 0;
+
+    result = create_scenes();
+    if (result != 0)
+    {
+        delete_scenes_data();
+        _flag_use_default_image = true;
+    }
 
     // wait_for_multiple_objects 스레드들의 시작
     _thread_wait_for_multiple_objects_scene_to_upload = std::thread(thread_wait_for_multiple_objects, WaitType::scene_to_upload, &_flag_wait_for_multiple_objects_scene_to_upload);
@@ -4677,23 +4897,30 @@ void start_playback()
         _map_thread_upload.insert({ data_device->device_index, data_thread_upload });
     }
 
-    for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
+    if (result == 0)
     {
-        pst_scene data_scene = it_scene->second;
+        for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
+        {
+            pst_scene data_scene = it_scene->second;
 
-        std::thread* data_thread_scene_unref = new std::thread(thread_scene_unref, data_scene);
+            std::thread* data_thread_scene_unref = new std::thread(thread_scene_unref, data_scene);
 
-        _map_thread_scene_unref.insert({ data_scene->scene_index, data_thread_scene_unref });
+            _map_thread_scene_unref.insert({ data_scene->scene_index, data_thread_scene_unref });
+        }
+
+        for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
+        {
+            pst_scene data_scene = it_scene->second;
+
+            std::thread* data_thread_scene = new std::thread(thread_scene, data_scene);
+
+            _map_thread_scene.insert({ data_scene->scene_index, data_thread_scene });
+        }
     }
 
-    for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
-    {
-        pst_scene data_scene = it_scene->second;
+    _vector_event_scene_to_upload.clear();
 
-        std::thread* data_thread_scene = new std::thread(thread_scene, data_scene);
-
-        _map_thread_scene.insert({ data_scene->scene_index, data_thread_scene });
-    }
+    return result;
 }
 
 bool is_queue_full(int index_input, int index_output, int queue_size)
@@ -4797,4 +5024,302 @@ int check_map_ffmpeg_instance_repeat(pst_scene data_scene)
     }
 
     return 0;
+}
+
+int create_ffmpeg_instance_check_open_file(void*& instance, UINT index_device, std::string url)
+{
+    instance = cpp_ffmpeg_wrapper_create();
+    cpp_ffmpeg_wrapper_initialize(instance, callback_ffmpeg_wrapper_ptr);
+
+    // NV12
+    cpp_ffmpeg_wrapper_set_hw_decode(instance);
+    cpp_ffmpeg_wrapper_set_hw_device_type(instance, _hw_device_type);
+    cpp_ffmpeg_wrapper_set_hw_decode_adapter_index(instance, index_device);
+
+    cpp_ffmpeg_wrapper_set_scale(instance, false);
+
+    cpp_ffmpeg_wrapper_set_file_path(instance, (char*)url.c_str());
+    if (cpp_ffmpeg_wrapper_open_file(instance) != 0)
+    {
+        cpp_ffmpeg_wrapper_shutdown(instance);
+        cpp_ffmpeg_wrapper_delete(instance);
+
+        return 1;
+    }
+
+    return 0;
+}
+
+int create_ffmpeg_instance_play_start(void* instance, UINT& index_scene, RECT rect)
+{
+    index_scene = _next_scene_index;
+    _next_scene_index++;
+
+    cpp_ffmpeg_wrapper_set_scene_index(instance, index_scene);
+    cpp_ffmpeg_wrapper_set_rect(instance, rect);
+    cpp_ffmpeg_wrapper_play_start(instance, nullptr);
+
+    return 0;
+}
+
+int create_texture_default(pst_device data_device)
+{
+    HRESULT hr = S_OK;
+
+    ID3D12Device* device = data_device->device;
+
+    D3D12_RESOURCE_DESC desc_texture{};
+    desc_texture.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    desc_texture.Alignment = 0;
+
+    if (_frame_default_image)
+    {
+        desc_texture.Width = _frame_default_image->width;
+        desc_texture.Height = _frame_default_image->height;
+    }
+    else
+    {
+        desc_texture.Width = 640;
+        desc_texture.Height = 480;
+    }
+
+    desc_texture.Width = (desc_texture.Width + 1) & ~1;  // 너비를 짝수로 맞춤
+    desc_texture.Height = (desc_texture.Height + 1) & ~1; // 높이를 짝수로 맞춤
+
+    desc_texture.DepthOrArraySize = 1;
+    desc_texture.MipLevels = 1;
+    desc_texture.Format = DXGI_FORMAT_NV12;
+    desc_texture.SampleDesc.Count = 1;
+    desc_texture.SampleDesc.Quality = 0;
+    desc_texture.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    desc_texture.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    CD3DX12_HEAP_PROPERTIES texture_default_properties(D3D12_HEAP_TYPE_DEFAULT);
+
+    hr = device->CreateCommittedResource(
+        &texture_default_properties,
+        D3D12_HEAP_FLAG_NONE,
+        &desc_texture,
+        D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+        nullptr,
+        IID_PPV_ARGS(&data_device->texture_default)
+    );
+
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout_luminance{};
+    UINT numRows_luminance = 0;
+    UINT64 rowSizeInBytes_luminance = 0;
+    UINT64 totalBytes_luminance = 0;
+
+    device->GetCopyableFootprints(&desc_texture, 0, 1, 0, &layout_luminance, &numRows_luminance, &rowSizeInBytes_luminance, &totalBytes_luminance);
+
+    D3D12_RESOURCE_DESC desc_upload{};
+    desc_upload.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    desc_upload.Alignment = 0;
+    desc_upload.Width = totalBytes_luminance;
+    desc_upload.Height = 1;
+    desc_upload.DepthOrArraySize = 1;
+    desc_upload.MipLevels = 1;
+    desc_upload.Format = DXGI_FORMAT_UNKNOWN;
+    desc_upload.SampleDesc.Count = 1;
+    desc_upload.SampleDesc.Quality = 0;
+    desc_upload.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    desc_upload.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    CD3DX12_HEAP_PROPERTIES texture_default_upload_properties(D3D12_HEAP_TYPE_UPLOAD);
+
+    hr = device->CreateCommittedResource(
+        &texture_default_upload_properties,
+        D3D12_HEAP_FLAG_NONE,
+        &desc_upload,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&data_device->upload_heap_texture_default_luminance)
+    );
+
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout_chrominance{};
+    UINT numRows_chrominance = 0;
+    UINT64 rowSizeInBytes_chrominance = 0;
+    UINT64 totalBytes_chrominance = 0;
+
+    device->GetCopyableFootprints(&desc_texture, 1, 1, 0, &layout_chrominance, &numRows_chrominance, &rowSizeInBytes_chrominance, &totalBytes_chrominance);
+
+    desc_upload.Width = totalBytes_chrominance;
+
+    hr = device->CreateCommittedResource(
+        &texture_default_upload_properties,
+        D3D12_HEAP_FLAG_NONE,
+        &desc_upload,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&data_device->upload_heap_texture_default_chrominance)
+    );
+
+    return 0;
+}
+
+int delete_texture_default(pst_device data_device)
+{
+    if (data_device->texture_default)
+    {
+        data_device->texture_default->Release();
+        data_device->texture_default = nullptr;
+    }
+
+    if (data_device->upload_heap_texture_default_luminance)
+    {
+        data_device->upload_heap_texture_default_luminance->Release();
+        data_device->upload_heap_texture_default_luminance = nullptr;
+    }
+
+    if (data_device->upload_heap_texture_default_chrominance)
+    {
+        data_device->upload_heap_texture_default_chrominance->Release();
+        data_device->upload_heap_texture_default_chrominance = nullptr;
+    }
+
+    return 0;
+}
+
+int upload_texture_default(pst_device data_device, int index_command_list)
+{
+    ID3D12Device* device = data_device->device;
+
+    if (_frame_default_image)
+    {
+        D3D12_SUBRESOURCE_DATA texture_data_luminance{};
+        texture_data_luminance.pData = _frame_default_image->data[0];
+        texture_data_luminance.RowPitch = _frame_default_image->linesize[0];
+        texture_data_luminance.SlicePitch = texture_data_luminance.RowPitch * _frame_default_image->height;
+
+        D3D12_SUBRESOURCE_DATA texture_data_chrominance{};
+        texture_data_chrominance.pData = _frame_default_image->data[1];
+        texture_data_chrominance.RowPitch = _frame_default_image->linesize[1];
+        texture_data_chrominance.SlicePitch = texture_data_chrominance.RowPitch * _frame_default_image->height / 2;
+
+        auto it_command_list = _map_command_list.find(data_device->device_index);
+        pst_command_list data_command_list = it_command_list->second;
+
+        CD3DX12_RESOURCE_BARRIER barrier_upload_texture_default_before = CD3DX12_RESOURCE_BARRIER::Transition(data_device->texture_default, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+        data_command_list->vector_command_list.at(index_command_list)->ResourceBarrier(1, &barrier_upload_texture_default_before);
+        UpdateSubresources(data_command_list->vector_command_list.at(index_command_list), data_device->texture_default, data_device->upload_heap_texture_default_luminance, 0, 0, 1, &texture_data_luminance);
+        UpdateSubresources(data_command_list->vector_command_list.at(index_command_list), data_device->texture_default, data_device->upload_heap_texture_default_chrominance, 0, 1, 1, &texture_data_chrominance);
+        CD3DX12_RESOURCE_BARRIER barrier_upload_texture_default_after = CD3DX12_RESOURCE_BARRIER::Transition(data_device->texture_default, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        data_command_list->vector_command_list.at(index_command_list)->ResourceBarrier(1, &barrier_upload_texture_default_after);
+    }
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC desc_srv{};
+    desc_srv.Format = DXGI_FORMAT_R8_UNORM;
+    desc_srv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    desc_srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    desc_srv.Texture2D.MostDetailedMip = 0;
+    desc_srv.Texture2D.MipLevels = 1;
+    desc_srv.Texture2D.PlaneSlice = 0;
+    desc_srv.Texture2D.ResourceMinLODClamp = 0.0f;
+
+    _mutex_map_srv_handle_luminance->lock();
+    auto it_srv_handle_luminance = _map_srv_handle_luminance.find(data_device->device_index);
+    _mutex_map_srv_handle_luminance->unlock();
+
+    pst_srv_handle data_srv_handle_luminance = it_srv_handle_luminance->second;
+    D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_luminance = data_srv_handle_luminance->vector_handle_cpu.at(0);
+
+    _mutex_map_srv_handle_chrominance->lock();
+    auto it_srv_handle_chrominance = _map_srv_handle_chrominance.find(data_device->device_index);
+    _mutex_map_srv_handle_chrominance->unlock();
+
+    pst_srv_handle data_srv_handle_chrominance = it_srv_handle_chrominance->second;
+    D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_chrominance = data_srv_handle_chrominance->vector_handle_cpu.at(0);
+
+    desc_srv.Format = DXGI_FORMAT_R8_UNORM;
+    desc_srv.Texture2D.PlaneSlice = 0;
+    device->CreateShaderResourceView(data_device->texture_default, &desc_srv, srv_handle_cpu_luminance);
+    
+    desc_srv.Format = DXGI_FORMAT_R8G8_UNORM;
+    desc_srv.Texture2D.PlaneSlice = 1;
+    device->CreateShaderResourceView(data_device->texture_default, &desc_srv, srv_handle_cpu_chrominance);
+
+    return 0;
+}
+
+int create_ffmpeg_instance_default_image(void*& instance)
+{
+    instance = cpp_ffmpeg_wrapper_create();
+    cpp_ffmpeg_wrapper_initialize(instance, callback_ffmpeg_wrapper_ptr);
+
+    cpp_ffmpeg_wrapper_set_scale(instance, true);
+
+    cpp_ffmpeg_wrapper_set_file_path(instance, (char*)_default_texture_url.c_str());
+    if (cpp_ffmpeg_wrapper_open_file(instance) != 0)
+    {
+        cpp_ffmpeg_wrapper_shutdown(instance);
+        cpp_ffmpeg_wrapper_delete(instance);
+
+        return 1;
+    }
+
+    cpp_ffmpeg_wrapper_play_start(instance, nullptr);
+
+    return 0;
+}
+
+void delete_scenes_data()
+{
+    for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
+    {
+        pst_scene data_scene = it_scene->second;
+
+        for (auto it = data_scene->map_ffmpeg_instance.begin(); it != data_scene->map_ffmpeg_instance.end();)
+        {
+            if (it->second != nullptr)
+            {
+                cpp_ffmpeg_wrapper_play_stop(it->second, nullptr);
+                cpp_ffmpeg_wrapper_shutdown(it->second);
+                cpp_ffmpeg_wrapper_delete(it->second);
+                it->second = nullptr;
+            }
+
+            it = data_scene->map_ffmpeg_instance.erase(it);
+        }
+
+        for (auto it_vector = data_scene->vector_frame.begin(); it_vector != data_scene->vector_frame.end();)
+        {
+            AVFrame* frame = *it_vector;
+
+            av_frame_free(&frame);
+
+            it_vector = data_scene->vector_frame.erase(it_vector);
+        }
+
+        if (data_scene->mutex_deque_index_used != nullptr)
+        {
+            data_scene->mutex_deque_index_used->lock();
+            for (auto it_vector = data_scene->deque_index_used.begin(); it_vector != data_scene->deque_index_used.end();)
+            {
+                it_vector = data_scene->deque_index_used.erase(it_vector);
+            }
+            data_scene->mutex_deque_index_used->unlock();
+            delete data_scene->mutex_deque_index_used;
+            data_scene->mutex_deque_index_used = nullptr;
+        }
+
+        if (data_scene->mutex_deque_index_unref != nullptr)
+        {
+            data_scene->mutex_deque_index_unref->lock();
+            for (auto it_vector = data_scene->deque_index_unref.begin(); it_vector != data_scene->deque_index_unref.end();)
+            {
+                it_vector = data_scene->deque_index_unref.erase(it_vector);
+            }
+            data_scene->mutex_deque_index_unref->unlock();
+            delete data_scene->mutex_deque_index_unref;
+            data_scene->mutex_deque_index_unref = nullptr;
+        }
+
+        if (data_scene->event_scene_to_upload)
+        {
+            CloseHandle(data_scene->event_scene_to_upload);
+            data_scene->event_scene_to_upload = nullptr;
+        }
+    }
+
+    _vector_event_scene_to_upload.clear();
 }

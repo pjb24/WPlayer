@@ -69,7 +69,7 @@ FFmpegCore::FFmpegCore()
     _sync_group_count = 0;
     _url_size = 0;
 
-    _scale_dest_format = AVPixelFormat::AV_PIX_FMT_YUV420P;
+    _scale_dest_format = AVPixelFormat::AV_PIX_FMT_NV12;
     _scale_frame = nullptr;
     _sws_ctx = nullptr;
 
