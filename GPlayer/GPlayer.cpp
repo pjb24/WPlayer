@@ -107,6 +107,10 @@ int _log_level = 6;
 
 std::string _logger_name;
 
+std::string _default_image_url;
+
+bool _flag_file_not_found = false;
+
 void thread_client();
 
 void callback_ptr_client(void* data);
@@ -146,6 +150,9 @@ void get_config()
     GetPrivateProfileString(L"GPlayer", L"log_level", L"6", result_w, 255, str_ini_path_w.c_str());
     result_i = _ttoi(result_w);
     _log_level = result_i;
+
+    GetPrivateProfileStringA("GPlayer", "default_image_url", "", result_a, 255, str_ini_path_a.c_str());
+    _default_image_url = result_a;
 }
 
 void set_logger()
@@ -642,6 +649,8 @@ gboolean bus_call(GstBus* bus, GstMessage* msg, gpointer data)
             str.append(GST_OBJECT_NAME(msg->src));
             str.append(": ");
             str.append(err->message);
+            str.append(", Error Code : ");
+            str.append(std::to_string(err->code));
 
             auto logger = spdlog::get(_logger_name.c_str());
             logger->warn(str.c_str());
@@ -658,12 +667,30 @@ gboolean bus_call(GstBus* bus, GstMessage* msg, gpointer data)
             logger->warn(str.c_str());
         }
 
-        //g_printerr("Error received from element %s: %s\n", GST_OBJECT_NAME(msg->src), err->message);
-        //g_printerr("Debugging information: %s\n", debug_info ? debug_info : "none");
-        g_clear_error(&err);
-        g_free(debug_info);
+        // file not found
+        if (err->code == 3)
+        {
+            if (_flag_file_not_found == false)
+            {
+                _flag_file_not_found = true;
 
-        g_main_loop_quit(_loop);
+                _count_source = 1;
+                _map_url.clear();
+                _map_url.insert({ 0, _default_image_url });
+
+                gst_element_set_state(_pipeline, GST_STATE_NULL);
+                play_next_track();
+            }
+            else
+            {
+                //g_printerr("Error received from element %s: %s\n", GST_OBJECT_NAME(msg->src), err->message);
+                //g_printerr("Debugging information: %s\n", debug_info ? debug_info : "none");
+                g_clear_error(&err);
+                g_free(debug_info);
+
+                g_main_loop_quit(_loop);
+            }
+        }
     }
     break;
     case GST_MESSAGE_EOS:
@@ -680,8 +707,11 @@ gboolean bus_call(GstBus* bus, GstMessage* msg, gpointer data)
         }
         //g_print("End-Of-Stream reached.\n");
 
-        gst_element_set_state(_pipeline, GST_STATE_NULL);
-        play_next_track();
+        if (_flag_file_not_found == false)
+        {
+            gst_element_set_state(_pipeline, GST_STATE_NULL);
+            play_next_track();
+        }
     }
     break;
     default:
