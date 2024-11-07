@@ -517,9 +517,6 @@ int _control_monitor_top = 0;
 int _control_monitor_right = 0;
 int _control_monitor_bottom = 0;
 
-// scene fps. 0: 60fps, 1: 30fps
-int _count_scene_fps = 0;
-
 int _virtual_plus_window_left = 0;
 int _virtual_plus_window_right = 0;
 
@@ -3014,9 +3011,6 @@ void config_setting()
     _control_monitor_right = _ttoi(result_w);
     GetPrivateProfileString(L"DPlayer", L"control_monitor_bottom", L"0", result_w, 255, str_ini_path_w.c_str());
     _control_monitor_bottom = _ttoi(result_w);
-
-    GetPrivateProfileString(L"DPlayer", L"count_scene_fps", L"0", result_w, 255, str_ini_path_w.c_str());
-    _count_scene_fps = _ttoi(result_w);
 
     GetPrivateProfileString(L"DPlayer", L"virtual_plus_window_left", L"0", result_w, 255, str_ini_path_w.c_str());
     _virtual_plus_window_left = _ttoi(result_w);
