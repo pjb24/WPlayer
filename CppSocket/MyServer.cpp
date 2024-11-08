@@ -317,6 +317,29 @@ bool MyServer::send_gplayer_play_url(TcpConnection* connection, cppsocket_struct
     return true;
 }
 
+bool MyServer::send_gplayer_play_url_different_videos(TcpConnection* connection, cppsocket_struct_server_send_gplayer_play_url_different_videos data)
+{
+    packet_header header{};
+    header.cmd = command_type::gplayer_play_url_different_videos;
+    header.size = sizeof(packet_gplayer_play_url_different_videos_from_server);
+
+    packet_gplayer_play_url_different_videos_from_server out_packet{};
+    out_packet.header = header;
+    out_packet.result = packet_result(data.result);
+
+    out_packet.player_sync_group_index = data.player_sync_group_index;
+    out_packet.player_sync_group_input_count = data.player_sync_group_input_count;
+
+    out_packet.url_size = data.url_size;
+    memcpy(out_packet.url, data.url, data.url_size);
+
+    std::shared_ptr<Packet> gplayer_play_url_different_videos_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    *gplayer_play_url_different_videos_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(gplayer_play_url_different_videos_packet);
+
+    return true;
+}
+
 bool MyServer::send_gplayer_play_rect(TcpConnection* connection, cppsocket_struct_server_send_gplayer_play_rect data)
 {
     packet_header header{};
@@ -362,6 +385,30 @@ bool MyServer::send_gplayer_connect_data_url(TcpConnection* connection, cppsocke
     std::shared_ptr<Packet> gplayer_connect_data_url_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
     *gplayer_connect_data_url_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(gplayer_connect_data_url_packet);
+
+    return true;
+}
+
+bool MyServer::send_gplayer_connect_data_url_different_videos(TcpConnection* connection, cppsocket_struct_server_send_gplayer_connect_data_url_different_videos data)
+{
+    packet_header header{};
+    header.cmd = command_type::gplayer_connect_data_url_different_videos;
+    header.size = sizeof(packet_gplayer_connect_data_url_different_videos_from_server);
+
+    packet_gplayer_connect_data_url_different_videos_from_server out_packet{};
+    out_packet.header = header;
+
+    out_packet.result = packet_result::ok;
+
+    out_packet.player_sync_group_index = data.player_sync_group_index;
+    out_packet.player_sync_group_input_count = data.player_sync_group_input_count;
+
+    out_packet.url_size = data.url_size;
+    memcpy(out_packet.url, data.url, data.url_size);
+
+    std::shared_ptr<Packet> gplayer_connect_data_url_different_videos_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    *gplayer_connect_data_url_different_videos_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(gplayer_connect_data_url_different_videos_packet);
 
     return true;
 }

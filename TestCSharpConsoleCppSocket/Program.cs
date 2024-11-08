@@ -67,7 +67,10 @@ namespace TestCSharpConsoleCppSocket
 
         [DllImport("CppSocket.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void cppsocket_client_send_gplayer_play_url(IntPtr client_instance, cppsocket_struct_client_send_gplayer_play_url data);
-
+        
+        [DllImport("CppSocket.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void cppsocket_client_send_gplayer_play_url_different_videos(IntPtr client_instance, cppsocket_struct_client_send_gplayer_play_url_different_videos data);
+        
         [DllImport("CppSocket.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void cppsocket_client_send_gplayer_play_rect(IntPtr client_instance, cppsocket_struct_client_send_gplayer_play_rect data);
 
@@ -118,6 +121,8 @@ namespace TestCSharpConsoleCppSocket
             Console.WriteLine("20(dplayer_play_url)");
             Console.WriteLine("21(dplayer_play_rect)");
             Console.WriteLine("22(dplayer_play_stop)");
+            Console.WriteLine("");
+            Console.WriteLine("26(gplayer_play_url_different_videos)");
 
             Console.WriteLine("");
             Console.WriteLine("input 99 to stop program");
@@ -255,6 +260,19 @@ namespace TestCSharpConsoleCppSocket
                         packet_gplayer_play_url_from_server packet = Marshal.PtrToStructure<packet_gplayer_play_url_from_server>(data);
 
                         Console.Write($"gplayer_play_url, ");
+                        Console.Write($"command_type: {(UInt16)packet.header.cmd}, ");
+                        Console.Write($"packet size: {packet.header.size}, ");
+                        Console.Write($"player_sync_group_index: {packet.player_sync_group_index}, ");
+                        Console.Write($"player_sync_group_input_count: {packet.player_sync_group_input_count}, ");
+                        Console.Write($"url: {packet.url}, ");
+                        Console.WriteLine($"result: {(UInt16)packet.result}");
+                    }
+                    break;
+                case command_type.gplayer_play_url_different_videos:
+                    {
+                        packet_gplayer_play_url_different_videos_from_server packet = Marshal.PtrToStructure<packet_gplayer_play_url_different_videos_from_server>(data);
+
+                        Console.Write($"gplayer_play_url_different_videos, ");
                         Console.Write($"command_type: {(UInt16)packet.header.cmd}, ");
                         Console.Write($"packet size: {packet.header.size}, ");
                         Console.Write($"player_sync_group_index: {packet.player_sync_group_index}, ");
@@ -546,6 +564,24 @@ namespace TestCSharpConsoleCppSocket
                                 data.url = url;
 
                                 CppSocketAPI.cppsocket_client_send_gplayer_play_url(socket._client, data);
+                            }
+                            break;
+                        case command_type.gplayer_play_url_different_videos:
+                            {
+                                Console.WriteLine("gplayer_play_url_different_videos, Input url player_sync_group_index player_sync_group_input_count");
+
+                                string cmd_line = Console.ReadLine();
+                                string[] cmd_words = cmd_line.Split(' ');
+
+                                string url = cmd_words[0];
+
+                                cppsocket_struct_client_send_gplayer_play_url_different_videos data;
+                                data.player_sync_group_index = uint.Parse(cmd_words[1]);
+                                data.player_sync_group_input_count = ushort.Parse(cmd_words[2]);
+                                data.url_size = (UInt16)url.Length;
+                                data.url = url;
+
+                                CppSocketAPI.cppsocket_client_send_gplayer_play_url_different_videos(socket._client, data);
                             }
                             break;
                         case command_type.gplayer_play_rect:

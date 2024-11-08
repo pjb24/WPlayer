@@ -26,9 +26,11 @@ public:
 
 
     bool send_gplayer_play_url(TcpConnection* connection, cppsocket_struct_server_send_gplayer_play_url data);
+    bool send_gplayer_play_url_different_videos(TcpConnection* connection, cppsocket_struct_server_send_gplayer_play_url_different_videos data);
     bool send_gplayer_play_rect(TcpConnection* connection, cppsocket_struct_server_send_gplayer_play_rect data);
 
     bool send_gplayer_connect_data_url(TcpConnection* connection, cppsocket_struct_server_send_gplayer_connect_data_url data);
+    bool send_gplayer_connect_data_url_different_videos(TcpConnection* connection, cppsocket_struct_server_send_gplayer_connect_data_url_different_videos data);
     bool send_gplayer_connect_data_rect(TcpConnection* connection, cppsocket_struct_server_send_gplayer_connect_data_rect data);
 
     bool send_gplayer_stop(TcpConnection* connection, cppsocket_struct_server_send_gplayer_stop data);

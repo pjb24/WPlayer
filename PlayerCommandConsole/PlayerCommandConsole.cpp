@@ -49,6 +49,8 @@ typedef struct st_gplayer
     uint16_t player_sync_group_output_count = UINT16_MAX;
     std::vector<pst_coordinate> vector_coordinate;
 
+    bool flag_different_videos = false;
+
 }*pst_gplayer;
 
 typedef struct st_dplayer
@@ -215,6 +217,7 @@ void thread_packet_processing()
             else
             {
                 gplayer = new st_gplayer();
+                gplayer->flag_different_videos = false;
                 _map_gplayer.insert({ packet->player_sync_group_index, gplayer });
             }
 
@@ -242,6 +245,57 @@ void thread_packet_processing()
                 memcpy(data.url, packet->url, packet->url_size);
 
                 cppsocket_server_send_gplayer_play_url(_server, data_pair.second, data);
+            }
+
+            if (gplayer->vector_url.size() == gplayer->player_sync_group_input_count
+                && gplayer->vector_coordinate.size() == gplayer->player_sync_group_output_count)
+            {
+                process_start_player(gplayer->player_sync_group_index, PlayerType::gplayer);
+            }
+        }
+        break;
+        case command_type::gplayer_play_url_different_videos:
+        {
+            packet_gplayer_play_url_different_videos_from_client* packet = (packet_gplayer_play_url_different_videos_from_client*)data_pair.first;
+
+            pst_gplayer gplayer = nullptr;
+
+            auto it_gplayer = _map_gplayer.find(packet->player_sync_group_index);
+            if (it_gplayer != _map_gplayer.end())
+            {
+                gplayer = it_gplayer->second;
+            }
+            else
+            {
+                gplayer = new st_gplayer();
+                gplayer->flag_different_videos = true;
+                _map_gplayer.insert({ packet->player_sync_group_index, gplayer });
+            }
+
+            if (gplayer->player_sync_group_index == UINT32_MAX)
+            {
+                gplayer->player_sync_group_index = packet->player_sync_group_index;
+            }
+
+            if (gplayer->vector_url.size() == 0)
+            {
+                gplayer->player_sync_group_input_count = packet->player_sync_group_input_count;
+            }
+
+            std::string url;
+            url.assign(packet->url);
+
+            gplayer->vector_url.push_back(url);
+
+            {
+                cppsocket_struct_server_send_gplayer_play_url_different_videos data{};
+                data.result = (uint16_t)packet_result::ok;
+                data.player_sync_group_index = packet->player_sync_group_index;
+                data.player_sync_group_input_count = packet->player_sync_group_input_count;
+                data.url_size = packet->url_size;
+                memcpy(data.url, packet->url, packet->url_size);
+
+                cppsocket_server_send_gplayer_play_url_different_videos(_server, data_pair.second, data);
             }
 
             if (gplayer->vector_url.size() == gplayer->player_sync_group_input_count
@@ -321,16 +375,33 @@ void thread_packet_processing()
             {
                 pst_gplayer gplayer = it_gplayer->second;
 
-                for (size_t i = 0; i < gplayer->vector_url.size(); i++)
+                if (gplayer->flag_different_videos)
                 {
-                    cppsocket_struct_server_send_gplayer_connect_data_url data{};
-                    data.result = (uint16_t)packet_result::ok;
-                    data.player_sync_group_index = gplayer->player_sync_group_index;
-                    data.player_sync_group_input_count = gplayer->player_sync_group_input_count;
-                    data.url_size = gplayer->vector_url.at(i).size();
-                    memcpy(data.url, gplayer->vector_url.at(i).c_str(), data.url_size);
+                    for (size_t i = 0; i < gplayer->vector_url.size(); i++)
+                    {
+                        cppsocket_struct_server_send_gplayer_connect_data_url_different_videos data{};
+                        data.result = (uint16_t)packet_result::ok;
+                        data.player_sync_group_index = gplayer->player_sync_group_index;
+                        data.player_sync_group_input_count = gplayer->player_sync_group_input_count;
+                        data.url_size = gplayer->vector_url.at(i).size();
+                        memcpy(data.url, gplayer->vector_url.at(i).c_str(), data.url_size);
 
-                    cppsocket_server_send_gplayer_connect_data_url(_server, data_pair.second, data);
+                        cppsocket_server_send_gplayer_connect_data_url_different_videos(_server, data_pair.second, data);
+                    }
+                }
+                else
+                {
+                    for (size_t i = 0; i < gplayer->vector_url.size(); i++)
+                    {
+                        cppsocket_struct_server_send_gplayer_connect_data_url data{};
+                        data.result = (uint16_t)packet_result::ok;
+                        data.player_sync_group_index = gplayer->player_sync_group_index;
+                        data.player_sync_group_input_count = gplayer->player_sync_group_input_count;
+                        data.url_size = gplayer->vector_url.at(i).size();
+                        memcpy(data.url, gplayer->vector_url.at(i).c_str(), data.url_size);
+
+                        cppsocket_server_send_gplayer_connect_data_url(_server, data_pair.second, data);
+                    }
                 }
 
                 for (size_t i = 0; i < gplayer->vector_coordinate.size(); i++)

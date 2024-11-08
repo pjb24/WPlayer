@@ -44,10 +44,12 @@ EXPORT void cppsocket_server_send_stop_sync_group(void* server_instance, void* c
 EXPORT void cppsocket_server_set_callback_data_connection(void* server_instance, CALLBACK_DATA_CONNECTION cb);
 
 EXPORT void cppsocket_server_send_gplayer_play_url(void* server_instance, void* connection, cppsocket_struct_server_send_gplayer_play_url data);
+EXPORT void cppsocket_server_send_gplayer_play_url_different_videos(void* server_instance, void* connection, cppsocket_struct_server_send_gplayer_play_url_different_videos data);
 EXPORT void cppsocket_server_send_gplayer_play_rect(void* server_instance, void* connection, cppsocket_struct_server_send_gplayer_play_rect data);
 EXPORT void cppsocket_server_send_gplayer_stop(void* server_instance, void* connection, cppsocket_struct_server_send_gplayer_stop data);
 
 EXPORT void cppsocket_server_send_gplayer_connect_data_url(void* server_instance, void* connection, cppsocket_struct_server_send_gplayer_connect_data_url data);
+EXPORT void cppsocket_server_send_gplayer_connect_data_url_different_videos(void* server_instance, void* connection, cppsocket_struct_server_send_gplayer_connect_data_url_different_videos data);
 EXPORT void cppsocket_server_send_gplayer_connect_data_rect(void* server_instance, void* connection, cppsocket_struct_server_send_gplayer_connect_data_rect data);
 
 EXPORT void cppsocket_server_send_dplayer_play_url(void* server_instance, void* connection, cppsocket_struct_server_send_dplayer_play_url data);
@@ -89,6 +91,7 @@ EXPORT void cppsocket_client_connection_close(void* client_instance);
 
 EXPORT void cppsocket_client_send_gplayer_connect(void* client_instance, cppsocket_struct_client_send_player_connect data);
 EXPORT void cppsocket_client_send_gplayer_play_url(void* client_instance, cppsocket_struct_client_send_gplayer_play_url data);
+EXPORT void cppsocket_client_send_gplayer_play_url_different_videos(void* client_instance, cppsocket_struct_client_send_gplayer_play_url_different_videos data);
 EXPORT void cppsocket_client_send_gplayer_play_rect(void* client_instance, cppsocket_struct_client_send_gplayer_play_rect data);
 EXPORT void cppsocket_client_send_gplayer_stop(void* client_instance, cppsocket_struct_client_send_gplayer_stop data);
 

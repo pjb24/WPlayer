@@ -67,7 +67,11 @@ std::map<uint64_t, GstElement*> _map_gst_queue;
 size_t _current_track = 0;
 GMainLoop* _loop = nullptr;
 GstElement* _source = nullptr;
+GstElement* _source_1 = nullptr;
+GstElement* _source_2 = nullptr;
 GstElement* _pipeline = nullptr;
+
+bool _flag_different_videos = false;
 
 // 이 코드 모듈에 포함된 함수의 선언을 전달합니다:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -622,8 +626,20 @@ void play_next_track()
         _current_track = 0;
     }
 
-    std::string current_uri = _map_url.find(_current_track)->second;
-    g_object_set(G_OBJECT(_source), "location", current_uri.c_str(), NULL);
+    if (_flag_different_videos)
+    {
+        std::string current_uri_1 = _map_url.find(_current_track)->second;
+        g_object_set(G_OBJECT(_source_1), "location", current_uri_1.c_str(), NULL);
+        _current_track++;
+
+        std::string current_uri_2 = _map_url.find(_current_track)->second;
+        g_object_set(G_OBJECT(_source_2), "location", current_uri_2.c_str(), NULL);
+    }
+    else
+    {
+        std::string current_uri = _map_url.find(_current_track)->second;
+        g_object_set(G_OBJECT(_source), "location", current_uri.c_str(), NULL);
+    }
 
     gst_element_set_state(_pipeline, GST_STATE_PLAYING);
     _current_track++;
@@ -868,6 +884,56 @@ void thread_packet_processing()
 
             delete packet;
 
+            packet_gplayer_connect_data_url_from_server* packet_delete = (packet_gplayer_connect_data_url_from_server*)data;
+            delete packet_delete;
+            packet_delete = nullptr;
+
+            if (_flag_different_videos == true)
+            {
+                _flag_different_videos = false;
+            }
+
+            check_ready_to_playback();
+        }
+        break;
+        case command_type::gplayer_connect_data_url_different_videos:
+        {
+            packet_gplayer_connect_data_url_different_videos_from_server* packet = new packet_gplayer_connect_data_url_different_videos_from_server();
+            memcpy(packet, data, header->size);
+
+            if (_flag_set_logger)
+            {
+                std::string str;
+                str.append("thread_packet_processing");
+                str.append(", gplayer_connect_data_url_different_videos");
+                str.append(", url = ");
+                str.append(packet->url);
+
+                auto logger = spdlog::get(_logger_name.c_str());
+                logger->debug(str.c_str());
+            }
+
+            if (_player_sync_group_index == packet->player_sync_group_index)
+            {
+                if (_count_source == UINT64_MAX)
+                {
+                    _count_source = packet->player_sync_group_input_count;
+                }
+
+                _map_url.insert({ _map_url.size(), packet->url });
+            }
+
+            delete packet;
+
+            packet_gplayer_connect_data_url_different_videos_from_server* packet_delete = (packet_gplayer_connect_data_url_different_videos_from_server*)data;
+            delete packet_delete;
+            packet_delete = nullptr;
+
+            if (_flag_different_videos == false)
+            {
+                _flag_different_videos = true;
+            }
+
             check_ready_to_playback();
         }
         break;
@@ -912,6 +978,10 @@ void thread_packet_processing()
 
             delete packet;
 
+            packet_gplayer_connect_data_rect_from_server* packet_delete = (packet_gplayer_connect_data_rect_from_server*)data;
+            delete packet_delete;
+            packet_delete = nullptr;
+
             check_ready_to_playback();
         }
         break;
@@ -933,6 +1003,10 @@ void thread_packet_processing()
 
             delete packet;
 
+            packet_gplayer_stop_from_server* packet_delete = (packet_gplayer_stop_from_server*)data;
+            delete packet_delete;
+            packet_delete = nullptr;
+
             _is_running = false;
 
             if (_flag_set_logger)
@@ -952,8 +1026,6 @@ void thread_packet_processing()
         default:
             break;
         }
-
-        delete data;
     }
 }
 
@@ -1013,10 +1085,34 @@ int gst_start()
         logger->debug(str.c_str());
     }
 
+    GstElement* decoder = nullptr;
+    GstElement* decoder_1 = nullptr;
+    GstElement* decoder_2 = nullptr;
+    GstElement* videoconvert = nullptr;
+    GstElement* videoconvert_1 = nullptr;
+    GstElement* videoconvert_2 = nullptr;
+    GstElement* tee = nullptr;
+
     // 항상 사용함
-    _source = gst_element_factory_make("filesrc", "file-source");
-    GstElement* decoder = gst_element_factory_make("decodebin", "decoder");
-    GstElement* videoconvert = gst_element_factory_make("videoconvert", "video-converter");
+    if (_flag_different_videos)
+    {
+        _source_1 = gst_element_factory_make("filesrc", "file-source_1");
+        _source_2 = gst_element_factory_make("filesrc", "file-source_2");
+        //g_object_set(_source_1, "is-live", TRUE, NULL);
+        //g_object_set(_source_2, "is-live", TRUE, NULL);
+
+        decoder_1 = gst_element_factory_make("decodebin", "decoder_1");
+        decoder_2 = gst_element_factory_make("decodebin", "decoder_2");
+        videoconvert_1 = gst_element_factory_make("videoconvert", "video-converter_1");
+        videoconvert_2 = gst_element_factory_make("videoconvert", "video-converter_2");
+    }
+    else
+    {
+        _source = gst_element_factory_make("filesrc", "file-source");
+        decoder = gst_element_factory_make("decodebin", "decoder");
+        videoconvert = gst_element_factory_make("videoconvert", "video-converter");
+        tee = gst_element_factory_make("tee", "tee");
+    }
 
     // 항상 사용함
     // 동기화할 개수 만큼 사용함
@@ -1030,34 +1126,48 @@ int gst_start()
         _map_gst_sink.insert({ i, sink });
     }
 
-    // 동기화 재생할 때만 사용함
     // 동기화할 개수 만큼 사용함
-    GstElement* tee = gst_element_factory_make("tee", "tee");
-
     for (size_t i = 0; i < _count_sink; i++)
     {
         std::string queue_name = "queue";
         queue_name.append(std::to_string(i));
 
-        GstElement* queue = gst_element_factory_make("queue", queue_name.c_str());
+        GstElement* queue = gst_element_factory_make("queue2", queue_name.c_str());
 
         _map_gst_queue.insert({ i, queue });
     }
 
-
-    if (!_pipeline || !_source || !decoder || !videoconvert || !tee)
+    if (_flag_different_videos)
     {
-        if (_flag_set_logger)
+        if (!_pipeline || !_source_1 || !decoder_1 || !videoconvert_1 || !_source_2 || !decoder_2 || !videoconvert_2)
         {
-            std::string str;
-            str.append("gst_start");
-            str.append(", Not all elements could be created.");
+            if (_flag_set_logger)
+            {
+                std::string str;
+                str.append("gst_start");
+                str.append(", Not all elements could be created.");
 
-            auto logger = spdlog::get(_logger_name.c_str());
-            logger->warn(str.c_str());
+                auto logger = spdlog::get(_logger_name.c_str());
+                logger->warn(str.c_str());
+            }
+            return -1;
         }
-        //g_printerr("Not all elements could be created.\n");
-        return -1;
+    }
+    else
+    {
+        if (!_pipeline || !_source || !decoder || !videoconvert || !tee)
+        {
+            if (_flag_set_logger)
+            {
+                std::string str;
+                str.append("gst_start");
+                str.append(", Not all elements could be created.");
+
+                auto logger = spdlog::get(_logger_name.c_str());
+                logger->warn(str.c_str());
+            }
+            return -1;
+        }
     }
 
     for (size_t i = 0; i < _count_sink; i++)
@@ -1073,7 +1183,6 @@ int gst_start()
                 auto logger = spdlog::get(_logger_name.c_str());
                 logger->warn(str.c_str());
             }
-            //g_printerr("Not all elements could be created.\n");
             return -1;
         }
     }
@@ -1095,7 +1204,14 @@ int gst_start()
     }
 
     /* Build the pipeline */
-    gst_bin_add_many(GST_BIN(_pipeline), _source, decoder, videoconvert, tee, NULL);
+    if (_flag_different_videos)
+    {
+        gst_bin_add_many(GST_BIN(_pipeline), _source_1, decoder_1, videoconvert_1, _source_2, decoder_2, videoconvert_2, NULL);
+    }
+    else
+    {
+        gst_bin_add_many(GST_BIN(_pipeline), _source, decoder, videoconvert, tee, NULL);
+    }
 
     for (size_t i = 0; i < _count_sink; i++)
     {
@@ -1103,45 +1219,92 @@ int gst_start()
         gst_bin_add(GST_BIN(_pipeline), _map_gst_queue.find(i)->second);
     }
 
-
-    if (!gst_element_link(_source, decoder))
+    if (_flag_different_videos)
     {
-        if (_flag_set_logger)
+        if (!gst_element_link(_source_1, decoder_1))
         {
-            std::string str;
-            str.append("gst_start");
-            str.append(", gst_element_link return false");
-            str.append(", Source and decoder could not be linked.");
+            if (_flag_set_logger)
+            {
+                std::string str;
+                str.append("gst_start");
+                str.append(", gst_element_link return false");
+                str.append(", Source and decoder could not be linked.");
 
-            auto logger = spdlog::get(_logger_name.c_str());
-            logger->warn(str.c_str());
+                auto logger = spdlog::get(_logger_name.c_str());
+                logger->warn(str.c_str());
+            }
+            gst_object_unref(_pipeline);
+            return -1;
         }
-        //g_printerr("Source and decoder could not be linked.\n");
-        gst_object_unref(_pipeline);
-        return -1;
+
+        if (!gst_element_link(_source_2, decoder_2))
+        {
+            if (_flag_set_logger)
+            {
+                std::string str;
+                str.append("gst_start");
+                str.append(", gst_element_link return false");
+                str.append(", Source and decoder could not be linked.");
+
+                auto logger = spdlog::get(_logger_name.c_str());
+                logger->warn(str.c_str());
+            }
+            gst_object_unref(_pipeline);
+            return -1;
+        }
     }
+    else
+    {
+        if (!gst_element_link(_source, decoder))
+        {
+            if (_flag_set_logger)
+            {
+                std::string str;
+                str.append("gst_start");
+                str.append(", gst_element_link return false");
+                str.append(", Source and decoder could not be linked.");
+
+                auto logger = spdlog::get(_logger_name.c_str());
+                logger->warn(str.c_str());
+            }
+            gst_object_unref(_pipeline);
+            return -1;
+        }
+    }
+
 
     // Connect the decoder's pad-added signal to the handler function
     // 동적 패드 연결을 위한 시그널을 이용한 콜백 설정
-    g_signal_connect(decoder, "pad-added", G_CALLBACK(on_pad_added), videoconvert);
+    if (_flag_different_videos)
+    {
+        g_signal_connect(decoder_1, "pad-added", G_CALLBACK(on_pad_added), videoconvert_1);
+        g_signal_connect(decoder_2, "pad-added", G_CALLBACK(on_pad_added), videoconvert_2);
+    }
+    else
+    {
+        g_signal_connect(decoder, "pad-added", G_CALLBACK(on_pad_added), videoconvert);
+    }
+    
 
     //// Link the remaining elements
-
-    if (!gst_element_link(videoconvert, tee))
+    if (_flag_different_videos == false)
     {
-        if (_flag_set_logger)
+        if (!gst_element_link(videoconvert, tee))
         {
-            std::string str;
-            str.append("gst_start");
-            str.append(", gst_element_link return false");
-            str.append(", Converter and tee could not be linked.");
+            if (_flag_set_logger)
+            {
+                std::string str;
+                str.append("gst_start");
+                str.append(", gst_element_link return false");
+                str.append(", Converter and tee could not be linked.");
 
-            auto logger = spdlog::get(_logger_name.c_str());
-            logger->warn(str.c_str());
+                auto logger = spdlog::get(_logger_name.c_str());
+                logger->warn(str.c_str());
+            }
+            g_printerr("Converter and tee could not be linked.\n");
+            gst_object_unref(_pipeline);
+            return -1;
         }
-        g_printerr("Converter and tee could not be linked.\n");
-        gst_object_unref(_pipeline);
-        return -1;
     }
 
     for (size_t i = 0; i < _count_sink; i++)
@@ -1163,32 +1326,73 @@ int gst_start()
                 logger->warn(str.c_str());
             }
 
-            //g_printerr("Queue and sink could not be linked.\n");
             gst_object_unref(_pipeline);
             return -1;
         }
     }
 
-    for (size_t i = 0; i < _count_sink; i++)
+    if (_flag_different_videos)
     {
-        if (!gst_element_link_pads(tee, "src_%u", _map_gst_queue.find(i)->second, "sink"))
+        if (!gst_element_link(videoconvert_1, _map_gst_queue.find(0)->second))
         {
             if (_flag_set_logger)
             {
                 std::string str;
                 str.append("gst_start");
                 str.append(", gst_element_link_pads return false");
-                str.append(", Tee and queue");
-                str.append(std::to_string(i));
+                str.append(", videoconvert_1 and queue");
+                str.append(std::to_string(0));
                 str.append(" could not be linked.");
 
                 auto logger = spdlog::get(_logger_name.c_str());
                 logger->warn(str.c_str());
             }
 
-            //g_printerr("Tee and queue could not be linked.\n");
             gst_object_unref(_pipeline);
             return -1;
+        }
+
+        if (!gst_element_link(videoconvert_2, _map_gst_queue.find(1)->second))
+        {
+            if (_flag_set_logger)
+            {
+                std::string str;
+                str.append("gst_start");
+                str.append(", gst_element_link_pads return false");
+                str.append(", videoconvert_2 and queue");
+                str.append(std::to_string(1));
+                str.append(" could not be linked.");
+
+                auto logger = spdlog::get(_logger_name.c_str());
+                logger->warn(str.c_str());
+            }
+
+            gst_object_unref(_pipeline);
+            return -1;
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < _count_sink; i++)
+        {
+            if (!gst_element_link_pads(tee, "src_%u", _map_gst_queue.find(i)->second, "sink"))
+            {
+                if (_flag_set_logger)
+                {
+                    std::string str;
+                    str.append("gst_start");
+                    str.append(", gst_element_link_pads return false");
+                    str.append(", Tee and queue");
+                    str.append(std::to_string(i));
+                    str.append(" could not be linked.");
+
+                    auto logger = spdlog::get(_logger_name.c_str());
+                    logger->warn(str.c_str());
+                }
+
+                gst_object_unref(_pipeline);
+                return -1;
+            }
         }
     }
 

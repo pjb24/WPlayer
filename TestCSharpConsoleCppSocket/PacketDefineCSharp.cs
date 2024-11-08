@@ -54,6 +54,9 @@ namespace TestCSharpConsoleCppSocket
         dplayer_connect_data_url,   // 24
         dplayer_connect_data_rect,  // 25
 
+        gplayer_play_url_different_videos,   // 26
+        gplayer_connect_data_url_different_videos,   // 27
+
         invalid = UInt16.MaxValue
     };
 
@@ -155,6 +158,20 @@ namespace TestCSharpConsoleCppSocket
 
     [StructLayout(LayoutKind.Sequential)]
     struct packet_gplayer_play_url_from_server
+    {
+        public packet_header header;
+        public packet_result result;     // 명령 수행 결과
+
+        public UInt32 player_sync_group_index;       // sync group 번호
+        public UInt16 player_sync_group_input_count;
+
+        public UInt16 url_size;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+        public string url;   // URL
+    };
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct packet_gplayer_play_url_different_videos_from_server
     {
         public packet_header header;
         public packet_result result;     // 명령 수행 결과

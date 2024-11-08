@@ -82,6 +82,15 @@ struct cppsocket_struct_client_send_gplayer_play_url
     const char* url;
 };
 
+struct cppsocket_struct_client_send_gplayer_play_url_different_videos
+{
+    uint32_t player_sync_group_index;
+    uint16_t player_sync_group_input_count;
+
+    uint16_t url_size;
+    const char* url;
+};
+
 struct cppsocket_struct_client_send_gplayer_play_rect
 {
     uint32_t player_sync_group_index;
@@ -210,6 +219,17 @@ struct cppsocket_struct_server_send_gplayer_play_url
     char url[260];
 };
 
+struct cppsocket_struct_server_send_gplayer_play_url_different_videos
+{
+    uint32_t player_sync_group_index;
+    uint16_t player_sync_group_input_count;
+
+    uint16_t result;
+
+    uint16_t url_size;
+    char url[260];
+};
+
 struct cppsocket_struct_server_send_gplayer_play_rect
 {
     uint32_t player_sync_group_index;
@@ -224,6 +244,17 @@ struct cppsocket_struct_server_send_gplayer_play_rect
 };
 
 struct cppsocket_struct_server_send_gplayer_connect_data_url
+{
+    uint32_t player_sync_group_index;
+    uint16_t player_sync_group_input_count;
+
+    uint16_t result;
+
+    uint16_t url_size;
+    char url[260];
+};
+
+struct cppsocket_struct_server_send_gplayer_connect_data_url_different_videos
 {
     uint32_t player_sync_group_index;
     uint16_t player_sync_group_input_count;

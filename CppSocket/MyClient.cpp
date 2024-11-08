@@ -281,6 +281,38 @@ bool MyClient::send_gplayer_play_url(cppsocket_struct_client_send_gplayer_play_u
     return true;
 }
 
+bool MyClient::send_gplayer_play_url_different_videos(cppsocket_struct_client_send_gplayer_play_url_different_videos data)
+{
+    if (data.url_size > 260)
+    {
+        return false;
+    }
+
+    if (data.player_sync_group_input_count <= 0)
+    {
+        return false;
+    }
+
+    packet_header header{};
+    header.cmd = command_type::gplayer_play_url_different_videos;
+    header.size = sizeof(packet_gplayer_play_url_different_videos_from_client);
+
+    packet_gplayer_play_url_different_videos_from_client packet{};
+    packet.header = header;
+
+    packet.player_sync_group_index = data.player_sync_group_index;
+    packet.player_sync_group_input_count = data.player_sync_group_input_count;
+
+    packet.url_size = data.url_size;
+    memcpy(packet.url, data.url, data.url_size);
+
+    std::shared_ptr<Packet> gplayer_play_url_different_videos_packet = std::make_shared<Packet>(PacketType::structured_data_from_client);
+    *gplayer_play_url_different_videos_packet << (void*)&packet;
+    m_connection.m_pmOutgoing.Append(gplayer_play_url_different_videos_packet);
+
+    return true;
+}
+
 bool MyClient::send_gplayer_play_rect(cppsocket_struct_client_send_gplayer_play_rect data)
 {
     if (data.player_sync_group_output_count <= 0)

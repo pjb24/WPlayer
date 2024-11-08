@@ -108,6 +108,12 @@ void cppsocket_server_send_gplayer_play_url(void* server_instance, void* connect
     server->send_gplayer_play_url((TcpConnection*)connection, data);
 }
 
+void cppsocket_server_send_gplayer_play_url_different_videos(void* server_instance, void* connection, cppsocket_struct_server_send_gplayer_play_url_different_videos data)
+{
+    MyServer* server = (MyServer*)server_instance;
+    server->send_gplayer_play_url_different_videos((TcpConnection*)connection, data);
+}
+
 void cppsocket_server_send_gplayer_play_rect(void* server_instance, void* connection, cppsocket_struct_server_send_gplayer_play_rect data)
 {
     MyServer* server = (MyServer*)server_instance;
@@ -118,6 +124,12 @@ void cppsocket_server_send_gplayer_connect_data_url(void* server_instance, void*
 {
     MyServer* server = (MyServer*)server_instance;
     server->send_gplayer_connect_data_url((TcpConnection*)connection, data);
+}
+
+void cppsocket_server_send_gplayer_connect_data_url_different_videos(void* server_instance, void* connection, cppsocket_struct_server_send_gplayer_connect_data_url_different_videos data)
+{
+    MyServer* server = (MyServer*)server_instance;
+    server->send_gplayer_connect_data_url_different_videos((TcpConnection*)connection, data);
 }
 
 void cppsocket_server_send_gplayer_connect_data_rect(void* server_instance, void* connection, cppsocket_struct_server_send_gplayer_connect_data_rect data)
@@ -270,6 +282,12 @@ void cppsocket_client_send_gplayer_play_url(void* client_instance, cppsocket_str
 {
     MyClient* client = (MyClient*)client_instance;
     client->send_gplayer_play_url(data);
+}
+
+void cppsocket_client_send_gplayer_play_url_different_videos(void* client_instance, cppsocket_struct_client_send_gplayer_play_url_different_videos data)
+{
+    MyClient* client = (MyClient*)client_instance;
+    client->send_gplayer_play_url_different_videos(data);
 }
 
 void cppsocket_client_send_gplayer_play_rect(void* client_instance, cppsocket_struct_client_send_gplayer_play_rect data)

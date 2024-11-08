@@ -378,6 +378,22 @@ void callback_ptr_client(void* data)
         delete packet;
     }
     break;
+    case command_type::gplayer_play_url_different_videos:
+    {
+        packet_gplayer_play_url_different_videos_from_server* packet = new packet_gplayer_play_url_different_videos_from_server();
+        memcpy(packet, data, header->size);
+
+        std::cout << "gplayer_play_url_different_videos" << ", ";
+        std::cout << "command_type: " << (uint16_t)packet->header.cmd << ", ";
+        std::cout << "packet size: " << packet->header.size << ", ";
+        std::cout << "player_sync_group_index: " << packet->player_sync_group_index << ", ";
+        std::cout << "player_sync_group_input_count: " << packet->player_sync_group_input_count << ", ";
+        std::cout << "url: " << packet->url << ", ";
+        std::cout << "result: " << (uint16_t)packet->result << std::endl;
+
+        delete packet;
+    }
+    break;
     case command_type::gplayer_play_rect:
     {
         packet_gplayer_play_rect_from_server* packet = new packet_gplayer_play_rect_from_server();
@@ -513,6 +529,8 @@ void client_output_messages_step_1()
     std::cout << "20(dplayer_play_url)" << std::endl;
     std::cout << "21(dplayer_play_rect)" << std::endl;
     std::cout << "22(dplayer_play_stop)" << std::endl;
+    std::cout << std::endl;
+    std::cout << "26(gplayer_play_url_different_videos)" << std::endl;
 
     std::cout << std::endl;
     std::cout << "input 99 to stop program" << std::endl;
@@ -823,6 +841,26 @@ int main()
                     data.player_sync_group_input_count = player_sync_group_input_count;
 
                     cppsocket_client_send_gplayer_play_url(_client, data);
+                }
+                break;
+                case command_type::gplayer_play_url_different_videos:
+                {
+                    std::cout << "gplayer_play_url_different_videos, Input url player_sync_group_index player_sync_group_input_count" << std::endl;
+
+                    std::string url;
+                    uint32_t player_sync_group_index;
+                    uint16_t player_sync_group_input_count;
+
+                    std::cin >> url;
+                    std::cin >> player_sync_group_index >> player_sync_group_input_count;
+
+                    cppsocket_struct_client_send_gplayer_play_url_different_videos data{};
+                    data.url_size = url.size();
+                    data.url = url.c_str();
+                    data.player_sync_group_index = player_sync_group_index;
+                    data.player_sync_group_input_count = player_sync_group_input_count;
+
+                    cppsocket_client_send_gplayer_play_url_different_videos(_client, data);
                 }
                 break;
                 case command_type::gplayer_play_rect:

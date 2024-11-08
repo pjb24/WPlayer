@@ -102,6 +102,17 @@ namespace TestCSharpConsoleCppSocket
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    struct cppsocket_struct_client_send_gplayer_play_url_different_videos
+    {
+        public UInt32 player_sync_group_index;
+        public UInt16 player_sync_group_input_count;
+
+        public UInt16 url_size;
+        [MarshalAs(UnmanagedType.LPStr)]
+        public string url;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     struct cppsocket_struct_client_send_gplayer_play_rect
     {
         public UInt32 player_sync_group_index;
