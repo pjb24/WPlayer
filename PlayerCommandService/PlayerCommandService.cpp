@@ -781,7 +781,7 @@ void thread_packet_processing()
             {
                 pst_gplayer gplayer = it_gplayer->second;
 
-                if (gplayer->flag_different_videos)
+                if (gplayer->flag_different_videos == false)
                 {
                     for (size_t i = 0; i < gplayer->vector_url.size(); i++)
                     {
