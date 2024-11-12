@@ -344,14 +344,6 @@ typedef struct st_index_buffer_view
 
 }*pst_index_buffer_view;
 
-typedef struct st_texture
-{
-    std::vector<ID3D12Resource*> vector_texture;
-
-    UINT device_index = UINT_MAX;
-
-}*pst_texture;
-
 typedef struct st_upload_texture
 {
     std::vector<ID3D12Resource*> vector_texture;
@@ -647,8 +639,6 @@ std::mutex* _mutex_map_index_upload_buffer = nullptr;
 std::map<UINT, pst_index_buffer_view> _map_index_buffer_view;
 std::mutex* _mutex_map_index_buffer_view = nullptr;
 
-std::map<UINT, pst_texture> _map_texture;
-std::mutex* _mutex_map_texture = nullptr;
 std::map<UINT, pst_srv_handle> _map_srv_handle_luminance;
 std::mutex* _mutex_map_srv_handle_luminance = nullptr;
 std::map<UINT, pst_srv_handle> _map_srv_handle_chrominance;
@@ -717,6 +707,7 @@ void create_srv_handles_texture_default(pst_device data_device);
 void delete_textures();
 
 void upload_texture(pst_device data_device, AVFrame* frame, int counter_texture, int srv_index);
+
 
 void initialize_swap_lock(ID3D12Device* device, IDXGISwapChain1* swap_chain);
 void initialize_swap_locks();
@@ -2068,11 +2059,11 @@ void create_vertex_buffer(pst_device data_device, int index_command_list)
     _mutex_map_vertex_buffer->lock();
     _map_vertex_buffer.insert({ data_vertex_buffer->device_index, data_vertex_buffer });
     _mutex_map_vertex_buffer->unlock();
-    
+
     _mutex_map_vertex_upload_buffer->lock();
     _map_vertex_upload_buffer.insert({ data_vertex_upload_buffer->device_index, data_vertex_upload_buffer });
     _mutex_map_vertex_upload_buffer->unlock();
-    
+
     _mutex_map_vertex_buffer_view->lock();
     _map_vertex_buffer_view.insert({ data_vertex_buffer_view->device_index, data_vertex_buffer_view });
     _mutex_map_vertex_buffer_view->unlock();
@@ -2200,7 +2191,7 @@ void create_index_buffer(pst_device data_device, int index_command_list)
     pst_index_buffer data_index_buffer = new st_index_buffer();
     data_index_buffer->index_buffer = index_buffer;
     data_index_buffer->device_index = data_device->device_index;
-    
+
     _mutex_map_index_buffer->lock();
     _map_index_buffer.insert({ data_index_buffer->device_index, data_index_buffer });
     _mutex_map_index_buffer->unlock();
@@ -2208,7 +2199,7 @@ void create_index_buffer(pst_device data_device, int index_command_list)
     pst_index_upload_buffer data_index_upload_buffer = new st_index_upload_buffer();
     data_index_upload_buffer->index_upload_buffer = index_upload_buffer;
     data_index_upload_buffer->device_index = data_device->device_index;
-    
+
     _mutex_map_index_upload_buffer->lock();
     _map_index_upload_buffer.insert({ data_index_upload_buffer->device_index, data_index_upload_buffer });
     _mutex_map_index_upload_buffer->unlock();
@@ -2216,7 +2207,7 @@ void create_index_buffer(pst_device data_device, int index_command_list)
     pst_index_buffer_view data_index_buffer_view = new st_index_buffer_view();
     data_index_buffer_view->index_buffer_view = index_buffer_view;
     data_index_buffer_view->device_index = data_device->device_index;
-    
+
     _mutex_map_index_buffer_view->lock();
     _map_index_buffer_view.insert({ data_index_buffer_view->device_index, data_index_buffer_view });
     _mutex_map_index_buffer_view->unlock();
@@ -2255,7 +2246,7 @@ void delete_index_buffers()
 
         delete data_index_upload_buffer;
         data_index_upload_buffer = nullptr;
-
+        
         it_index_upload_buffer = _map_index_upload_buffer.erase(it_index_upload_buffer);
     }
     _mutex_map_index_upload_buffer->unlock();
@@ -2404,28 +2395,6 @@ void create_srv_handles(pst_device data_device, int counter_texture)
 
 void delete_textures()
 {
-    _mutex_map_texture->lock();
-    for (auto it_texture = _map_texture.begin(); it_texture != _map_texture.end();)
-    {
-        pst_texture data_texture = it_texture->second;
-
-        for (auto it_vector = data_texture->vector_texture.begin(); it_vector != data_texture->vector_texture.end();)
-        {
-            ID3D12Resource* resource = *it_vector;
-
-            resource->Release();
-            resource = nullptr;
-
-            it_vector = data_texture->vector_texture.erase(it_vector);
-        }
-
-        delete data_texture;
-        data_texture = nullptr;
-
-        it_texture = _map_texture.erase(it_texture);
-    }
-    _mutex_map_texture->unlock();
-
     _mutex_map_srv_handle_luminance->lock();
     for (auto it_srv_handle_luminance = _map_srv_handle_luminance.begin(); it_srv_handle_luminance != _map_srv_handle_luminance.end();)
     {
@@ -2440,7 +2409,7 @@ void delete_textures()
         it_srv_handle_luminance = _map_srv_handle_luminance.erase(it_srv_handle_luminance);
     }
     _mutex_map_srv_handle_luminance->unlock();
-    
+
     _mutex_map_srv_handle_chrominance->lock();
     for (auto it_srv_handle_chrominance = _map_srv_handle_chrominance.begin(); it_srv_handle_chrominance != _map_srv_handle_chrominance.end();)
     {
@@ -2459,11 +2428,6 @@ void delete_textures()
 
 void upload_texture(pst_device data_device, AVFrame* frame, int counter_texture, int srv_index)
 {
-    //auto it_command_list = _map_command_list.find(data_device->device_index);
-    //pst_command_list data_command_list = it_command_list->second;
-    //auto it_texture = _map_texture.find(data_device->device_index);
-    //pst_texture data_texture = it_texture->second;
-
     int texture_index = (_count_texture_store * counter_texture) + srv_index + 1;
 
     ID3D12Resource* srcResource = ((AVD3D12VAFrame*)frame->data[0])->texture;
@@ -2480,14 +2444,14 @@ void upload_texture(pst_device data_device, AVFrame* frame, int counter_texture,
     _mutex_map_srv_handle_luminance->lock();
     auto it_srv_handle_luminance = _map_srv_handle_luminance.find(data_device->device_index);
     _mutex_map_srv_handle_luminance->unlock();
-    
+
     pst_srv_handle data_srv_handle_luminance = it_srv_handle_luminance->second;
     D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_luminance = data_srv_handle_luminance->vector_handle_cpu.at(texture_index);
 
     _mutex_map_srv_handle_chrominance->lock();
     auto it_srv_handle_chrominance = _map_srv_handle_chrominance.find(data_device->device_index);
     _mutex_map_srv_handle_chrominance->unlock();
-    
+
     pst_srv_handle data_srv_handle_chrominance = it_srv_handle_chrominance->second;
     D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_chrominance = data_srv_handle_chrominance->vector_handle_cpu.at(texture_index);
 
@@ -2532,7 +2496,7 @@ void initialize_swap_lock(ID3D12Device* device, IDXGISwapChain1* swap_chain)
     }
 
     if (!(max_group > 0 && max_barrier > 0))
-    {
+    {   
         return;
     }
 
@@ -3110,6 +3074,9 @@ void thread_packet_processing()
 
             delete packet;
 
+            packet_dplayer_connect_data_url_from_server* data_delete = (packet_dplayer_connect_data_url_from_server*)data;
+            delete data_delete;
+
             check_ready_to_playback();
         }
         break;
@@ -3146,6 +3113,9 @@ void thread_packet_processing()
 
             delete packet;
 
+            packet_dplayer_connect_data_rect_from_server* data_delete = (packet_dplayer_connect_data_rect_from_server*)data;
+            delete data_delete;
+
             check_ready_to_playback();
         }
         break;
@@ -3155,6 +3125,9 @@ void thread_packet_processing()
             memcpy(packet, data, header->size);
 
             delete packet;
+
+            packet_dplayer_stop_from_server* data_delete = (packet_dplayer_stop_from_server*)data;
+            delete data_delete;
 
             for (auto it_scene_coordinate = _map_scene_coordinate.begin(); it_scene_coordinate != _map_scene_coordinate.end();)
             {
@@ -3169,8 +3142,6 @@ void thread_packet_processing()
         default:
             break;
         }
-
-        delete data;
     }
 }
 
@@ -3823,12 +3794,11 @@ void thread_device(pst_device data_device)
         auto it_srv_handle_luminance = _map_srv_handle_luminance.find(data_device->device_index);
         _mutex_map_srv_handle_luminance->unlock();
         pst_srv_handle data_srv_handle_luminance = it_srv_handle_luminance->second;
-        
+
         _mutex_map_srv_handle_chrominance->lock();
         auto it_srv_handle_chrominance = _map_srv_handle_chrominance.find(data_device->device_index);
         _mutex_map_srv_handle_chrominance->unlock();
         pst_srv_handle data_srv_handle_chrominance = it_srv_handle_chrominance->second;
-
 
         command_list->SetGraphicsRootSignature(data_root_sig->root_sig);
 
@@ -4086,7 +4056,7 @@ void thread_upload(pst_device data_device)
         }
         data_fence->fence_upload->SetEventOnCompletion(data_fence->fence_value_upload, data_fence->fence_event_upload);
         command_queue->Signal(data_fence->fence_upload, data_fence->fence_value_upload);
-
+        
         WaitForSingleObject(data_fence->fence_event_upload, INFINITE);
 
 
@@ -4198,8 +4168,11 @@ void thread_scene(pst_scene data_scene)
 
     void* ffmpeg_instance_current = nullptr;
     auto it_ffmpeg_instance_current = data_scene->map_ffmpeg_instance.find(data_scene->index_ffmpeg_instance_current);
-    ffmpeg_instance_current = it_ffmpeg_instance_current->second;
-
+    if (it_ffmpeg_instance_current != data_scene->map_ffmpeg_instance.end())
+    {
+        ffmpeg_instance_current = it_ffmpeg_instance_current->second;
+    }
+    
     bool flag_first = true;
 
     bool flag_repeat = false;
@@ -4208,6 +4181,8 @@ void thread_scene(pst_scene data_scene)
 
     AVFrame* frame = nullptr;
     int index_frame_check_delay = 0;
+
+    bool flag_is_realtime = false;
 
     while (data_scene->flag_thread_scene)
     {
@@ -4224,7 +4199,7 @@ void thread_scene(pst_scene data_scene)
         if (data_scene->flag_frame_unref == true && data_scene->flag_use_last_frame == false)
         {
             data_scene->mutex_deque_index_used->lock();
-
+            
             // deque의 숫자가 전부 동일하면 unref 하지 않음.
             // 숫자가 전부 동일하면 2개만 남기도록 함.
             if (data_scene->deque_index_used.size() > data_scene->count_used_frame_store)
@@ -4319,7 +4294,7 @@ void thread_scene(pst_scene data_scene)
                     {
                         data_scene->index_ffmpeg_instance_delete = data_scene->index_ffmpeg_instance_last - 1;
                     }
-
+                
                     it_ffmpeg_instance_current = data_scene->map_ffmpeg_instance.find(data_scene->index_ffmpeg_instance_current);
                     ffmpeg_instance_current = it_ffmpeg_instance_current->second;
 
@@ -4339,6 +4314,8 @@ void thread_scene(pst_scene data_scene)
                 if (flag_first == true)
                 {
                     flag_first = false;
+
+                    cpp_ffmpeg_wrapper_get_is_realtime(ffmpeg_instance_current, flag_is_realtime);
                 }
 
                 data_scene->frame_index += 1;
@@ -4378,7 +4355,7 @@ void thread_scene(pst_scene data_scene)
 
             int64_t delay = data_scene->pts_in_milliseconds_now - data_scene->pts_in_milliseconds_last - (data_scene->time_now - data_scene->time_last);
 
-            if (delay < 14'000)
+            if (delay < 14'000 || flag_is_realtime == true)
             {
                 data_scene->time_last = data_scene->time_now;
                 data_scene->pts_in_milliseconds_last = data_scene->pts_in_milliseconds_now;
@@ -4546,7 +4523,6 @@ void set_logger()
     log_name.append(std::to_string(_player_sync_group_index));
     log_name.append(".txt");
 
-    //auto logger = spdlog::rotating_logger_mt<spdlog::async_factory>(_logger_name.c_str(), log_name.c_str(), max_size, max_files);
     auto logger = spdlog::rotating_logger_mt(_logger_name.c_str(), log_name.c_str(), max_size, max_files);
 
     spdlog::set_level(spdlog::level::level_enum(_log_level));
@@ -4683,8 +4659,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _mutex_map_vertex_buffer = new std::mutex();
     _mutex_map_vertex_upload_buffer = new std::mutex();
     _mutex_map_vertex_buffer_view = new std::mutex();
-
-    _mutex_map_texture = new std::mutex();
+    
     _mutex_map_srv_handle_luminance = new std::mutex();
     _mutex_map_srv_handle_chrominance = new std::mutex();
 
@@ -4708,10 +4683,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         create_devices();
         create_command_queues();
         create_command_allocators();
-
+        
         // NV12
         create_root_sigs();
-
+        
         create_pipeline_state_objects();
         create_command_lists();
         create_fences();
@@ -5000,8 +4975,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     delete _mutex_map_vertex_buffer_view;
     _mutex_map_vertex_buffer_view = nullptr;
 
-    delete _mutex_map_texture;
-    _mutex_map_texture = nullptr;
     delete _mutex_map_srv_handle_luminance;
     _mutex_map_srv_handle_luminance = nullptr;
     delete _mutex_map_srv_handle_chrominance;
@@ -5451,7 +5424,7 @@ int upload_texture_default(pst_device data_device, int index_command_list)
     desc_srv.Format = DXGI_FORMAT_R8_UNORM;
     desc_srv.Texture2D.PlaneSlice = 0;
     device->CreateShaderResourceView(data_device->texture_default, &desc_srv, srv_handle_cpu_luminance);
-
+    
     desc_srv.Format = DXGI_FORMAT_R8G8_UNORM;
     desc_srv.Texture2D.PlaneSlice = 1;
     device->CreateShaderResourceView(data_device->texture_default, &desc_srv, srv_handle_cpu_chrominance);

@@ -57,6 +57,10 @@ public:
 
     void get_timebase(AVRational& timebase);
 
+    int is_realtime();
+
+    void get_is_realtime(bool& is_realtime);
+
 private:
 
     const int _thread_count_fhd = 4;
@@ -236,4 +240,5 @@ private:
 
     void create_hw_codec();
 
+    bool _flag_is_realtime;
 };

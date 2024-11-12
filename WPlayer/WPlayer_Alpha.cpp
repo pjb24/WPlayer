@@ -4118,7 +4118,10 @@ void thread_scene(pst_scene data_scene)
 
     void* ffmpeg_instance_current = nullptr;
     auto it_ffmpeg_instance_current = data_scene->map_ffmpeg_instance.find(data_scene->index_ffmpeg_instance_current);
-    ffmpeg_instance_current = it_ffmpeg_instance_current->second;
+    if (it_ffmpeg_instance_current != data_scene->map_ffmpeg_instance.end())
+    {
+        ffmpeg_instance_current = it_ffmpeg_instance_current->second;
+    }
     
     bool flag_first = true;
 
@@ -4128,6 +4131,8 @@ void thread_scene(pst_scene data_scene)
 
     AVFrame* frame = nullptr;
     int index_frame_check_delay = 0;
+
+    bool flag_is_realtime = false;
 
     while (data_scene->flag_thread_scene)
     {
@@ -4259,6 +4264,8 @@ void thread_scene(pst_scene data_scene)
                 if (flag_first == true)
                 {
                     flag_first = false;
+
+                    cpp_ffmpeg_wrapper_get_is_realtime(ffmpeg_instance_current, flag_is_realtime);
                 }
 
                 data_scene->frame_index += 1;
@@ -4298,7 +4305,7 @@ void thread_scene(pst_scene data_scene)
 
             int64_t delay = data_scene->pts_in_milliseconds_now - data_scene->pts_in_milliseconds_last - (data_scene->time_now - data_scene->time_last);
 
-            if (delay < 14'000)
+            if (delay < 14'000 || flag_is_realtime == true)
             {
                 data_scene->time_last = data_scene->time_now;
                 data_scene->pts_in_milliseconds_last = data_scene->pts_in_milliseconds_now;

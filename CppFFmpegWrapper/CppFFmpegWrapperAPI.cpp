@@ -198,3 +198,9 @@ void cpp_ffmpeg_wrapper_get_timebase(void* instance, AVRational& timebase)
     FFmpegCore* core = (FFmpegCore*)instance;
     core->get_timebase(timebase);
 }
+
+void cpp_ffmpeg_wrapper_get_is_realtime(void* instance, bool& is_realtime)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->get_is_realtime(is_realtime);
+}

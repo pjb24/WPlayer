@@ -80,3 +80,5 @@ EXPORT int32_t cpp_ffmpeg_wrapper_check_frame_to_next_sync_group(void* instance)
 EXPORT void cpp_ffmpeg_wrapper_start_thread_repeat(void* instance);
 
 EXPORT void cpp_ffmpeg_wrapper_get_timebase(void* instance, AVRational& timebase);
+
+EXPORT void cpp_ffmpeg_wrapper_get_is_realtime(void* instance, bool& is_realtime);

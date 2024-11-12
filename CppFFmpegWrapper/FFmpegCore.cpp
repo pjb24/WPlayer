@@ -83,6 +83,8 @@ FFmpegCore::FFmpegCore()
     _input_frame_index = 0;
     _output_frame_index = 0;
     _frame_queue_free = false;
+
+    _flag_is_realtime = false;
 }
 bool FFmpegCore::initialize(CALLBACK_PTR cb)
 {
@@ -198,6 +200,8 @@ int FFmpegCore::open_file()
     _time_base_d = av_q2d(_time_base);
     _duration = _format_ctx->streams[_stream_index]->duration;
     _start_time = _format_ctx->streams[_stream_index]->start_time;
+
+    is_realtime();
 
     return (int)error_type::ok;
 }
@@ -1226,6 +1230,35 @@ void FFmpegCore::start_thread_repeat()
 void FFmpegCore::get_timebase(AVRational& timebase)
 {
     timebase = _time_base;
+}
+
+int FFmpegCore::is_realtime()
+{
+    if (!strcmp(_format_ctx->iformat->name, "rtp")
+        || !strcmp(_format_ctx->iformat->name, "rtsp")
+        || !strcmp(_format_ctx->iformat->name, "sdp")
+        )
+    {
+        _flag_is_realtime = true;
+        return 1;
+    }
+
+    if (_format_ctx->pb && (!strncmp(_format_ctx->url, "rtp:", 4)
+        || !strncmp(_format_ctx->url, "udp:", 4)
+        )
+        )
+    {
+        _flag_is_realtime = true;
+        return 1;
+    }
+
+    _flag_is_realtime = false;
+    return 0;
+}
+
+void FFmpegCore::get_is_realtime(bool& is_realtime)
+{
+    is_realtime = _flag_is_realtime;
 }
 
 static AVPixelFormat get_hw_format(AVCodecContext* ctx, const AVPixelFormat* pix_fmts)
