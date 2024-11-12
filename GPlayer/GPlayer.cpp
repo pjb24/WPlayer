@@ -64,11 +64,13 @@ std::map<uint64_t, HWND> _map_handle;
 std::map<uint64_t, GstElement*> _map_gst_sink;
 std::map<uint64_t, GstElement*> _map_gst_queue;
 
+std::map<uint64_t, GstElement*> _map_gst_source;
+std::map<uint64_t, GstElement*> _map_gst_decoder;
+std::map<uint64_t, GstElement*> _map_gst_videoconvert;
+GstElement* _gst_tee;
+
 size_t _current_track = 0;
 GMainLoop* _loop = nullptr;
-GstElement* _source = nullptr;
-GstElement* _source_1 = nullptr;
-GstElement* _source_2 = nullptr;
 GstElement* _pipeline = nullptr;
 
 bool _flag_different_videos = false;
@@ -128,6 +130,8 @@ void check_ready_to_playback();
 void message_processing_window();
 
 void clear_map_coordinate();
+
+bool check_url_plus_file_prefix(std::string url);
 
 void get_config()
 {
@@ -496,7 +500,7 @@ BOOL InitInstance()
 
             auto logger = spdlog::get(_logger_name.c_str());
 
-            if (result == FALSE)
+            if (result != 0)
             {
                 str.append(", GetLastError = ");
                 str.append(std::to_string(GetLastError()));
@@ -571,9 +575,8 @@ void on_pad_added(GstElement* src, GstPad* new_pad, GstElement* sink)
             str.append(", Pad already linked. Ignoring.");
 
             auto logger = spdlog::get(_logger_name.c_str());
-            logger->warn(str.c_str());
+            logger->debug(str.c_str());
         }
-        //g_print("Pad already linked. Ignoring.\n");
         gst_object_unref(sink_pad);
         return;
     }
@@ -593,7 +596,6 @@ void on_pad_added(GstElement* src, GstPad* new_pad, GstElement* sink)
             auto logger = spdlog::get(_logger_name.c_str());
             logger->warn(str.c_str());
         }
-        //g_printerr("Type is '%s' but link failed.\n", GST_PAD_NAME(new_pad));
     }
     else
     {
@@ -609,7 +611,6 @@ void on_pad_added(GstElement* src, GstPad* new_pad, GstElement* sink)
             auto logger = spdlog::get(_logger_name.c_str());
             logger->debug(str.c_str());
         }
-        //g_print("Link succeeded (type '%s').\n", GST_PAD_NAME(new_pad));
     }
     gst_object_unref(sink_pad);
 }
@@ -626,23 +627,17 @@ void play_next_track()
         _current_track = 0;
     }
 
-    if (_flag_different_videos)
+    for (auto it_source = _map_gst_source.begin(); it_source != _map_gst_source.end(); it_source++)
     {
-        std::string current_uri_1 = _map_url.find(_current_track)->second;
-        g_object_set(G_OBJECT(_source_1), "location", current_uri_1.c_str(), NULL);
-        _current_track++;
+        GstElement* source = it_source->second;
 
-        std::string current_uri_2 = _map_url.find(_current_track)->second;
-        g_object_set(G_OBJECT(_source_2), "location", current_uri_2.c_str(), NULL);
-    }
-    else
-    {
-        std::string current_uri = _map_url.find(_current_track)->second;
-        g_object_set(G_OBJECT(_source), "location", current_uri.c_str(), NULL);
+        std::string url = _map_url.find(_current_track)->second;
+
+        g_object_set(G_OBJECT(source), "uri", url.c_str(), NULL);
+        _current_track++;
     }
 
     gst_element_set_state(_pipeline, GST_STATE_PLAYING);
-    _current_track++;
 }
 
 gboolean bus_call(GstBus* bus, GstMessage* msg, gpointer data)
@@ -721,7 +716,6 @@ gboolean bus_call(GstBus* bus, GstMessage* msg, gpointer data)
             auto logger = spdlog::get(_logger_name.c_str());
             logger->debug(str.c_str());
         }
-        //g_print("End-Of-Stream reached.\n");
 
         if (_flag_file_not_found == false)
         {
@@ -744,7 +738,6 @@ gboolean bus_call(GstBus* bus, GstMessage* msg, gpointer data)
             auto logger = spdlog::get(_logger_name.c_str());
             logger->trace(str.c_str());
         }
-        //g_printerr("Unexpected message received.\n");
     }
     break;
     }
@@ -860,6 +853,14 @@ void thread_packet_processing()
             packet_gplayer_connect_data_url_from_server* packet = new packet_gplayer_connect_data_url_from_server();
             memcpy(packet, data, header->size);
 
+            std::string url_modified;
+            bool flag_url_plus_file_prefix = check_url_plus_file_prefix(packet->url);
+            if (flag_url_plus_file_prefix)
+            {
+                url_modified.append("file:///");
+                url_modified.append(packet->url);
+            }
+
             if (_flag_set_logger)
             {
                 std::string str;
@@ -867,9 +868,20 @@ void thread_packet_processing()
                 str.append(", gplayer_connect_data_url");
                 str.append(", url = ");
                 str.append(packet->url);
+                if (flag_url_plus_file_prefix)
+                {
+                    str.append(", url_modified = ");
+                    str.append(url_modified);
+                }
 
                 auto logger = spdlog::get(_logger_name.c_str());
                 logger->debug(str.c_str());
+            }
+
+            if (flag_url_plus_file_prefix)
+            {
+                packet->url_size = url_modified.size();
+                memcpy(packet->url, url_modified.c_str(), packet->url_size);
             }
 
             if (_player_sync_group_index == packet->player_sync_group_index)
@@ -901,6 +913,14 @@ void thread_packet_processing()
             packet_gplayer_connect_data_url_different_videos_from_server* packet = new packet_gplayer_connect_data_url_different_videos_from_server();
             memcpy(packet, data, header->size);
 
+            std::string url_modified;
+            bool flag_url_plus_file_prefix = check_url_plus_file_prefix(packet->url);
+            if (flag_url_plus_file_prefix)
+            {
+                url_modified.append("file:///");
+                url_modified.append(packet->url);
+            }
+
             if (_flag_set_logger)
             {
                 std::string str;
@@ -908,9 +928,20 @@ void thread_packet_processing()
                 str.append(", gplayer_connect_data_url_different_videos");
                 str.append(", url = ");
                 str.append(packet->url);
+                if (flag_url_plus_file_prefix)
+                {
+                    str.append(", url_modified = ");
+                    str.append(url_modified);
+                }
 
                 auto logger = spdlog::get(_logger_name.c_str());
                 logger->debug(str.c_str());
+            }
+
+            if (flag_url_plus_file_prefix)
+            {
+                packet->url_size = url_modified.size();
+                memcpy(packet->url, url_modified.c_str(), packet->url_size);
             }
 
             if (_player_sync_group_index == packet->player_sync_group_index)
@@ -1085,33 +1116,45 @@ int gst_start()
         logger->debug(str.c_str());
     }
 
-    GstElement* decoder = nullptr;
-    GstElement* decoder_1 = nullptr;
-    GstElement* decoder_2 = nullptr;
-    GstElement* videoconvert = nullptr;
-    GstElement* videoconvert_1 = nullptr;
-    GstElement* videoconvert_2 = nullptr;
-    GstElement* tee = nullptr;
-
     // 항상 사용함
     if (_flag_different_videos)
     {
-        _source_1 = gst_element_factory_make("filesrc", "file-source_1");
-        _source_2 = gst_element_factory_make("filesrc", "file-source_2");
-        //g_object_set(_source_1, "is-live", TRUE, NULL);
-        //g_object_set(_source_2, "is-live", TRUE, NULL);
+        for (size_t i = 0; i < _count_sink; i++)
+        {
+            std::string source_name = "uri-source";
+            source_name.append(std::to_string(i));
+            GstElement* source = nullptr;
+            source = gst_element_factory_make("urisourcebin", source_name.c_str());
+            _map_gst_source.insert({ _map_gst_source.size(), source });
 
-        decoder_1 = gst_element_factory_make("decodebin", "decoder_1");
-        decoder_2 = gst_element_factory_make("decodebin", "decoder_2");
-        videoconvert_1 = gst_element_factory_make("videoconvert", "video-converter_1");
-        videoconvert_2 = gst_element_factory_make("videoconvert", "video-converter_2");
+            std::string decoder_name = "decoder";
+            decoder_name.append(std::to_string(i));
+            GstElement* decoder = nullptr;
+            decoder = gst_element_factory_make("decodebin", decoder_name.c_str());
+            _map_gst_decoder.insert({ _map_gst_decoder.size(), decoder });
+
+            std::string videoconvert_name = "video-converter";
+            videoconvert_name.append(std::to_string(i));
+            GstElement* videoconvert = nullptr;
+            videoconvert = gst_element_factory_make("videoconvert", videoconvert_name.c_str());
+            _map_gst_videoconvert.insert({ _map_gst_videoconvert.size(), videoconvert });
+        }
     }
     else
     {
-        _source = gst_element_factory_make("filesrc", "file-source");
+        GstElement* source = nullptr;
+        source = gst_element_factory_make("urisourcebin", "uri-source");
+        _map_gst_source.insert({ _map_gst_source.size(), source });
+        
+        GstElement* decoder = nullptr;
         decoder = gst_element_factory_make("decodebin", "decoder");
+        _map_gst_decoder.insert({ _map_gst_decoder.size(), decoder });
+
+        GstElement* videoconvert = nullptr;
         videoconvert = gst_element_factory_make("videoconvert", "video-converter");
-        tee = gst_element_factory_make("tee", "tee");
+        _map_gst_videoconvert.insert({ _map_gst_videoconvert.size(), videoconvert });
+        
+        _gst_tee = gst_element_factory_make("tee", "tee");
     }
 
     // 항상 사용함
@@ -1137,55 +1180,85 @@ int gst_start()
         _map_gst_queue.insert({ i, queue });
     }
 
-    if (_flag_different_videos)
-    {
-        if (!_pipeline || !_source_1 || !decoder_1 || !videoconvert_1 || !_source_2 || !decoder_2 || !videoconvert_2)
-        {
-            if (_flag_set_logger)
-            {
-                std::string str;
-                str.append("gst_start");
-                str.append(", Not all elements could be created.");
+    bool flag_all_element_created = true;
 
-                auto logger = spdlog::get(_logger_name.c_str());
-                logger->warn(str.c_str());
-            }
-            return -1;
-        }
-    }
-    else
+    for (auto it_source = _map_gst_source.begin(); it_source != _map_gst_source.end(); it_source++)
     {
-        if (!_pipeline || !_source || !decoder || !videoconvert || !tee)
-        {
-            if (_flag_set_logger)
-            {
-                std::string str;
-                str.append("gst_start");
-                str.append(", Not all elements could be created.");
+        GstElement* source = it_source->second;
 
-                auto logger = spdlog::get(_logger_name.c_str());
-                logger->warn(str.c_str());
-            }
-            return -1;
+        if (!source)
+        {
+            flag_all_element_created = false;
+            break;
         }
     }
 
-    for (size_t i = 0; i < _count_sink; i++)
+    for (auto it_decoder = _map_gst_decoder.begin(); it_decoder != _map_gst_decoder.end(); it_decoder++)
     {
-        if (!_map_gst_sink.find(i)->second || !_map_gst_queue.find(i)->second)
-        {
-            if (_flag_set_logger)
-            {
-                std::string str;
-                str.append("gst_start");
-                str.append(", Not all elements could be created.");
+        GstElement* decoder = it_decoder->second;
 
-                auto logger = spdlog::get(_logger_name.c_str());
-                logger->warn(str.c_str());
-            }
-            return -1;
+        if (!decoder)
+        {
+            flag_all_element_created = false;
+            break;
         }
     }
+
+    for (auto it_videoconvert = _map_gst_videoconvert.begin(); it_videoconvert != _map_gst_videoconvert.end(); it_videoconvert++)
+    {
+        GstElement* videoconvert = it_videoconvert->second;
+
+        if (!videoconvert)
+        {
+            flag_all_element_created = false;
+            break;
+        }
+    }
+
+    for (auto it_sink = _map_gst_sink.begin(); it_sink != _map_gst_sink.end(); it_sink++)
+    {
+        GstElement* sink = it_sink->second;
+
+        if (!sink)
+        {
+            flag_all_element_created = false;
+            break;
+        }
+    }
+
+    for (auto it_queue = _map_gst_queue.begin(); it_queue != _map_gst_queue.end(); it_queue++)
+    {
+        GstElement* queue = it_queue->second;
+
+        if (!queue)
+        {
+            flag_all_element_created = false;
+            break;
+        }
+    }
+
+    if (_flag_different_videos == false)
+    {
+        if (!_gst_tee)
+        {
+            flag_all_element_created = false;
+        }
+    }
+
+    if (!_pipeline || !flag_all_element_created)
+    {
+        if (_flag_set_logger)
+        {
+            std::string str;
+            str.append("gst_start");
+            str.append(", Not all elements could be created.");
+
+            auto logger = spdlog::get(_logger_name.c_str());
+            logger->warn(str.c_str());
+        }
+        return -1;
+    }
+
     if (_flag_set_logger)
     {
         std::string str;
@@ -1204,92 +1277,69 @@ int gst_start()
     }
 
     /* Build the pipeline */
-    if (_flag_different_videos)
+
+    for (auto it_source = _map_gst_source.begin(); it_source != _map_gst_source.end(); it_source++)
     {
-        gst_bin_add_many(GST_BIN(_pipeline), _source_1, decoder_1, videoconvert_1, _source_2, decoder_2, videoconvert_2, NULL);
-    }
-    else
-    {
-        gst_bin_add_many(GST_BIN(_pipeline), _source, decoder, videoconvert, tee, NULL);
+        GstElement* source = it_source->second;
+        gst_bin_add(GST_BIN(_pipeline), source);
     }
 
-    for (size_t i = 0; i < _count_sink; i++)
+    for (auto it_decoder = _map_gst_decoder.begin(); it_decoder != _map_gst_decoder.end(); it_decoder++)
     {
-        gst_bin_add(GST_BIN(_pipeline), _map_gst_sink.find(i)->second);
-        gst_bin_add(GST_BIN(_pipeline), _map_gst_queue.find(i)->second);
+        GstElement* decoder = it_decoder->second;
+        gst_bin_add(GST_BIN(_pipeline), decoder);
     }
 
-    if (_flag_different_videos)
+    for (auto it_videoconvert = _map_gst_videoconvert.begin(); it_videoconvert != _map_gst_videoconvert.end(); it_videoconvert++)
     {
-        if (!gst_element_link(_source_1, decoder_1))
-        {
-            if (_flag_set_logger)
-            {
-                std::string str;
-                str.append("gst_start");
-                str.append(", gst_element_link return false");
-                str.append(", Source and decoder could not be linked.");
-
-                auto logger = spdlog::get(_logger_name.c_str());
-                logger->warn(str.c_str());
-            }
-            gst_object_unref(_pipeline);
-            return -1;
-        }
-
-        if (!gst_element_link(_source_2, decoder_2))
-        {
-            if (_flag_set_logger)
-            {
-                std::string str;
-                str.append("gst_start");
-                str.append(", gst_element_link return false");
-                str.append(", Source and decoder could not be linked.");
-
-                auto logger = spdlog::get(_logger_name.c_str());
-                logger->warn(str.c_str());
-            }
-            gst_object_unref(_pipeline);
-            return -1;
-        }
-    }
-    else
-    {
-        if (!gst_element_link(_source, decoder))
-        {
-            if (_flag_set_logger)
-            {
-                std::string str;
-                str.append("gst_start");
-                str.append(", gst_element_link return false");
-                str.append(", Source and decoder could not be linked.");
-
-                auto logger = spdlog::get(_logger_name.c_str());
-                logger->warn(str.c_str());
-            }
-            gst_object_unref(_pipeline);
-            return -1;
-        }
+        GstElement* videoconvert = it_videoconvert->second;
+        gst_bin_add(GST_BIN(_pipeline), videoconvert);
     }
 
+    for (auto it_sink = _map_gst_sink.begin(); it_sink != _map_gst_sink.end(); it_sink++)
+    {
+        GstElement* sink = it_sink->second;
+        gst_bin_add(GST_BIN(_pipeline), sink);
+    }
+
+    for (auto it_queue = _map_gst_queue.begin(); it_queue != _map_gst_queue.end(); it_queue++)
+    {
+        GstElement* queue = it_queue->second;
+        gst_bin_add(GST_BIN(_pipeline), queue);
+    }
+
+    if (_flag_different_videos == false)
+    {
+        gst_bin_add(GST_BIN(_pipeline), _gst_tee);
+    }
 
     // Connect the decoder's pad-added signal to the handler function
     // 동적 패드 연결을 위한 시그널을 이용한 콜백 설정
-    if (_flag_different_videos)
+    for (auto it_source = _map_gst_source.begin(); it_source != _map_gst_source.end(); it_source++)
     {
-        g_signal_connect(decoder_1, "pad-added", G_CALLBACK(on_pad_added), videoconvert_1);
-        g_signal_connect(decoder_2, "pad-added", G_CALLBACK(on_pad_added), videoconvert_2);
+        GstElement* source = it_source->second;
+
+        GstElement* decoder = _map_gst_decoder.find(it_source->first)->second;
+
+        g_signal_connect(source, "pad-added", G_CALLBACK(on_pad_added), decoder);
     }
-    else
+
+    for (auto it_decoder = _map_gst_decoder.begin(); it_decoder != _map_gst_decoder.end(); it_decoder++)
     {
+        GstElement* decoder = it_decoder->second;
+
+        GstElement* videoconvert = _map_gst_videoconvert.find(it_decoder->first)->second;
+
         g_signal_connect(decoder, "pad-added", G_CALLBACK(on_pad_added), videoconvert);
     }
-    
 
     //// Link the remaining elements
     if (_flag_different_videos == false)
     {
-        if (!gst_element_link(videoconvert, tee))
+        auto it_videoconvert = _map_gst_videoconvert.begin();
+        GstElement* videoconvert = it_videoconvert->second;
+
+        if (!gst_element_link(videoconvert, _gst_tee))
         {
             if (_flag_set_logger)
             {
@@ -1333,49 +1383,37 @@ int gst_start()
 
     if (_flag_different_videos)
     {
-        if (!gst_element_link(videoconvert_1, _map_gst_queue.find(0)->second))
+        for (auto it_videoconvert = _map_gst_videoconvert.begin(); it_videoconvert != _map_gst_videoconvert.end(); it_videoconvert++)
         {
-            if (_flag_set_logger)
+            GstElement* videoconvert = it_videoconvert->second;
+
+            GstElement* queue = _map_gst_queue.find(it_videoconvert->first)->second;
+
+            if (!gst_element_link(videoconvert, queue))
             {
-                std::string str;
-                str.append("gst_start");
-                str.append(", gst_element_link_pads return false");
-                str.append(", videoconvert_1 and queue");
-                str.append(std::to_string(0));
-                str.append(" could not be linked.");
+                if (_flag_set_logger)
+                {
+                    std::string str;
+                    str.append("gst_start");
+                    str.append(", gst_element_link_pads return false");
+                    str.append(", videoconvert and queue");
+                    str.append(std::to_string(0));
+                    str.append(" could not be linked.");
 
-                auto logger = spdlog::get(_logger_name.c_str());
-                logger->warn(str.c_str());
+                    auto logger = spdlog::get(_logger_name.c_str());
+                    logger->warn(str.c_str());
+                }
+
+                gst_object_unref(_pipeline);
+                return -1;
             }
-
-            gst_object_unref(_pipeline);
-            return -1;
-        }
-
-        if (!gst_element_link(videoconvert_2, _map_gst_queue.find(1)->second))
-        {
-            if (_flag_set_logger)
-            {
-                std::string str;
-                str.append("gst_start");
-                str.append(", gst_element_link_pads return false");
-                str.append(", videoconvert_2 and queue");
-                str.append(std::to_string(1));
-                str.append(" could not be linked.");
-
-                auto logger = spdlog::get(_logger_name.c_str());
-                logger->warn(str.c_str());
-            }
-
-            gst_object_unref(_pipeline);
-            return -1;
         }
     }
     else
     {
         for (size_t i = 0; i < _count_sink; i++)
         {
-            if (!gst_element_link_pads(tee, "src_%u", _map_gst_queue.find(i)->second, "sink"))
+            if (!gst_element_link_pads(_gst_tee, "src_%u", _map_gst_queue.find(i)->second, "sink"))
             {
                 if (_flag_set_logger)
                 {
@@ -1500,4 +1538,35 @@ void clear_map_coordinate()
 
         it_coordinate = _map_coordinate.erase(it_coordinate);
     }
+}
+
+bool check_url_plus_file_prefix(std::string url)
+{
+    bool flag_url_plus_file_prefix = false;
+
+    if (!strncmp(url.c_str(), "rtp:", 4))
+    {
+    }
+    else if (!strncmp(url.c_str(), "rtsp:", 5))
+    {
+    }
+    else if (!strncmp(url.c_str(), "sdp:", 4))
+    {
+    }
+    else if (!strncmp(url.c_str(), "udp:", 4))
+    {
+    }
+    else
+    {
+        // file url
+        if (!strncmp(url.c_str(), "file:", 5))
+        {
+        }
+        else
+        {
+            flag_url_plus_file_prefix = true;
+        }
+    }
+
+    return flag_url_plus_file_prefix;
 }
