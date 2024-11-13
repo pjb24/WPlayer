@@ -4146,189 +4146,192 @@ void thread_scene(pst_scene data_scene)
         // av_frame_unref(data_scene->index_used_frame)
         // index_output++
 
-        if (data_scene->flag_frame_unref == true && data_scene->flag_use_last_frame == false)
+        if (_flag_use_default_image == false)
         {
-            data_scene->mutex_deque_index_used->lock();
-            
-            // deque의 숫자가 전부 동일하면 unref 하지 않음.
-            // 숫자가 전부 동일하면 2개만 남기도록 함.
-            if (data_scene->deque_index_used.size() > data_scene->count_used_frame_store)
+            if (data_scene->flag_frame_unref == true && data_scene->flag_use_last_frame == false)
             {
-                int count_used_index = data_scene->deque_index_used.size();
-                int check_same_index = data_scene->deque_index_used.front();
-                int counter_same_index = 0;
-
-                for (auto it = data_scene->deque_index_used.begin(); it != data_scene->deque_index_used.end(); it++)
+                data_scene->mutex_deque_index_used->lock();
+            
+                // deque의 숫자가 전부 동일하면 unref 하지 않음.
+                // 숫자가 전부 동일하면 2개만 남기도록 함.
+                if (data_scene->deque_index_used.size() > data_scene->count_used_frame_store)
                 {
-                    if (check_same_index == *it)
-                    {
-                        count_used_index--;
-                        counter_same_index++;
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
+                    int count_used_index = data_scene->deque_index_used.size();
+                    int check_same_index = data_scene->deque_index_used.front();
+                    int counter_same_index = 0;
 
-                if (counter_same_index > data_scene->count_used_frame_store)
-                {
-                    for (size_t i = 0; i < counter_same_index - data_scene->count_used_frame_store; i++)
+                    for (auto it = data_scene->deque_index_used.begin(); it != data_scene->deque_index_used.end(); it++)
                     {
+                        if (check_same_index == *it)
+                        {
+                            count_used_index--;
+                            counter_same_index++;
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+
+                    if (counter_same_index > data_scene->count_used_frame_store)
+                    {
+                        for (size_t i = 0; i < counter_same_index - data_scene->count_used_frame_store; i++)
+                        {
+                            data_scene->deque_index_used.pop_front();
+                        }
+                    }
+
+                    if (count_used_index != 0)
+                    {
+                        int index_used_frame = data_scene->deque_index_used.front();
+
+                        {
+                            std::lock_guard<std::mutex> lk(*data_scene->mutex_deque_index_unref);
+                            data_scene->deque_index_unref.push_back(index_used_frame);
+                        }
+
                         data_scene->deque_index_used.pop_front();
                     }
                 }
 
-                if (count_used_index != 0)
-                {
-                    int index_used_frame = data_scene->deque_index_used.front();
-
-                    {
-                        std::lock_guard<std::mutex> lk(*data_scene->mutex_deque_index_unref);
-                        data_scene->deque_index_unref.push_back(index_used_frame);
-                    }
-
-                    data_scene->deque_index_used.pop_front();
-                }
+                data_scene->mutex_deque_index_used->unlock();
             }
 
-            data_scene->mutex_deque_index_used->unlock();
-        }
-
-        if (data_scene->flag_use_last_frame == true)
-        {
-            data_scene->flag_use_last_frame = false;
-        }
-
-        if (is_queue_full(data_scene->index_input, data_scene->index_output, _count_texture_store) == false)
-        {
-            result = cpp_ffmpeg_wrapper_get_frame(ffmpeg_instance_current, data_scene->vector_frame.at(data_scene->frame_index));
-
-            // queue empty
-            if (result == -1)
+            if (data_scene->flag_use_last_frame == true)
             {
-                data_scene->flag_use_last_frame = true;
-
-                if (flag_first == true)
-                {
-                    continue;
-                }
-            }
-            // EOS / EOF
-            else if (result == -2)
-            {
-                // 사용하는 ffmpeg instance의 index 변경
-
-                if (flag_repeat == false)
-                {
-                    data_scene->index_ffmpeg_instance_current++;
-                    if (data_scene->index_ffmpeg_instance_current == data_scene->map_ffmpeg_instance_capacity)
-                    {
-                        data_scene->index_ffmpeg_instance_current = 0;
-                    }
-
-                    if (data_scene->index_ffmpeg_instance_current == 0)
-                    {
-                        data_scene->index_ffmpeg_instance_last = data_scene->map_ffmpeg_instance_capacity - 1;
-                    }
-                    else
-                    {
-                        data_scene->index_ffmpeg_instance_last = data_scene->index_ffmpeg_instance_current - 1;
-                    }
-
-                    if (data_scene->index_ffmpeg_instance_last == 0)
-                    {
-                        data_scene->index_ffmpeg_instance_delete = data_scene->map_ffmpeg_instance_capacity - 1;
-                    }
-                    else
-                    {
-                        data_scene->index_ffmpeg_instance_delete = data_scene->index_ffmpeg_instance_last - 1;
-                    }
-                
-                    it_ffmpeg_instance_current = data_scene->map_ffmpeg_instance.find(data_scene->index_ffmpeg_instance_current);
-                    ffmpeg_instance_current = it_ffmpeg_instance_current->second;
-
-                    check_map_ffmpeg_instance_repeat(data_scene);
-
-                    flag_repeat = true;
-
-                    count_use_last_frame = _count_use_last_frame_at_repeat;
-                }
-                
-                data_scene->flag_use_last_frame = true;
-            }
-            // return >= 0
-            // success
-            else
-            {
-                if (flag_first == true)
-                {
-                    flag_first = false;
-
-                    cpp_ffmpeg_wrapper_get_is_realtime(ffmpeg_instance_current, flag_is_realtime);
-                }
-
-                data_scene->frame_index += 1;
-                if (!(data_scene->frame_index < _count_texture_store))
-                {
-                    data_scene->frame_index = 0;
-                }
-
-                data_scene->index_input += 1;
-                if (!(data_scene->index_input < _count_texture_store))
-                {
-                    data_scene->index_input = 0;
-                }
-
-                data_scene->flag_ready_to_frame_use = true;
-
-                if (flag_repeat == true)
-                {
-                    flag_repeat = false;
-                }
-
-                do
-                {
-                    // CppFFmpegWrapper frame_to_next
-                    result = cpp_ffmpeg_wrapper_frame_to_next_non_waiting(ffmpeg_instance_current);
-                } while (result != 0);
-            }
-        }
-
-        frame = data_scene->vector_frame.at(index_frame_check_delay);
-        if (frame->data[0] != nullptr)
-        {
-            data_scene->time_now = av_gettime_relative();
-            AVRational timebase{};
-            cpp_ffmpeg_wrapper_get_timebase(ffmpeg_instance_current, timebase);
-            data_scene->pts_in_milliseconds_now = av_rescale_q(frame->pts, timebase, AVRational{ 1, 1'000'000 });
-
-            int64_t delay = data_scene->pts_in_milliseconds_now - data_scene->pts_in_milliseconds_last - (data_scene->time_now - data_scene->time_last);
-
-            if (delay < 14'000 || flag_is_realtime == true)
-            {
-                data_scene->time_last = data_scene->time_now;
-                data_scene->pts_in_milliseconds_last = data_scene->pts_in_milliseconds_now;
-
                 data_scene->flag_use_last_frame = false;
+            }
 
-                index_frame_check_delay += 1;
-                if (!(index_frame_check_delay < _count_texture_store))
+            if (is_queue_full(data_scene->index_input, data_scene->index_output, _count_texture_store) == false)
+            {
+                result = cpp_ffmpeg_wrapper_get_frame(ffmpeg_instance_current, data_scene->vector_frame.at(data_scene->frame_index));
+
+                // queue empty
+                if (result == -1)
                 {
-                    index_frame_check_delay = 0;
+                    data_scene->flag_use_last_frame = true;
+
+                    if (flag_first == true)
+                    {
+                        continue;
+                    }
+                }
+                // EOS / EOF
+                else if (result == -2)
+                {
+                    // 사용하는 ffmpeg instance의 index 변경
+
+                    if (flag_repeat == false)
+                    {
+                        data_scene->index_ffmpeg_instance_current++;
+                        if (data_scene->index_ffmpeg_instance_current == data_scene->map_ffmpeg_instance_capacity)
+                        {
+                            data_scene->index_ffmpeg_instance_current = 0;
+                        }
+
+                        if (data_scene->index_ffmpeg_instance_current == 0)
+                        {
+                            data_scene->index_ffmpeg_instance_last = data_scene->map_ffmpeg_instance_capacity - 1;
+                        }
+                        else
+                        {
+                            data_scene->index_ffmpeg_instance_last = data_scene->index_ffmpeg_instance_current - 1;
+                        }
+
+                        if (data_scene->index_ffmpeg_instance_last == 0)
+                        {
+                            data_scene->index_ffmpeg_instance_delete = data_scene->map_ffmpeg_instance_capacity - 1;
+                        }
+                        else
+                        {
+                            data_scene->index_ffmpeg_instance_delete = data_scene->index_ffmpeg_instance_last - 1;
+                        }
+                
+                        it_ffmpeg_instance_current = data_scene->map_ffmpeg_instance.find(data_scene->index_ffmpeg_instance_current);
+                        ffmpeg_instance_current = it_ffmpeg_instance_current->second;
+
+                        check_map_ffmpeg_instance_repeat(data_scene);
+
+                        flag_repeat = true;
+
+                        count_use_last_frame = _count_use_last_frame_at_repeat;
+                    }
+                
+                    data_scene->flag_use_last_frame = true;
+                }
+                // return >= 0
+                // success
+                else
+                {
+                    if (flag_first == true)
+                    {
+                        flag_first = false;
+
+                        cpp_ffmpeg_wrapper_get_is_realtime(ffmpeg_instance_current, flag_is_realtime);
+                    }
+
+                    data_scene->frame_index += 1;
+                    if (!(data_scene->frame_index < _count_texture_store))
+                    {
+                        data_scene->frame_index = 0;
+                    }
+
+                    data_scene->index_input += 1;
+                    if (!(data_scene->index_input < _count_texture_store))
+                    {
+                        data_scene->index_input = 0;
+                    }
+
+                    data_scene->flag_ready_to_frame_use = true;
+
+                    if (flag_repeat == true)
+                    {
+                        flag_repeat = false;
+                    }
+
+                    do
+                    {
+                        // CppFFmpegWrapper frame_to_next
+                        result = cpp_ffmpeg_wrapper_frame_to_next_non_waiting(ffmpeg_instance_current);
+                    } while (result != 0);
                 }
             }
-            else
+
+            frame = data_scene->vector_frame.at(index_frame_check_delay);
+            if (frame->data[0] != nullptr)
             {
+                data_scene->time_now = av_gettime_relative();
+                AVRational timebase{};
+                cpp_ffmpeg_wrapper_get_timebase(ffmpeg_instance_current, timebase);
+                data_scene->pts_in_milliseconds_now = av_rescale_q(frame->pts, timebase, AVRational{ 1, 1'000'000 });
+
+                int64_t delay = data_scene->pts_in_milliseconds_now - data_scene->pts_in_milliseconds_last - (data_scene->time_now - data_scene->time_last);
+
+                if (delay < 14'000 || flag_is_realtime == true)
+                {
+                    data_scene->time_last = data_scene->time_now;
+                    data_scene->pts_in_milliseconds_last = data_scene->pts_in_milliseconds_now;
+
+                    data_scene->flag_use_last_frame = false;
+
+                    index_frame_check_delay += 1;
+                    if (!(index_frame_check_delay < _count_texture_store))
+                    {
+                        index_frame_check_delay = 0;
+                    }
+                }
+                else
+                {
+                    data_scene->flag_use_last_frame = true;
+                }
+            }
+
+            if (count_use_last_frame > 0)
+            {
+                count_use_last_frame--;
+
                 data_scene->flag_use_last_frame = true;
             }
-        }
-
-        if (count_use_last_frame > 0)
-        {
-            count_use_last_frame--;
-
-            data_scene->flag_use_last_frame = true;
         }
 
         SetEvent(data_scene->event_scene_to_upload);
@@ -4639,14 +4642,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
-
-        if (_flag_use_default_image)
-        {
-            if (_vector_event_scene_to_upload.size() != 0)
-            {
-                _vector_event_scene_to_upload.clear();
-            }
-        }
     }
 
     if (_thread_wait_for_multiple_objects_window_to_scene.joinable())
@@ -4922,25 +4917,22 @@ int start_playback()
         _map_thread_upload.insert({ data_device->device_index, data_thread_upload });
     }
 
-    if (result == 0)
+    for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
     {
-        for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
-        {
-            pst_scene data_scene = it_scene->second;
+        pst_scene data_scene = it_scene->second;
 
-            std::thread* data_thread_scene_unref = new std::thread(thread_scene_unref, data_scene);
+        std::thread* data_thread_scene_unref = new std::thread(thread_scene_unref, data_scene);
 
-            _map_thread_scene_unref.insert({ data_scene->scene_index, data_thread_scene_unref });
-        }
+        _map_thread_scene_unref.insert({ data_scene->scene_index, data_thread_scene_unref });
+    }
 
-        for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
-        {
-            pst_scene data_scene = it_scene->second;
+    for (auto it_scene = _map_scene.begin(); it_scene != _map_scene.end(); it_scene++)
+    {
+        pst_scene data_scene = it_scene->second;
 
-            std::thread* data_thread_scene = new std::thread(thread_scene, data_scene);
+        std::thread* data_thread_scene = new std::thread(thread_scene, data_scene);
 
-            _map_thread_scene.insert({ data_scene->scene_index, data_thread_scene });
-        }
+        _map_thread_scene.insert({ data_scene->scene_index, data_thread_scene });
     }
 
     return result;
@@ -5312,37 +5304,5 @@ void delete_scenes_data()
 
             it_vector = data_scene->vector_frame.erase(it_vector);
         }
-
-        if (data_scene->mutex_deque_index_used != nullptr)
-        {
-            data_scene->mutex_deque_index_used->lock();
-            for (auto it_vector = data_scene->deque_index_used.begin(); it_vector != data_scene->deque_index_used.end();)
-            {
-                it_vector = data_scene->deque_index_used.erase(it_vector);
-            }
-            data_scene->mutex_deque_index_used->unlock();
-            delete data_scene->mutex_deque_index_used;
-            data_scene->mutex_deque_index_used = nullptr;
-        }
-
-        if (data_scene->mutex_deque_index_unref != nullptr)
-        {
-            data_scene->mutex_deque_index_unref->lock();
-            for (auto it_vector = data_scene->deque_index_unref.begin(); it_vector != data_scene->deque_index_unref.end();)
-            {
-                it_vector = data_scene->deque_index_unref.erase(it_vector);
-            }
-            data_scene->mutex_deque_index_unref->unlock();
-            delete data_scene->mutex_deque_index_unref;
-            data_scene->mutex_deque_index_unref = nullptr;
-        }
-
-        if (data_scene->event_scene_to_upload)
-        {
-            CloseHandle(data_scene->event_scene_to_upload);
-            data_scene->event_scene_to_upload = nullptr;
-        }
     }
-
-    _vector_event_scene_to_upload.clear();
 }
