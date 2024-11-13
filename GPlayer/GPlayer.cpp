@@ -117,6 +117,8 @@ std::string _default_image_url;
 
 bool _flag_file_not_found = false;
 
+bool _flag_connect_to_live_streaming = false;
+
 void thread_client();
 
 void callback_ptr_client(void* data);
@@ -702,6 +704,25 @@ gboolean bus_call(GstBus* bus, GstMessage* msg, gpointer data)
                 g_main_loop_quit(_loop);
             }
         }
+
+        if (_flag_connect_to_live_streaming)
+        {
+            if (err->code == 7)
+            {
+                gst_element_set_state(_pipeline, GST_STATE_NULL);
+                gst_element_set_state(_pipeline, GST_STATE_PLAYING);
+
+                if (_flag_set_logger)
+                {
+                    std::string str;
+                    str.append("bus_call");
+                    str.append(", set state GST_STATE_NULL and GST_STATE_PLAYING");
+
+                    auto logger = spdlog::get(_logger_name.c_str());
+                    logger->warn(str.c_str());
+                }
+            }
+        }
     }
     break;
     case GST_MESSAGE_EOS:
@@ -717,10 +738,31 @@ gboolean bus_call(GstBus* bus, GstMessage* msg, gpointer data)
             logger->debug(str.c_str());
         }
 
-        if (_flag_file_not_found == false)
+        if (_flag_connect_to_live_streaming)
         {
             gst_element_set_state(_pipeline, GST_STATE_NULL);
-            play_next_track();
+            gst_element_set_state(_pipeline, GST_STATE_PLAYING);
+
+            if (_flag_set_logger)
+            {
+                std::string str;
+                str.append("bus_call");
+                str.append(", MessageType = GST_MESSAGE_EOS");
+                str.append(", End-Of-Stream reached.");
+                str.append(", connect with live streaming");
+                str.append(", set state GST_STATE_NULL and GST_STATE_PLAYING");
+
+                auto logger = spdlog::get(_logger_name.c_str());
+                logger->warn(str.c_str());
+            }
+        }
+        else
+        {
+            if (_flag_file_not_found == false)
+            {
+                gst_element_set_state(_pipeline, GST_STATE_NULL);
+                play_next_track();
+            }
         }
     }
     break;
@@ -1546,15 +1588,19 @@ bool check_url_plus_file_prefix(std::string url)
 
     if (!strncmp(url.c_str(), "rtp:", 4))
     {
+        _flag_connect_to_live_streaming = true;
     }
     else if (!strncmp(url.c_str(), "rtsp:", 5))
     {
+        _flag_connect_to_live_streaming = true;
     }
     else if (!strncmp(url.c_str(), "sdp:", 4))
     {
+        _flag_connect_to_live_streaming = true;
     }
     else if (!strncmp(url.c_str(), "udp:", 4))
     {
+        _flag_connect_to_live_streaming = true;
     }
     else
     {
