@@ -135,6 +135,8 @@ void clear_map_coordinate();
 
 bool check_url_plus_file_prefix(std::string url);
 
+void child_added_callback(GstChildProxy* self, GObject* object, gchar* name, gpointer user_data);
+
 void get_config()
 {
     wchar_t path_w[260] = { 0, };
@@ -1355,6 +1357,13 @@ int gst_start()
         gst_bin_add(GST_BIN(_pipeline), _gst_tee);
     }
 
+    for (auto it_source = _map_gst_source.begin(); it_source != _map_gst_source.end(); it_source++)
+    {
+        GstElement* source = it_source->second;
+
+        g_signal_connect(source, "child-added", G_CALLBACK(child_added_callback), NULL);
+    }
+
     // Connect the decoder's pad-added signal to the handler function
     // 동적 패드 연결을 위한 시그널을 이용한 콜백 설정
     for (auto it_source = _map_gst_source.begin(); it_source != _map_gst_source.end(); it_source++)
@@ -1615,4 +1624,42 @@ bool check_url_plus_file_prefix(std::string url)
     }
 
     return flag_url_plus_file_prefix;
+}
+
+void child_added_callback(GstChildProxy* self, GObject* object, gchar* name, gpointer user_data)
+{
+    if (_flag_connect_to_live_streaming)
+    {
+        if (!strncmp(name, "rtsp", 4))
+        {
+            guint64 timeout_get;
+            guint latency_get;
+
+            g_object_get(G_OBJECT(object), "tcp-timeout", &timeout_get, NULL);
+            g_object_get(G_OBJECT(object), "latency", &latency_get, NULL);
+
+            // tcp-timeout default value: 20'000'000
+            g_object_set(G_OBJECT(object), "tcp-timeout", (guint64)2'000'000, NULL);
+            // latency default value: 2'000
+            g_object_set(G_OBJECT(object), "latency", (guint)1'000, NULL);
+
+            if (_flag_set_logger)
+            {
+                std::string str;
+                str.append("child_added_callback");
+                str.append(", object name: ");
+                str.append(name);
+                str.append(", connect with live streaming");
+                str.append(", get tcp-timeout: ");
+                str.append(std::to_string(timeout_get));
+                str.append(", set tcp-timeout to 2'000'000");
+                str.append(", get latency: ");
+                str.append(std::to_string(latency_get));
+                str.append(", set latency to 1'000");
+
+                auto logger = spdlog::get(_logger_name.c_str());
+                logger->debug(str.c_str());
+            }
+        }
+    }
 }
