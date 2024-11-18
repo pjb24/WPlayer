@@ -86,6 +86,7 @@ FFmpegCore::FFmpegCore()
 
     _flag_is_realtime = false;
 }
+
 bool FFmpegCore::initialize(CALLBACK_PTR cb)
 {
     UINT packet_index = 0;
@@ -181,18 +182,23 @@ int FFmpegCore::open_file()
 
     int result = 0;
 
-    result = avformat_open_input(&_format_ctx, _file_path.c_str(), nullptr, nullptr /* dictionary */);
+    AVDictionary* dictionary = nullptr;
+
+    int timeout = 1'000 * 1'000 * 2;
+    std::string timeout_string = std::to_string(timeout);
+    av_dict_set(&dictionary, "timeout", timeout_string.c_str(), 0);
+
+    result = avformat_open_input(&_format_ctx, _file_path.c_str(), nullptr, &dictionary);
+    
+    if (dictionary)
+    {
+        av_dict_free(&dictionary);
+    }
+
     if (result != 0)
     {
         return (int)error_type::file_not_exist;
     }
-
-    /*
-    if (dictionary)
-    {
-        av_dict_free(dictionary);
-    }
-    */
 
     _stream_index = av_find_best_stream(_format_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &_codec, 0);
 
@@ -1234,25 +1240,27 @@ void FFmpegCore::get_timebase(AVRational& timebase)
 
 int FFmpegCore::is_realtime()
 {
-    if (!strcmp(_format_ctx->iformat->name, "rtp")
-        || !strcmp(_format_ctx->iformat->name, "rtsp")
-        || !strcmp(_format_ctx->iformat->name, "sdp")
-        )
+    if (!strncmp(_file_path.c_str(), "rtp:", 4))
     {
         _flag_is_realtime = true;
-        return 1;
     }
-
-    if (_format_ctx->pb && (!strncmp(_format_ctx->url, "rtp:", 4)
-        || !strncmp(_format_ctx->url, "udp:", 4)
-        )
-        )
+    else if (!strncmp(_file_path.c_str(), "rtsp:", 5))
     {
         _flag_is_realtime = true;
-        return 1;
+    }
+    else if (!strncmp(_file_path.c_str(), "sdp:", 4))
+    {
+        _flag_is_realtime = true;
+    }
+    else if (!strncmp(_file_path.c_str(), "udp:", 4))
+    {
+        _flag_is_realtime = true;
+    }
+    else
+    {
+        _flag_is_realtime = false;
     }
 
-    _flag_is_realtime = false;
     return 0;
 }
 
