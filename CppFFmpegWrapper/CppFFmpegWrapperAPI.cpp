@@ -204,3 +204,16 @@ void cpp_ffmpeg_wrapper_get_is_realtime(void* instance, bool& is_realtime)
     FFmpegCore* core = (FFmpegCore*)instance;
     core->get_is_realtime(is_realtime);
 }
+
+void cpp_ffmpeg_wrapper_get_flag_succeed_open_input(void* instance, bool& flag_succeed_open_input)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->get_flag_succeed_open_input(flag_succeed_open_input);
+}
+
+void cpp_ffmpeg_wrapper_get_flag_play_started(void* instance, bool& flag_play_started)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->get_flag_play_started(flag_play_started);
+}
+

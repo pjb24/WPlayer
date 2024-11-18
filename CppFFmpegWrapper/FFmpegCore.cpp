@@ -85,6 +85,8 @@ FFmpegCore::FFmpegCore()
     _frame_queue_free = false;
 
     _flag_is_realtime = false;
+    _flag_succeed_open_input = false;
+    _flag_play_started = false;
 }
 
 bool FFmpegCore::initialize(CALLBACK_PTR cb)
@@ -171,6 +173,9 @@ void FFmpegCore::shutdown()
         }
         _packet_queue_free = true;
     }
+
+    _flag_succeed_open_input = false;
+    _flag_play_started = false;
 }
 
 int FFmpegCore::open_file()
@@ -197,8 +202,14 @@ int FFmpegCore::open_file()
 
     if (result != 0)
     {
+        // if (result == AVERROR(ETIMEDOUT))
+
+        // if (result == AVERROR_HTTP_UNAUTHORIZED)
+
         return (int)error_type::file_not_exist;
     }
+
+    _flag_succeed_open_input = true;
 
     _stream_index = av_find_best_stream(_format_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &_codec, 0);
 
@@ -231,6 +242,8 @@ void FFmpegCore::play_start(void* connection)
 
     _read_thread = std::thread(&FFmpegCore::read, this);
     _decode_thread = std::thread(&FFmpegCore::decode, this);
+
+    _flag_play_started = true;
 }
 
 void FFmpegCore::play_pause(void* connection)
@@ -1267,6 +1280,16 @@ int FFmpegCore::is_realtime()
 void FFmpegCore::get_is_realtime(bool& is_realtime)
 {
     is_realtime = _flag_is_realtime;
+}
+
+void FFmpegCore::get_flag_succeed_open_input(bool& flag_succeed_open_input)
+{
+    flag_succeed_open_input = _flag_succeed_open_input;
+}
+
+void FFmpegCore::get_flag_play_started(bool& flag_play_started)
+{
+    flag_play_started = _flag_play_started;
 }
 
 static AVPixelFormat get_hw_format(AVCodecContext* ctx, const AVPixelFormat* pix_fmts)

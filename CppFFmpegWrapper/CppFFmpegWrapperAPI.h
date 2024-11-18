@@ -82,3 +82,8 @@ EXPORT void cpp_ffmpeg_wrapper_start_thread_repeat(void* instance);
 EXPORT void cpp_ffmpeg_wrapper_get_timebase(void* instance, AVRational& timebase);
 
 EXPORT void cpp_ffmpeg_wrapper_get_is_realtime(void* instance, bool& is_realtime);
+
+EXPORT void cpp_ffmpeg_wrapper_get_flag_succeed_open_input(void* instance, bool& flag_succeed_open_input);
+
+EXPORT void cpp_ffmpeg_wrapper_get_flag_play_started(void* instance, bool& flag_play_started);
+

@@ -60,6 +60,8 @@ public:
     int is_realtime();
 
     void get_is_realtime(bool& is_realtime);
+    void get_flag_succeed_open_input(bool& flag_succeed_open_input);
+    void get_flag_play_started(bool& flag_play_started);
 
 private:
 
@@ -241,4 +243,7 @@ private:
     void create_hw_codec();
 
     bool _flag_is_realtime;
+    bool _flag_succeed_open_input;
+    bool _flag_play_started;
+
 };
