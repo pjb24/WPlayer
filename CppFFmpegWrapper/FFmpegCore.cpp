@@ -218,8 +218,6 @@ int FFmpegCore::open_file()
     _duration = _format_ctx->streams[_stream_index]->duration;
     _start_time = _format_ctx->streams[_stream_index]->start_time;
 
-    is_realtime();
-
     return (int)error_type::ok;
 }
 

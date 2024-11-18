@@ -77,6 +77,8 @@ void cpp_ffmpeg_wrapper_set_file_path(void * instance, char * url)
     temp.assign(url);
     
     core->file_path(temp);
+
+    core->is_realtime();
 }
 
 int cpp_ffmpeg_wrapper_open_file(void * instance)
