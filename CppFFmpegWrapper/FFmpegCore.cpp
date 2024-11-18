@@ -889,41 +889,49 @@ void FFmpegCore::decode()
                         repeat_sync_group_send = false;
                     }
 
-                    result = input_frame(frame);
-                    if (result == error_type::ok)
+                    if (frame->data[0] != nullptr)
                     {
-                        if (_sync_group_frame_numbering == true && _sync_group_index != u32_invalid_id)
+                        result = input_frame(frame);
+                        if (result == error_type::ok)
                         {
-                            ffmpeg_wrapper_callback_data* data = new ffmpeg_wrapper_callback_data();
-                            data->scene_index = _scene_index;
-                            data->command = (u16)command_type::sync_group_frame_numbering;
-                            data->connection = _connection_play_start;
-                            data->result = (u16)packet_result::ok;
+                            if (_sync_group_frame_numbering == true && _sync_group_index != u32_invalid_id)
+                            {
+                                ffmpeg_wrapper_callback_data* data = new ffmpeg_wrapper_callback_data();
+                                data->scene_index = _scene_index;
+                                data->command = (u16)command_type::sync_group_frame_numbering;
+                                data->connection = _connection_play_start;
+                                data->result = (u16)packet_result::ok;
 
-                            data->sync_group_index = _sync_group_index;
-                            data->sync_group_count = _sync_group_count;
+                                data->sync_group_index = _sync_group_index;
+                                data->sync_group_count = _sync_group_count;
 
-                            _callback_ffmpeg(data);
+                                _callback_ffmpeg(data);
 
-                            delete data;
+                                delete data;
+                            }
+
+                            break;
                         }
-
-                        break;
-                    }
-                    else if (_seek_flag)
-                    {
-                        av_frame_unref(frame);
-                        break;
-                    }
-                    else if (!_decode_flag)
-                    {
-                        break;
+                        else if (_seek_flag)
+                        {
+                            av_frame_unref(frame);
+                            break;
+                        }
+                        else if (!_decode_flag)
+                        {
+                            break;
+                        }
+                        else
+                        {
+                            // queue_is_full
+                            std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time));
+                        }
                     }
                     else
                     {
-                        // queue_is_full
-                        std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time));
+                        av_frame_unref(frame);
                     }
+
                 }
                 break;
             }
