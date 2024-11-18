@@ -316,6 +316,12 @@ void FFmpegCore::play_stop(void* connection)
     _callback_ffmpeg(data);
 
     delete data;
+    
+    _eof_read = false;
+    _eof_read2 = false;
+    _codec_opened = false;
+
+    _flag_play_started = false;
 }
 
 void FFmpegCore::jump_forward(void* connection)
