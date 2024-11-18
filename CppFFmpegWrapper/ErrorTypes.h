@@ -16,4 +16,7 @@ enum error_type : int32_t
     read_audio_packet = 11,
     codec_not_opened = 12,
     use_previous_frame = 13,
+    read_timeout = 14,
+    read_fail_connect = 15,
+
 };
