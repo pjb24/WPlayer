@@ -630,6 +630,16 @@ error_type FFmpegCore::read_internal(AVPacket*& packet)
         // TODO: EOF
         _eof_read = true;
     }
+    else if (result == AVERROR(WSAECONNRESET))
+    {
+        _eof_read = true;
+        return error_type::read_fail_connect;
+    }
+    else if (result == AVERROR(ETIMEDOUT))
+    {
+        _eof_read = true;
+        return error_type::read_timeout;
+    }
 
     if (packet->stream_index != _stream_index)
     {
