@@ -1314,6 +1314,55 @@ void FFmpegCore::get_flag_play_started(bool& flag_play_started)
     flag_play_started = _flag_play_started;
 }
 
+void FFmpegCore::initialize_small(CALLBACK_PTR cb)
+{
+    _format_ctx = avformat_alloc_context();
+
+    _first_decode = true;
+
+    _callback_ffmpeg = cb;
+
+    SYSTEM_INFO _stSysInfo;
+    GetSystemInfo(&_stSysInfo);
+    _logical_processor_count = _stSysInfo.dwNumberOfProcessors;	// cpu 논리 프로세서 개수
+    _logical_processor_count_half = _logical_processor_count / 2;
+}
+
+void FFmpegCore::shutdown_small()
+{
+    if (_codec_ctx != nullptr)
+    {
+        avcodec_free_context(&_codec_ctx);
+    }
+
+    avformat_close_input(&_format_ctx);
+
+    if (!_frame_queue_free)
+    {
+        for (u32 i = 0; i < _frame_queue_size; i++)
+        {
+            av_frame_unref(_frame_queue[i]);
+        }
+    }
+
+    if (!_packet_queue_free)
+    {
+        for (u32 i = 0; i < _packet_queue_size; i++)
+        {
+            av_packet_unref(_packet_queue[i]);
+        }
+    }
+
+    _input_packet_index = 0;
+    _output_packet_index = 0;
+
+    _input_frame_index = 0;
+    _output_frame_index = 0;
+
+    _flag_succeed_open_input = false;
+    _flag_play_started = false;
+}
+
 static AVPixelFormat get_hw_format(AVCodecContext* ctx, const AVPixelFormat* pix_fmts)
 {
     const enum AVPixelFormat* p;

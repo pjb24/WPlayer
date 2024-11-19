@@ -87,3 +87,6 @@ EXPORT void cpp_ffmpeg_wrapper_get_flag_succeed_open_input(void* instance, bool&
 
 EXPORT void cpp_ffmpeg_wrapper_get_flag_play_started(void* instance, bool& flag_play_started);
 
+EXPORT void cpp_ffmpeg_wrapper_initialize_small(void* instance, CALLBACK_PTR cb);
+
+EXPORT void cpp_ffmpeg_wrapper_shutdown_small(void* instance);

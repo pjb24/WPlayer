@@ -219,3 +219,14 @@ void cpp_ffmpeg_wrapper_get_flag_play_started(void* instance, bool& flag_play_st
     core->get_flag_play_started(flag_play_started);
 }
 
+void cpp_ffmpeg_wrapper_initialize_small(void* instance, CALLBACK_PTR cb)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->initialize_small(cb);
+}
+
+void cpp_ffmpeg_wrapper_shutdown_small(void* instance)
+{
+    FFmpegCore* core = (FFmpegCore*)instance;
+    core->shutdown_small();
+}

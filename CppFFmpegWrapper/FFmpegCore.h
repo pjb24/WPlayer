@@ -63,6 +63,9 @@ public:
     void get_flag_succeed_open_input(bool& flag_succeed_open_input);
     void get_flag_play_started(bool& flag_play_started);
 
+    void initialize_small(CALLBACK_PTR cb);
+    void shutdown_small();
+
 private:
 
     const int _thread_count_fhd = 4;
