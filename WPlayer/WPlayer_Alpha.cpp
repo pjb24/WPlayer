@@ -2608,6 +2608,9 @@ int create_scenes()
 
         create_ffmpeg_instance_set_data(instance_0, device_index, url);
 
+        bool flag_is_realtime = false;
+        cpp_ffmpeg_wrapper_get_is_realtime(instance_0, flag_is_realtime);
+
         result = create_ffmpeg_instance_check_open_file(instance_0);
         if (result != 0)
         {
@@ -2640,8 +2643,12 @@ int create_scenes()
         if (flag_open_file_fail_internal == false)
         {
             data_scene->map_ffmpeg_instance.insert({ 0, instance_0 });
-            data_scene->map_ffmpeg_instance.insert({ 1, instance_1 });
-            data_scene->map_ffmpeg_instance.insert({ 2, instance_2 });
+
+            if (flag_is_realtime == false)
+            {
+                data_scene->map_ffmpeg_instance.insert({ 1, instance_1 });
+                data_scene->map_ffmpeg_instance.insert({ 2, instance_2 });
+            }
         }
 
         data_scene->url = url;
@@ -4137,6 +4144,10 @@ void thread_scene(pst_scene data_scene)
     int index_frame_check_delay = 0;
 
     bool flag_is_realtime = false;
+    if (ffmpeg_instance_current)
+    {
+        cpp_ffmpeg_wrapper_get_is_realtime(ffmpeg_instance_current, flag_is_realtime);
+    }
 
     while (data_scene->flag_thread_scene)
     {
@@ -4225,42 +4236,44 @@ void thread_scene(pst_scene data_scene)
                 {
                     // 사용하는 ffmpeg instance의 index 변경
 
-                    if (flag_repeat == false)
+                    if (flag_is_realtime == false)
                     {
-                        data_scene->index_ffmpeg_instance_current++;
-                        if (data_scene->index_ffmpeg_instance_current == data_scene->map_ffmpeg_instance_capacity)
+                        if (flag_repeat == false)
                         {
-                            data_scene->index_ffmpeg_instance_current = 0;
-                        }
+                            data_scene->index_ffmpeg_instance_current++;
+                            if (data_scene->index_ffmpeg_instance_current == data_scene->map_ffmpeg_instance_capacity)
+                            {
+                                data_scene->index_ffmpeg_instance_current = 0;
+                            }
 
-                        if (data_scene->index_ffmpeg_instance_current == 0)
-                        {
-                            data_scene->index_ffmpeg_instance_last = data_scene->map_ffmpeg_instance_capacity - 1;
-                        }
-                        else
-                        {
-                            data_scene->index_ffmpeg_instance_last = data_scene->index_ffmpeg_instance_current - 1;
-                        }
+                            if (data_scene->index_ffmpeg_instance_current == 0)
+                            {
+                                data_scene->index_ffmpeg_instance_last = data_scene->map_ffmpeg_instance_capacity - 1;
+                            }
+                            else
+                            {
+                                data_scene->index_ffmpeg_instance_last = data_scene->index_ffmpeg_instance_current - 1;
+                            }
 
-                        if (data_scene->index_ffmpeg_instance_last == 0)
-                        {
-                            data_scene->index_ffmpeg_instance_delete = data_scene->map_ffmpeg_instance_capacity - 1;
-                        }
-                        else
-                        {
-                            data_scene->index_ffmpeg_instance_delete = data_scene->index_ffmpeg_instance_last - 1;
-                        }
+                            if (data_scene->index_ffmpeg_instance_last == 0)
+                            {
+                                data_scene->index_ffmpeg_instance_delete = data_scene->map_ffmpeg_instance_capacity - 1;
+                            }
+                            else
+                            {
+                                data_scene->index_ffmpeg_instance_delete = data_scene->index_ffmpeg_instance_last - 1;
+                            }
                 
-                        it_ffmpeg_instance_current = data_scene->map_ffmpeg_instance.find(data_scene->index_ffmpeg_instance_current);
-                        ffmpeg_instance_current = it_ffmpeg_instance_current->second;
+                            it_ffmpeg_instance_current = data_scene->map_ffmpeg_instance.find(data_scene->index_ffmpeg_instance_current);
+                            ffmpeg_instance_current = it_ffmpeg_instance_current->second;
 
-                        check_map_ffmpeg_instance_repeat(data_scene);
+                            check_map_ffmpeg_instance_repeat(data_scene);
 
-                        flag_repeat = true;
+                            flag_repeat = true;
 
-                        count_use_last_frame = _count_use_last_frame_at_repeat;
+                            count_use_last_frame = _count_use_last_frame_at_repeat;
+                        }
                     }
-                
                     data_scene->flag_use_last_frame = true;
                 }
                 // return >= 0
@@ -4270,8 +4283,6 @@ void thread_scene(pst_scene data_scene)
                     if (flag_first == true)
                     {
                         flag_first = false;
-
-                        cpp_ffmpeg_wrapper_get_is_realtime(ffmpeg_instance_current, flag_is_realtime);
                     }
 
                     data_scene->frame_index += 1;
