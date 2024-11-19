@@ -3813,17 +3813,30 @@ void thread_device(pst_device data_device)
         command_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         command_list->IASetIndexBuffer(&data_index_buffer_view->index_buffer_view);
 
+        bool flag_play_started = true;
         uint64_t counter = 0;
         for (auto it_vector = vector_scene.begin(); it_vector != vector_scene.end(); it_vector++)
         {
             pst_scene data_scene = *it_vector;
+
+            void* ffmpeg_instance = nullptr;
+            auto it_ffmpeg_instance = data_scene->map_ffmpeg_instance.find(data_scene->index_ffmpeg_instance_current);
+            if (it_ffmpeg_instance != data_scene->map_ffmpeg_instance.end())
+            {
+                ffmpeg_instance = it_ffmpeg_instance->second;
+            }
+
+            if (ffmpeg_instance && flag_play_started)
+            {
+                cpp_ffmpeg_wrapper_get_flag_play_started(ffmpeg_instance, flag_play_started);
+            }
 
             command_list->IASetVertexBuffers(0, 1, &data_vertex_buffer_view->vector_vertex_buffer_view.at(counter));
 
             command_list->RSSetViewports(1, &data_viewport->viewport);
             command_list->RSSetScissorRects(1, &data_viewport->scissor_rect);
 
-            if (data_scene->map_ffmpeg_instance.size() != 0)
+            if (data_scene->map_ffmpeg_instance.size() != 0 && flag_play_started)
             {
                 command_list->SetGraphicsRootDescriptorTable(0, data_srv_handle_luminance->vector_handle_gpu.at((_count_texture_store * counter) + srv_index + 1));
                 command_list->SetGraphicsRootDescriptorTable(1, data_srv_handle_chrominance->vector_handle_gpu.at((_count_texture_store * counter) + srv_index + 1));
@@ -4390,39 +4403,46 @@ void thread_scene(pst_scene data_scene)
                 }
             }
 
-            frame = data_scene->vector_frame.at(index_frame_check_delay);
-            if (frame->data[0] != nullptr)
+            if (flag_play_started)
             {
-                data_scene->time_now = av_gettime_relative();
-                AVRational timebase{};
-                cpp_ffmpeg_wrapper_get_timebase(ffmpeg_instance_current, timebase);
-                data_scene->pts_in_milliseconds_now = av_rescale_q(frame->pts, timebase, AVRational{ 1, 1'000'000 });
-
-                int64_t delay = data_scene->pts_in_milliseconds_now - data_scene->pts_in_milliseconds_last - (data_scene->time_now - data_scene->time_last);
-
-                if (delay < 14'000 || flag_is_realtime == true)
+                frame = data_scene->vector_frame.at(index_frame_check_delay);
+                if (frame->data[0] != nullptr)
                 {
-                    data_scene->time_last = data_scene->time_now;
-                    data_scene->pts_in_milliseconds_last = data_scene->pts_in_milliseconds_now;
+                    data_scene->time_now = av_gettime_relative();
+                    AVRational timebase{};
+                    cpp_ffmpeg_wrapper_get_timebase(ffmpeg_instance_current, timebase);
+                    data_scene->pts_in_milliseconds_now = av_rescale_q(frame->pts, timebase, AVRational{ 1, 1'000'000 });
 
-                    data_scene->flag_use_last_frame = false;
+                    int64_t delay = data_scene->pts_in_milliseconds_now - data_scene->pts_in_milliseconds_last - (data_scene->time_now - data_scene->time_last);
 
-                    index_frame_check_delay += 1;
-                    if (!(index_frame_check_delay < _count_texture_store))
+                    if (delay < 14'000 || flag_is_realtime == true)
                     {
-                        index_frame_check_delay = 0;
+                        data_scene->time_last = data_scene->time_now;
+                        data_scene->pts_in_milliseconds_last = data_scene->pts_in_milliseconds_now;
+
+                        data_scene->flag_use_last_frame = false;
+
+                        index_frame_check_delay += 1;
+                        if (!(index_frame_check_delay < _count_texture_store))
+                        {
+                            index_frame_check_delay = 0;
+                        }
+                    }
+                    else
+                    {
+                        data_scene->flag_use_last_frame = true;
                     }
                 }
-                else
+
+                if (count_use_last_frame > 0)
                 {
+                    count_use_last_frame--;
+
                     data_scene->flag_use_last_frame = true;
                 }
             }
-
-            if (count_use_last_frame > 0)
+            else
             {
-                count_use_last_frame--;
-
                 data_scene->flag_use_last_frame = true;
             }
         }
