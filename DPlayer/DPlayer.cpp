@@ -764,7 +764,6 @@ bool is_queue_full(int index_input, int index_output, int queue_size);
 bool is_queue_empty(int index_input, int index_output);
 int get_queue_size(int index_input, int index_output, int queue_size);
 
-int create_ffmpeg_instance(void*& instance, UINT device_index, std::string url, UINT scene_index, RECT rect);
 int create_ffmpeg_instance_with_scene_index(void*& instance, UINT device_index, std::string url, UINT scene_index, RECT rect);
 
 int check_map_ffmpeg_instance_repeat(pst_scene data_scene);
@@ -5244,34 +5243,6 @@ int get_queue_size(int index_input, int index_output, int queue_size)
     {
         return queue_size - index_output + index_input + 1;
     }
-}
-
-int create_ffmpeg_instance(void*& instance, UINT device_index, std::string url, UINT scene_index, RECT rect)
-{
-    instance = cpp_ffmpeg_wrapper_create();
-    cpp_ffmpeg_wrapper_initialize(instance, callback_ffmpeg_wrapper_ptr);
-
-    // NV12
-    cpp_ffmpeg_wrapper_set_hw_decode(instance);
-    cpp_ffmpeg_wrapper_set_hw_device_type(instance, _hw_device_type);
-    cpp_ffmpeg_wrapper_set_hw_decode_adapter_index(instance, device_index);
-
-    cpp_ffmpeg_wrapper_set_scale(instance, false);
-
-    cpp_ffmpeg_wrapper_set_file_path(instance, (char*)url.c_str());
-    if (cpp_ffmpeg_wrapper_open_file(instance) != 0)
-    {
-        cpp_ffmpeg_wrapper_shutdown(instance);
-        cpp_ffmpeg_wrapper_delete(instance);
-
-        return 1;
-    }
-
-    cpp_ffmpeg_wrapper_set_scene_index(instance, scene_index);
-    cpp_ffmpeg_wrapper_set_rect(instance, rect);
-    cpp_ffmpeg_wrapper_play_start(instance, nullptr);
-
-    return 0;
 }
 
 int create_ffmpeg_instance_with_scene_index(void*& instance, UINT device_index, std::string url, UINT scene_index, RECT rect)
