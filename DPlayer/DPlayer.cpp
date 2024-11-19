@@ -4383,6 +4383,20 @@ void thread_scene(pst_scene data_scene)
                             count_use_last_frame = _count_use_last_frame_at_repeat;
                         }
                     }
+                    else
+                    {
+                        if (flag_repeat == false)
+                        {
+                            cpp_ffmpeg_wrapper_play_stop(ffmpeg_instance_current, nullptr);
+                            cpp_ffmpeg_wrapper_shutdown_small(ffmpeg_instance_current);
+                            cpp_ffmpeg_wrapper_initialize_small(ffmpeg_instance_current, callback_ffmpeg_wrapper_ptr);
+                            cpp_ffmpeg_wrapper_get_flag_succeed_open_input(ffmpeg_instance_current, flag_succeed_open_input);
+                            cpp_ffmpeg_wrapper_get_flag_play_started(ffmpeg_instance_current, flag_play_started);
+
+                            flag_repeat = true;
+                        }
+                    }
+
                     data_scene->flag_use_last_frame = true;
                 }
                 // return >= 0
