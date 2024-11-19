@@ -750,7 +750,7 @@ int create_ffmpeg_instance_with_scene_index(void*& instance, UINT device_index, 
 
 int check_map_ffmpeg_instance_repeat(pst_scene data_scene);
 
-int create_ffmpeg_instance_check_open_file(void*& instance, UINT index_device, std::string url);
+int create_ffmpeg_instance_check_open_file(void* instance);
 int create_ffmpeg_instance_play_start(void* instance, UINT& index_scene, RECT rect);
 
 int create_texture_default(pst_device data_device);
@@ -760,6 +760,8 @@ int upload_texture_default(pst_device data_device, int index_command_list);
 int create_ffmpeg_instance_default_image(void*& instance);
 
 void delete_scenes_data();
+
+int create_ffmpeg_instance_set_data(void*& instance, UINT index_device, std::string url);
 
 // --------------------------------
 
@@ -2604,7 +2606,9 @@ int create_scenes()
         void* instance_0 = nullptr;
         UINT scene_index = UINT_MAX;
 
-        result = create_ffmpeg_instance_check_open_file(instance_0, device_index, url);
+        create_ffmpeg_instance_set_data(instance_0, device_index, url);
+
+        result = create_ffmpeg_instance_check_open_file(instance_0);
         if (result != 0)
         {
             flag_open_file_fail = true;
@@ -5041,19 +5045,8 @@ int check_map_ffmpeg_instance_repeat(pst_scene data_scene)
     return 0;
 }
 
-int create_ffmpeg_instance_check_open_file(void*& instance, UINT index_device, std::string url)
+int create_ffmpeg_instance_check_open_file(void* instance)
 {
-    instance = cpp_ffmpeg_wrapper_create();
-    cpp_ffmpeg_wrapper_initialize(instance, callback_ffmpeg_wrapper_ptr);
-
-    // NV12
-    cpp_ffmpeg_wrapper_set_hw_decode(instance);
-    cpp_ffmpeg_wrapper_set_hw_device_type(instance, _hw_device_type);
-    cpp_ffmpeg_wrapper_set_hw_decode_adapter_index(instance, index_device);
-
-    cpp_ffmpeg_wrapper_set_scale(instance, false);
-
-    cpp_ffmpeg_wrapper_set_file_path(instance, (char*)url.c_str());
     if (cpp_ffmpeg_wrapper_open_file(instance) != 0)
     {
         cpp_ffmpeg_wrapper_shutdown(instance);
@@ -5306,3 +5299,21 @@ void delete_scenes_data()
         }
     }
 }
+
+int create_ffmpeg_instance_set_data(void*& instance, UINT index_device, std::string url)
+{
+    instance = cpp_ffmpeg_wrapper_create();
+    cpp_ffmpeg_wrapper_initialize(instance, callback_ffmpeg_wrapper_ptr);
+
+    // NV12
+    cpp_ffmpeg_wrapper_set_hw_decode(instance);
+    cpp_ffmpeg_wrapper_set_hw_device_type(instance, _hw_device_type);
+    cpp_ffmpeg_wrapper_set_hw_decode_adapter_index(instance, index_device);
+
+    cpp_ffmpeg_wrapper_set_scale(instance, false);
+
+    cpp_ffmpeg_wrapper_set_file_path(instance, (char*)url.c_str());
+
+    return 0;
+}
+
