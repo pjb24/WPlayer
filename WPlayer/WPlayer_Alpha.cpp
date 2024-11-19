@@ -763,6 +763,10 @@ void delete_scenes_data();
 
 int create_ffmpeg_instance_set_data(void*& instance, UINT index_device, std::string url);
 
+int create_ffmpeg_instance_check_open_file_on_live_stream(void* instance);
+int create_ffmpeg_instance_play_start_set_data(void* instance, UINT& index_scene, RECT rect);
+int create_ffmpeg_instance_play_start_on_live_stream(void* instance);
+
 // --------------------------------
 
 void set_logger();
@@ -2611,21 +2615,30 @@ int create_scenes()
         bool flag_is_realtime = false;
         cpp_ffmpeg_wrapper_get_is_realtime(instance_0, flag_is_realtime);
 
-        result = create_ffmpeg_instance_check_open_file(instance_0);
-        if (result != 0)
+        int result_on_live_stream = 0;
+
+        if (flag_is_realtime)
         {
-            flag_open_file_fail = true;
-            flag_open_file_fail_internal = true;
-
-            if (_flag_set_logger)
+            result_on_live_stream = create_ffmpeg_instance_check_open_file_on_live_stream(instance_0);
+        }
+        else
+        {
+            result = create_ffmpeg_instance_check_open_file(instance_0);
+            if (result != 0)
             {
-                std::string str = "";
-                str.append("file is not exist, ");
-                str.append(", url = ");
-                str.append(url);
+                flag_open_file_fail = true;
+                flag_open_file_fail_internal = true;
 
-                auto logger = spdlog::get("wplayer_logger");
-                logger->warn(str.c_str());
+                if (_flag_set_logger)
+                {
+                    std::string str = "";
+                    str.append("file is not exist, ");
+                    str.append(", url = ");
+                    str.append(url);
+
+                    auto logger = spdlog::get("wplayer_logger");
+                    logger->warn(str.c_str());
+                }
             }
         }
 
@@ -2633,9 +2646,27 @@ int create_scenes()
         void* instance_2 = nullptr;
         if (flag_open_file_fail_internal == false)
         {
-            create_ffmpeg_instance_play_start(instance_0, scene_index, rect);
-            create_ffmpeg_instance_with_scene_index(instance_1, device_index, url, scene_index, rect);
-            create_ffmpeg_instance_with_scene_index(instance_2, device_index, url, scene_index, rect);
+            if (flag_is_realtime == true)
+            {
+                create_ffmpeg_instance_play_start_set_data(instance_0, scene_index, rect);
+
+                if (result_on_live_stream == 0)
+                {
+                    create_ffmpeg_instance_play_start_on_live_stream(instance_0);
+                }
+            }
+
+            if (flag_is_realtime == false)
+            {
+                create_ffmpeg_instance_play_start(instance_0, scene_index, rect);
+                create_ffmpeg_instance_with_scene_index(instance_1, device_index, url, scene_index, rect);
+                create_ffmpeg_instance_with_scene_index(instance_2, device_index, url, scene_index, rect);
+            }
+        }
+        else
+        {
+            scene_index = _next_scene_index;
+            _next_scene_index++;
         }
 
         pst_scene data_scene = new st_scene();
@@ -4149,6 +4180,18 @@ void thread_scene(pst_scene data_scene)
         cpp_ffmpeg_wrapper_get_is_realtime(ffmpeg_instance_current, flag_is_realtime);
     }
 
+    bool flag_succeed_open_input = false;
+    if (ffmpeg_instance_current)
+    {
+        cpp_ffmpeg_wrapper_get_flag_succeed_open_input(ffmpeg_instance_current, flag_succeed_open_input);
+    }
+
+    bool flag_play_started = false;
+    if (ffmpeg_instance_current)
+    {
+        cpp_ffmpeg_wrapper_get_flag_play_started(ffmpeg_instance_current, flag_play_started);
+    }
+
     while (data_scene->flag_thread_scene)
     {
         // CppFFmpegWrapper get_frame
@@ -4163,6 +4206,7 @@ void thread_scene(pst_scene data_scene)
 
         if (_flag_use_default_image == false)
         {
+            // 사용이 종료된 frame을 unref 예정 queue에 등록
             if (data_scene->flag_frame_unref == true && data_scene->flag_use_last_frame == false)
             {
                 data_scene->mutex_deque_index_used->lock();
@@ -4212,12 +4256,32 @@ void thread_scene(pst_scene data_scene)
                 data_scene->mutex_deque_index_used->unlock();
             }
 
+            // last frame 사용 플래그 초기화
             if (data_scene->flag_use_last_frame == true)
             {
                 data_scene->flag_use_last_frame = false;
             }
 
-            if (is_queue_full(data_scene->index_input, data_scene->index_output, _count_texture_store) == false)
+            if (ffmpeg_instance_current
+                && flag_is_realtime == true
+                && flag_succeed_open_input == false)
+            {
+                create_ffmpeg_instance_check_open_file_on_live_stream(ffmpeg_instance_current);
+                cpp_ffmpeg_wrapper_get_flag_succeed_open_input(ffmpeg_instance_current, flag_succeed_open_input);
+            }
+
+            if (ffmpeg_instance_current
+                && flag_is_realtime == true
+                && flag_succeed_open_input == true
+                && flag_play_started == false)
+            {
+                create_ffmpeg_instance_play_start_on_live_stream(ffmpeg_instance_current);
+                cpp_ffmpeg_wrapper_get_flag_play_started(ffmpeg_instance_current, flag_play_started);
+            }
+
+            if (is_queue_full(data_scene->index_input, data_scene->index_output, _count_texture_store) == false
+                && flag_succeed_open_input
+                && flag_play_started)
             {
                 result = cpp_ffmpeg_wrapper_get_frame(ffmpeg_instance_current, data_scene->vector_frame.at(data_scene->frame_index));
 
@@ -5328,3 +5392,30 @@ int create_ffmpeg_instance_set_data(void*& instance, UINT index_device, std::str
     return 0;
 }
 
+int create_ffmpeg_instance_check_open_file_on_live_stream(void* instance)
+{
+    if (cpp_ffmpeg_wrapper_open_file(instance) != 0)
+    {
+        return 1;
+    }
+
+    return 0;
+}
+
+int create_ffmpeg_instance_play_start_set_data(void* instance, UINT& index_scene, RECT rect)
+{
+    index_scene = _next_scene_index;
+    _next_scene_index++;
+
+    cpp_ffmpeg_wrapper_set_scene_index(instance, index_scene);
+    cpp_ffmpeg_wrapper_set_rect(instance, rect);
+
+    return 0;
+}
+
+int create_ffmpeg_instance_play_start_on_live_stream(void* instance)
+{
+    cpp_ffmpeg_wrapper_play_start(instance, nullptr);
+
+    return 0;
+}
