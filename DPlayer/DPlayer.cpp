@@ -73,7 +73,7 @@ extern "C"
 
 #pragma region Enumerations
 
-enum class ObjectType
+enum class e_object_type
 {
     none = 0,
     object_event = 1,
@@ -83,7 +83,7 @@ enum class ObjectType
 
 };
 
-enum class WaitType
+enum class e_wait_type
 {
     none = 0,
 
@@ -118,8 +118,8 @@ struct st_input_object
 {
     void* object = nullptr;
 
-    ObjectType object_type = ObjectType::none;
-    WaitType wait_type = WaitType::none;
+    e_object_type object_type = e_object_type::none;
+    e_wait_type wait_type = e_wait_type::none;
 
 };
 
@@ -740,7 +740,7 @@ void thread_vector_input();
 
 void vector_input(st_input_object data);
 
-void thread_wait_for_multiple_objects(WaitType wait_type, bool* flag_thread);
+void thread_wait_for_multiple_objects(e_wait_type wait_type, bool* flag_thread);
 
 void thread_device(pst_device data_device);
 void thread_upload(pst_device data_device);
@@ -1008,26 +1008,26 @@ void create_windows()
 
             st_input_object event_window_to_scene{};
             event_window_to_scene.object = data_window->event_window_to_scene;
-            event_window_to_scene.object_type = ObjectType::object_event;
-            event_window_to_scene.wait_type = WaitType::window_to_scene;
+            event_window_to_scene.object_type = e_object_type::object_event;
+            event_window_to_scene.wait_type = e_wait_type::window_to_scene;
 
             vector_input(event_window_to_scene);
 
 
             st_input_object condition_variable_device_to_window{};
             condition_variable_device_to_window.object = data_window->condition_variable_device_to_window;
-            condition_variable_device_to_window.object_type = ObjectType::object_condition_variable;
-            condition_variable_device_to_window.wait_type = WaitType::device_to_window;
+            condition_variable_device_to_window.object_type = e_object_type::object_condition_variable;
+            condition_variable_device_to_window.wait_type = e_wait_type::device_to_window;
 
             st_input_object mutex_device_to_window{};
             mutex_device_to_window.object = data_window->mutex_device_to_window;
-            mutex_device_to_window.object_type = ObjectType::object_mutex;
-            mutex_device_to_window.wait_type = WaitType::device_to_window;
+            mutex_device_to_window.object_type = e_object_type::object_mutex;
+            mutex_device_to_window.wait_type = e_wait_type::device_to_window;
 
             st_input_object flag_device_to_window{};
             flag_device_to_window.object = &data_window->flag_device_to_window;
-            flag_device_to_window.object_type = ObjectType::object_flag;
-            flag_device_to_window.wait_type = WaitType::device_to_window;
+            flag_device_to_window.object_type = e_object_type::object_flag;
+            flag_device_to_window.wait_type = e_wait_type::device_to_window;
 
             vector_input(condition_variable_device_to_window);
             vector_input(mutex_device_to_window);
@@ -1113,26 +1113,26 @@ void create_devices()
 
             st_input_object event_device_to_window{};
             event_device_to_window.object = data_device->event_device_to_window;
-            event_device_to_window.object_type = ObjectType::object_event;
-            event_device_to_window.wait_type = WaitType::device_to_window;
+            event_device_to_window.object_type = e_object_type::object_event;
+            event_device_to_window.wait_type = e_wait_type::device_to_window;
 
             vector_input(event_device_to_window);
 
 
             st_input_object condition_variable_upload_to_device{};
             condition_variable_upload_to_device.object = data_device->condition_variable_upload_to_device;
-            condition_variable_upload_to_device.object_type = ObjectType::object_condition_variable;
-            condition_variable_upload_to_device.wait_type = WaitType::upload_to_device;
+            condition_variable_upload_to_device.object_type = e_object_type::object_condition_variable;
+            condition_variable_upload_to_device.wait_type = e_wait_type::upload_to_device;
 
             st_input_object mutex_upload_to_device{};
             mutex_upload_to_device.object = data_device->mutex_upload_to_device;
-            mutex_upload_to_device.object_type = ObjectType::object_mutex;
-            mutex_upload_to_device.wait_type = WaitType::upload_to_device;
+            mutex_upload_to_device.object_type = e_object_type::object_mutex;
+            mutex_upload_to_device.wait_type = e_wait_type::upload_to_device;
 
             st_input_object flag_upload_to_device{};
             flag_upload_to_device.object = &data_device->flag_upload_to_device;
-            flag_upload_to_device.object_type = ObjectType::object_flag;
-            flag_upload_to_device.wait_type = WaitType::upload_to_device;
+            flag_upload_to_device.object_type = e_object_type::object_flag;
+            flag_upload_to_device.wait_type = e_wait_type::upload_to_device;
 
             vector_input(condition_variable_upload_to_device);
             vector_input(mutex_upload_to_device);
@@ -1146,26 +1146,26 @@ void create_devices()
 
             st_input_object event_upload_to_device{};
             event_upload_to_device.object = data_device->event_upload_to_device;
-            event_upload_to_device.object_type = ObjectType::object_event;
-            event_upload_to_device.wait_type = WaitType::upload_to_device;
+            event_upload_to_device.object_type = e_object_type::object_event;
+            event_upload_to_device.wait_type = e_wait_type::upload_to_device;
 
             vector_input(event_upload_to_device);
 
 
             st_input_object condition_variable_scene_to_upload{};
             condition_variable_scene_to_upload.object = data_device->condition_variable_scene_to_upload;
-            condition_variable_scene_to_upload.object_type = ObjectType::object_condition_variable;
-            condition_variable_scene_to_upload.wait_type = WaitType::scene_to_upload;
+            condition_variable_scene_to_upload.object_type = e_object_type::object_condition_variable;
+            condition_variable_scene_to_upload.wait_type = e_wait_type::scene_to_upload;
 
             st_input_object mutex_scene_to_upload{};
             mutex_scene_to_upload.object = data_device->mutex_scene_to_upload;
-            mutex_scene_to_upload.object_type = ObjectType::object_mutex;
-            mutex_scene_to_upload.wait_type = WaitType::scene_to_upload;
+            mutex_scene_to_upload.object_type = e_object_type::object_mutex;
+            mutex_scene_to_upload.wait_type = e_wait_type::scene_to_upload;
 
             st_input_object flag_scene_to_upload{};
             flag_scene_to_upload.object = &data_device->flag_scene_to_upload;
-            flag_scene_to_upload.object_type = ObjectType::object_flag;
-            flag_scene_to_upload.wait_type = WaitType::scene_to_upload;
+            flag_scene_to_upload.object_type = e_object_type::object_flag;
+            flag_scene_to_upload.wait_type = e_wait_type::scene_to_upload;
 
             vector_input(condition_variable_scene_to_upload);
             vector_input(mutex_scene_to_upload);
@@ -2725,26 +2725,26 @@ int create_scenes()
 
         st_input_object event_scene_to_upload{};
         event_scene_to_upload.object = data_scene->event_scene_to_upload;
-        event_scene_to_upload.object_type = ObjectType::object_event;
-        event_scene_to_upload.wait_type = WaitType::scene_to_upload;
+        event_scene_to_upload.object_type = e_object_type::object_event;
+        event_scene_to_upload.wait_type = e_wait_type::scene_to_upload;
 
         vector_input(event_scene_to_upload);
 
 
         st_input_object condition_variable_window_to_scene{};
         condition_variable_window_to_scene.object = data_scene->condition_variable_window_to_scene;
-        condition_variable_window_to_scene.object_type = ObjectType::object_condition_variable;
-        condition_variable_window_to_scene.wait_type = WaitType::window_to_scene;
+        condition_variable_window_to_scene.object_type = e_object_type::object_condition_variable;
+        condition_variable_window_to_scene.wait_type = e_wait_type::window_to_scene;
 
         st_input_object mutex_window_to_scene{};
         mutex_window_to_scene.object = data_scene->mutex_window_to_scene;
-        mutex_window_to_scene.object_type = ObjectType::object_mutex;
-        mutex_window_to_scene.wait_type = WaitType::window_to_scene;
+        mutex_window_to_scene.object_type = e_object_type::object_mutex;
+        mutex_window_to_scene.wait_type = e_wait_type::window_to_scene;
 
         st_input_object flag_window_to_scene{};
         flag_window_to_scene.object = &data_scene->flag_window_to_scene;
-        flag_window_to_scene.object_type = ObjectType::object_flag;
-        flag_window_to_scene.wait_type = WaitType::window_to_scene;
+        flag_window_to_scene.object_type = e_object_type::object_flag;
+        flag_window_to_scene.wait_type = e_wait_type::window_to_scene;
 
         vector_input(condition_variable_window_to_scene);
         vector_input(mutex_window_to_scene);
@@ -3083,7 +3083,7 @@ void thread_packet_processing()
         switch (header->cmd)
         {
             // 코드 작성
-        case command_type::dplayer_connect_data_url:
+        case e_command_type::dplayer_connect_data_url:
         {
             if (_flag_set_logger)
             {
@@ -3116,7 +3116,7 @@ void thread_packet_processing()
             check_ready_to_playback();
         }
         break;
-        case command_type::dplayer_connect_data_rect:
+        case e_command_type::dplayer_connect_data_rect:
         {
             if (_flag_set_logger)
             {
@@ -3155,7 +3155,7 @@ void thread_packet_processing()
             check_ready_to_playback();
         }
         break;
-        case command_type::dplayer_stop:
+        case e_command_type::dplayer_stop:
         {
             packet_dplayer_stop_from_server* packet = new packet_dplayer_stop_from_server();
             memcpy(packet, data, header->size);
@@ -3221,22 +3221,22 @@ void thread_vector_input()
 
             switch (object.object_type)
             {
-            case ObjectType::object_event:
+            case e_object_type::object_event:
             {
                 object_event = (HANDLE)object.object;
             }
             break;
-            case ObjectType::object_condition_variable:
+            case e_object_type::object_condition_variable:
             {
                 object_condition_variable = (std::condition_variable*)object.object;
             }
             break;
-            case ObjectType::object_mutex:
+            case e_object_type::object_mutex:
             {
                 object_mutex = (std::mutex*)object.object;
             }
             break;
-            case ObjectType::object_flag:
+            case e_object_type::object_flag:
             {
                 object_flag = (bool*)object.object;
             }
@@ -3247,7 +3247,7 @@ void thread_vector_input()
 
             switch (object.wait_type)
             {
-            case WaitType::scene_to_upload:
+            case e_wait_type::scene_to_upload:
             {
                 if (object_event != nullptr)
                 {
@@ -3278,7 +3278,7 @@ void thread_vector_input()
                 }
             }
             break;
-            case WaitType::upload_to_device:
+            case e_wait_type::upload_to_device:
             {
                 if (object_event != nullptr)
                 {
@@ -3309,7 +3309,7 @@ void thread_vector_input()
                 }
             }
             break;
-            case WaitType::device_to_window:
+            case e_wait_type::device_to_window:
             {
                 if (object_event != nullptr)
                 {
@@ -3340,7 +3340,7 @@ void thread_vector_input()
                 }
             }
             break;
-            case WaitType::window_to_scene:
+            case e_wait_type::window_to_scene:
             {
                 if (object_event != nullptr)
                 {
@@ -3387,7 +3387,7 @@ void vector_input(st_input_object data)
     _vector_input_object.push_back(data);
 }
 
-void thread_wait_for_multiple_objects(WaitType wait_type, bool* flag_thread)
+void thread_wait_for_multiple_objects(e_wait_type wait_type, bool* flag_thread)
 {
     std::vector<HANDLE>* vector_handle = nullptr;
     std::vector<std::condition_variable*>* vector_condition_variable = nullptr;
@@ -3401,7 +3401,7 @@ void thread_wait_for_multiple_objects(WaitType wait_type, bool* flag_thread)
     {
         switch (wait_type)
         {
-        case WaitType::scene_to_upload:
+        case e_wait_type::scene_to_upload:
         {
             vector_handle = &_vector_event_scene_to_upload;
             _mutex_vector_event_scene_to_upload.lock();
@@ -3446,7 +3446,7 @@ void thread_wait_for_multiple_objects(WaitType wait_type, bool* flag_thread)
             _mutex_vector_flag_scene_to_upload.unlock();
         }
         break;
-        case WaitType::upload_to_device:
+        case e_wait_type::upload_to_device:
         {
             vector_handle = &_vector_event_upload_to_device;
             _mutex_vector_event_upload_to_device.lock();
@@ -3481,7 +3481,7 @@ void thread_wait_for_multiple_objects(WaitType wait_type, bool* flag_thread)
             _mutex_vector_flag_upload_to_device.unlock();
         }
         break;
-        case WaitType::device_to_window:
+        case e_wait_type::device_to_window:
         {
             vector_handle = &_vector_event_device_to_window;
             _mutex_vector_event_device_to_window.lock();
@@ -3516,7 +3516,7 @@ void thread_wait_for_multiple_objects(WaitType wait_type, bool* flag_thread)
             _mutex_vector_flag_device_to_window.unlock();
         }
         break;
-        case WaitType::window_to_scene:
+        case e_wait_type::window_to_scene:
         {
             vector_condition_variable = &_vector_condition_variable_window_to_scene;
             _mutex_vector_condition_variable_window_to_scene.lock();
@@ -3610,7 +3610,7 @@ void thread_wait_for_multiple_objects(WaitType wait_type, bool* flag_thread)
             continue;
         }
 
-        if (wait_type == WaitType::scene_to_upload)
+        if (wait_type == e_wait_type::scene_to_upload)
         {
             int count_scene = _map_scene.size();
             bool flag_use_last_frame = false;
@@ -5160,10 +5160,10 @@ int start_playback()
         logger->debug(str.c_str());
     }
 
-    _thread_wait_for_multiple_objects_scene_to_upload = std::thread(thread_wait_for_multiple_objects, WaitType::scene_to_upload, &_flag_wait_for_multiple_objects_scene_to_upload);
-    _thread_wait_for_multiple_objects_upload_to_device = std::thread(thread_wait_for_multiple_objects, WaitType::upload_to_device, &_flag_wait_for_multiple_objects_upload_to_device);
-    _thread_wait_for_multiple_objects_device_to_window = std::thread(thread_wait_for_multiple_objects, WaitType::device_to_window, &_flag_wait_for_multiple_objects_device_to_window);;
-    _thread_wait_for_multiple_objects_window_to_scene = std::thread(thread_wait_for_multiple_objects, WaitType::window_to_scene, &_flag_wait_for_multiple_objects_window_to_scene);
+    _thread_wait_for_multiple_objects_scene_to_upload = std::thread(thread_wait_for_multiple_objects, e_wait_type::scene_to_upload, &_flag_wait_for_multiple_objects_scene_to_upload);
+    _thread_wait_for_multiple_objects_upload_to_device = std::thread(thread_wait_for_multiple_objects, e_wait_type::upload_to_device, &_flag_wait_for_multiple_objects_upload_to_device);
+    _thread_wait_for_multiple_objects_device_to_window = std::thread(thread_wait_for_multiple_objects, e_wait_type::device_to_window, &_flag_wait_for_multiple_objects_device_to_window);;
+    _thread_wait_for_multiple_objects_window_to_scene = std::thread(thread_wait_for_multiple_objects, e_wait_type::window_to_scene, &_flag_wait_for_multiple_objects_window_to_scene);
 
     for (auto it_window = _map_window.begin(); it_window != _map_window.end(); it_window++)
     {

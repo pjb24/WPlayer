@@ -54,7 +54,7 @@ DWORD WINAPI service_worker_thread(LPVOID lpParam);
 
 constexpr uint64_t _sleep_time = 1;
 
-enum class PlayerType : int
+enum class e_player_type : int
 {
     gplayer,    // 0
     dplayer,    // 1
@@ -133,13 +133,13 @@ void callback_data_connection_server(void* data, void* connection);
 // CppSocket 콜백 명령 처리
 void thread_packet_processing();
 
-void process_start_player(uint32_t player_sync_group_index, PlayerType type);
+void process_start_player(uint32_t player_sync_group_index, e_player_type type);
 
 void get_config();
 
 void set_logger();
 
-void start_process_on_user_session(uint32_t player_sync_group_index, PlayerType type);
+void start_process_on_user_session(uint32_t player_sync_group_index, e_player_type type);
 
 
 int main(int argc, TCHAR* argv[])
@@ -525,7 +525,7 @@ void thread_packet_processing()
             // 여기에 코드 추가 작성
             // Write Code Here!
 
-        case command_type::gplayer_play_url:
+        case e_command_type::gplayer_play_url:
         {
             packet_gplayer_play_url_from_client* packet = (packet_gplayer_play_url_from_client*)data_pair.first;
 
@@ -576,7 +576,7 @@ void thread_packet_processing()
 
             {
                 cppsocket_struct_server_send_gplayer_play_url data{};
-                data.result = (uint16_t)packet_result::ok;
+                data.result = (uint16_t)e_packet_result::ok;
                 data.player_sync_group_index = packet->player_sync_group_index;
                 data.player_sync_group_input_count = packet->player_sync_group_input_count;
                 data.url_size = packet->url_size;
@@ -589,11 +589,11 @@ void thread_packet_processing()
                 && gplayer->vector_coordinate.size() == gplayer->player_sync_group_output_count)
             {
                 // process_start(gplayer->player_sync_group_index);
-                start_process_on_user_session(gplayer->player_sync_group_index, PlayerType::gplayer);
+                start_process_on_user_session(gplayer->player_sync_group_index, e_player_type::gplayer);
             }
         }
         break;
-        case command_type::gplayer_play_url_different_videos:
+        case e_command_type::gplayer_play_url_different_videos:
         {
             packet_gplayer_play_url_different_videos_from_client* packet = (packet_gplayer_play_url_different_videos_from_client*)data_pair.first;
 
@@ -644,7 +644,7 @@ void thread_packet_processing()
 
             {
                 cppsocket_struct_server_send_gplayer_play_url_different_videos data{};
-                data.result = (uint16_t)packet_result::ok;
+                data.result = (uint16_t)e_packet_result::ok;
                 data.player_sync_group_index = packet->player_sync_group_index;
                 data.player_sync_group_input_count = packet->player_sync_group_input_count;
                 data.url_size = packet->url_size;
@@ -657,11 +657,11 @@ void thread_packet_processing()
                 && gplayer->vector_coordinate.size() == gplayer->player_sync_group_output_count)
             {
                 // process_start(gplayer->player_sync_group_index);
-                start_process_on_user_session(gplayer->player_sync_group_index, PlayerType::gplayer);
+                start_process_on_user_session(gplayer->player_sync_group_index, e_player_type::gplayer);
             }
         }
         break;
-        case command_type::gplayer_play_rect:
+        case e_command_type::gplayer_play_rect:
         {
             packet_gplayer_play_rect_from_client* packet = (packet_gplayer_play_rect_from_client*)data_pair.first;
 
@@ -720,7 +720,7 @@ void thread_packet_processing()
 
             {
                 cppsocket_struct_server_send_gplayer_play_rect data{};
-                data.result = (uint16_t)packet_result::ok;
+                data.result = (uint16_t)e_packet_result::ok;
                 data.player_sync_group_index = packet->player_sync_group_index;
                 data.player_sync_group_output_count = packet->player_sync_group_output_count;
                 data.left = packet->left;
@@ -735,11 +735,11 @@ void thread_packet_processing()
                 && gplayer->vector_coordinate.size() == gplayer->player_sync_group_output_count)
             {
                 // process_start(gplayer->gplayer_sync_group_index);
-                start_process_on_user_session(gplayer->player_sync_group_index, PlayerType::gplayer);
+                start_process_on_user_session(gplayer->player_sync_group_index, e_player_type::gplayer);
             }
         }
         break;
-        case command_type::gplayer_connect:
+        case e_command_type::gplayer_connect:
         {
             packet_player_connect_from_client* packet = (packet_player_connect_from_client*)data_pair.first;
 
@@ -786,7 +786,7 @@ void thread_packet_processing()
                     for (size_t i = 0; i < gplayer->vector_url.size(); i++)
                     {
                         cppsocket_struct_server_send_gplayer_connect_data_url data{};
-                        data.result = (uint16_t)packet_result::ok;
+                        data.result = (uint16_t)e_packet_result::ok;
                         data.player_sync_group_index = gplayer->player_sync_group_index;
                         data.player_sync_group_input_count = gplayer->player_sync_group_input_count;
                         data.url_size = gplayer->vector_url.at(i).size();
@@ -814,7 +814,7 @@ void thread_packet_processing()
                     for (size_t i = 0; i < gplayer->vector_url.size(); i++)
                     {
                         cppsocket_struct_server_send_gplayer_connect_data_url_different_videos data{};
-                        data.result = (uint16_t)packet_result::ok;
+                        data.result = (uint16_t)e_packet_result::ok;
                         data.player_sync_group_index = gplayer->player_sync_group_index;
                         data.player_sync_group_input_count = gplayer->player_sync_group_input_count;
                         data.url_size = gplayer->vector_url.at(i).size();
@@ -841,7 +841,7 @@ void thread_packet_processing()
                 for (size_t i = 0; i < gplayer->vector_coordinate.size(); i++)
                 {
                     cppsocket_struct_server_send_gplayer_connect_data_rect data{};
-                    data.result = (uint16_t)packet_result::ok;
+                    data.result = (uint16_t)e_packet_result::ok;
                     data.player_sync_group_index = gplayer->player_sync_group_index;
                     data.player_sync_group_output_count = gplayer->player_sync_group_output_count;
                     data.left = gplayer->vector_coordinate.at(i)->left;
@@ -874,7 +874,7 @@ void thread_packet_processing()
             }
         }
         break;
-        case command_type::gplayer_stop:
+        case e_command_type::gplayer_stop:
         {
             bool err = false;
 
@@ -958,7 +958,7 @@ void thread_packet_processing()
                 }
 
                 cppsocket_struct_server_send_gplayer_stop data{};
-                data.result = (uint16_t)packet_result::fail;
+                data.result = (uint16_t)e_packet_result::fail;
                 data.player_sync_group_index = packet->player_sync_group_index;
 
                 // to_console
@@ -967,7 +967,7 @@ void thread_packet_processing()
             else
             {
                 cppsocket_struct_server_send_gplayer_stop data{};
-                data.result = (uint16_t)packet_result::ok;
+                data.result = (uint16_t)e_packet_result::ok;
                 data.player_sync_group_index = packet->player_sync_group_index;
 
                 // to_console
@@ -996,7 +996,7 @@ void thread_packet_processing()
         }
         break;
 
-        case command_type::dplayer_play_url:
+        case e_command_type::dplayer_play_url:
         {
             packet_dplayer_play_url_from_client* packet = (packet_dplayer_play_url_from_client*)data_pair.first;
 
@@ -1030,7 +1030,7 @@ void thread_packet_processing()
 
             {
                 cppsocket_struct_server_send_dplayer_play_url data{};
-                data.result = (uint16_t)packet_result::ok;
+                data.result = (uint16_t)e_packet_result::ok;
                 data.player_sync_group_index = packet->player_sync_group_index;
                 data.player_sync_group_input_count = packet->player_sync_group_input_count;
                 data.url_size = packet->url_size;
@@ -1042,11 +1042,11 @@ void thread_packet_processing()
             if (dplayer->map_url.size() == dplayer->player_sync_group_input_count
                 && dplayer->map_coordinate.size() == dplayer->player_sync_group_output_count)
             {
-                process_start_player(dplayer->player_sync_group_index, PlayerType::dplayer);
+                process_start_player(dplayer->player_sync_group_index, e_player_type::dplayer);
             }
         }
         break;
-        case command_type::dplayer_play_rect:
+        case e_command_type::dplayer_play_rect:
         {
             packet_dplayer_play_rect_from_client* packet = (packet_dplayer_play_rect_from_client*)data_pair.first;
 
@@ -1083,7 +1083,7 @@ void thread_packet_processing()
 
             {
                 cppsocket_struct_server_send_dplayer_play_rect data{};
-                data.result = (uint16_t)packet_result::ok;
+                data.result = (uint16_t)e_packet_result::ok;
                 data.player_sync_group_index = packet->player_sync_group_index;
                 data.player_sync_group_output_count = packet->player_sync_group_output_count;
                 data.left = packet->left;
@@ -1097,11 +1097,11 @@ void thread_packet_processing()
             if (dplayer->map_url.size() == dplayer->player_sync_group_input_count
                 && dplayer->map_coordinate.size() == dplayer->player_sync_group_output_count)
             {
-                process_start_player(dplayer->player_sync_group_index, PlayerType::dplayer);
+                process_start_player(dplayer->player_sync_group_index, e_player_type::dplayer);
             }
         }
         break;
-        case command_type::dplayer_connect:
+        case e_command_type::dplayer_connect:
         {
             packet_player_connect_from_client* packet = (packet_player_connect_from_client*)data_pair.first;
 
@@ -1119,7 +1119,7 @@ void thread_packet_processing()
                 for (auto it_url = dplayer->map_url.begin(); it_url != dplayer->map_url.end(); it_url++)
                 {
                     cppsocket_struct_server_send_dplayer_connect_data_url data{};
-                    data.result = (uint16_t)packet_result::ok;
+                    data.result = (uint16_t)e_packet_result::ok;
                     data.player_sync_group_index = dplayer->player_sync_group_index;
                     data.player_sync_group_input_count = dplayer->player_sync_group_input_count;
                     data.url_size = it_url->second.size();
@@ -1134,7 +1134,7 @@ void thread_packet_processing()
                     pst_coordinate data_coordinate = it_coordinate->second;
 
                     cppsocket_struct_server_send_dplayer_connect_data_rect data{};
-                    data.result = (uint16_t)packet_result::ok;
+                    data.result = (uint16_t)e_packet_result::ok;
                     data.player_sync_group_index = dplayer->player_sync_group_index;
                     data.player_sync_group_output_count = dplayer->player_sync_group_output_count;
                     data.left = data_coordinate->left;
@@ -1148,7 +1148,7 @@ void thread_packet_processing()
             }
         }
         break;
-        case command_type::dplayer_stop:
+        case e_command_type::dplayer_stop:
         {
             bool err = false;
 
@@ -1180,7 +1180,7 @@ void thread_packet_processing()
             if (err)
             {
                 cppsocket_struct_server_send_dplayer_stop data{};
-                data.result = (uint16_t)packet_result::fail;
+                data.result = (uint16_t)e_packet_result::fail;
                 data.player_sync_group_index = packet->player_sync_group_index;
 
                 // to_console
@@ -1189,7 +1189,7 @@ void thread_packet_processing()
             else
             {
                 cppsocket_struct_server_send_dplayer_stop data{};
-                data.result = (uint16_t)packet_result::ok;
+                data.result = (uint16_t)e_packet_result::ok;
                 data.player_sync_group_index = packet->player_sync_group_index;
 
                 // to_console
@@ -1218,7 +1218,7 @@ void thread_packet_processing()
         }
         break;
 
-        case command_type::program_quit:
+        case e_command_type::program_quit:
         {
             _flag_running = false;
         }
@@ -1231,7 +1231,7 @@ void thread_packet_processing()
     }
 }
 
-void process_start_player(uint32_t player_sync_group_index, PlayerType type)
+void process_start_player(uint32_t player_sync_group_index, e_player_type type)
 {
     STARTUPINFOA startup_info;
     ZeroMemory(&startup_info, sizeof(startup_info));
@@ -1242,7 +1242,7 @@ void process_start_player(uint32_t player_sync_group_index, PlayerType type)
 
     std::string cmd;
 
-    if (type == PlayerType::dplayer)
+    if (type == e_player_type::dplayer)
     {
         cmd.append(_application_name_dplayer);
     }
@@ -1330,10 +1330,10 @@ void set_logger()
     spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%n] [%l], %H:%M:%S.%e, %v");
 }
 
-void start_process_on_user_session(uint32_t player_sync_group_index, PlayerType type)
+void start_process_on_user_session(uint32_t player_sync_group_index, e_player_type type)
 {
     std::string cmd;
-    if (type == PlayerType::dplayer)
+    if (type == e_player_type::dplayer)
     {
         cmd.append(_application_name_dplayer);
     }

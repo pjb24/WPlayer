@@ -892,7 +892,7 @@ void thread_packet_processing()
 
         switch (header->cmd)
         {
-        case command_type::gplayer_connect_data_url:
+        case e_command_type::gplayer_connect_data_url:
         {
             packet_gplayer_connect_data_url_from_server* packet = new packet_gplayer_connect_data_url_from_server();
             memcpy(packet, data, header->size);
@@ -952,7 +952,7 @@ void thread_packet_processing()
             check_ready_to_playback();
         }
         break;
-        case command_type::gplayer_connect_data_url_different_videos:
+        case e_command_type::gplayer_connect_data_url_different_videos:
         {
             packet_gplayer_connect_data_url_different_videos_from_server* packet = new packet_gplayer_connect_data_url_different_videos_from_server();
             memcpy(packet, data, header->size);
@@ -1012,7 +1012,7 @@ void thread_packet_processing()
             check_ready_to_playback();
         }
         break;
-        case command_type::gplayer_connect_data_rect:
+        case e_command_type::gplayer_connect_data_rect:
         {
             packet_gplayer_connect_data_rect_from_server* packet = new packet_gplayer_connect_data_rect_from_server();
             memcpy(packet, data, header->size);
@@ -1061,7 +1061,7 @@ void thread_packet_processing()
         }
         break;
 
-        case command_type::gplayer_stop:
+        case e_command_type::gplayer_stop:
         {
             packet_gplayer_stop_from_server* packet = new packet_gplayer_stop_from_server();
             memcpy(packet, data, header->size);

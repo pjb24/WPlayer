@@ -3,12 +3,12 @@
 bool MyServer::send_play(TcpConnection * connection, cppsocket_struct_server_send_play data)
 {
     packet_header header{};
-    header.cmd = command_type::play;
+    header.cmd = e_command_type::play;
     header.size = sizeof(packet_play_from_server);
 
     packet_play_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = packet_result(data.result);
+    out_packet.result = e_packet_result(data.result);
     out_packet.scene_index = data.scene_index;
     out_packet.left = data.left;
     out_packet.top = data.top;
@@ -17,7 +17,7 @@ bool MyServer::send_play(TcpConnection * connection, cppsocket_struct_server_sen
     out_packet.url_size = data.url_size;
     memcpy(out_packet.url, data.url, data.url_size);
 
-    std::shared_ptr<Packet> play_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    std::shared_ptr<Packet> play_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *play_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(play_packet);
 
@@ -27,15 +27,15 @@ bool MyServer::send_play(TcpConnection * connection, cppsocket_struct_server_sen
 bool MyServer::send_pause(TcpConnection * connection, cppsocket_struct_server_send_pause data)
 {
     packet_header header{};
-    header.cmd = command_type::pause;
+    header.cmd = e_command_type::pause;
     header.size = sizeof(packet_pause_from_server);
 
     packet_pause_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = (packet_result)data.result;
+    out_packet.result = (e_packet_result)data.result;
     out_packet.scene_index = data.scene_index;
 
-    std::shared_ptr<Packet> pause_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    std::shared_ptr<Packet> pause_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *pause_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(pause_packet);
 
@@ -45,15 +45,15 @@ bool MyServer::send_pause(TcpConnection * connection, cppsocket_struct_server_se
 bool MyServer::send_stop(TcpConnection * connection, cppsocket_struct_server_send_stop data)
 {
     packet_header header{};
-    header.cmd = command_type::stop;
+    header.cmd = e_command_type::stop;
     header.size = sizeof(packet_stop_from_server);
 
     packet_stop_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = (packet_result)data.result;
+    out_packet.result = (e_packet_result)data.result;
     out_packet.scene_index = data.scene_index;
 
-    std::shared_ptr<Packet> stop_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    std::shared_ptr<Packet> stop_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *stop_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(stop_packet);
 
@@ -63,15 +63,15 @@ bool MyServer::send_stop(TcpConnection * connection, cppsocket_struct_server_sen
 bool MyServer::send_move(TcpConnection * connection, cppsocket_struct_server_send_move data)
 {
     packet_header header{};
-    header.cmd = command_type::move;
+    header.cmd = e_command_type::move;
     header.size = sizeof(packet_move_from_server);
 
     packet_move_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = (packet_result)data.result;
+    out_packet.result = (e_packet_result)data.result;
     out_packet.scene_index = data.scene_index;
 
-    std::shared_ptr<Packet> move_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    std::shared_ptr<Packet> move_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *move_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(move_packet);
 
@@ -81,15 +81,15 @@ bool MyServer::send_move(TcpConnection * connection, cppsocket_struct_server_sen
 bool MyServer::send_jump_forward(TcpConnection * connection, cppsocket_struct_server_send_jump_forward data)
 {
     packet_header header{};
-    header.cmd = command_type::jump_forward;
+    header.cmd = e_command_type::jump_forward;
     header.size = sizeof(packet_jump_forward_from_server);
 
     packet_jump_forward_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = (packet_result)data.result;
+    out_packet.result = (e_packet_result)data.result;
     out_packet.scene_index = data.scene_index;
 
-    std::shared_ptr<Packet> jump_forward_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    std::shared_ptr<Packet> jump_forward_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *jump_forward_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(jump_forward_packet);
 
@@ -99,15 +99,15 @@ bool MyServer::send_jump_forward(TcpConnection * connection, cppsocket_struct_se
 bool MyServer::send_jump_backwards(TcpConnection * connection, cppsocket_struct_server_send_jump_backwards data)
 {
     packet_header header{};
-    header.cmd = command_type::jump_backwards;
+    header.cmd = e_command_type::jump_backwards;
     header.size = sizeof(packet_jump_backwards_from_server);
 
     packet_jump_backwards_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = (packet_result)data.result;
+    out_packet.result = (e_packet_result)data.result;
     out_packet.scene_index = data.scene_index;
 
-    std::shared_ptr<Packet> jump_backwards_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    std::shared_ptr<Packet> jump_backwards_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *jump_backwards_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(jump_backwards_packet);
 
@@ -117,12 +117,12 @@ bool MyServer::send_jump_backwards(TcpConnection * connection, cppsocket_struct_
 bool MyServer::send_play_sync_group(TcpConnection* connection, cppsocket_struct_server_send_play_sync_group data)
 {
     packet_header header{};
-    header.cmd = command_type::play_sync_group;
+    header.cmd = e_command_type::play_sync_group;
     header.size = sizeof(packet_play_sync_group_from_server);
 
     packet_play_sync_group_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = (packet_result)data.result;
+    out_packet.result = (e_packet_result)data.result;
     out_packet.scene_index = data.scene_index;
     out_packet.left = data.left;
     out_packet.top = data.top;
@@ -133,7 +133,7 @@ bool MyServer::send_play_sync_group(TcpConnection* connection, cppsocket_struct_
     out_packet.url_size = data.url_size;
     memcpy(out_packet.url, data.url, data.url_size);
 
-    std::shared_ptr<Packet> play_sync_group_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    std::shared_ptr<Packet> play_sync_group_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *play_sync_group_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(play_sync_group_packet);
 
@@ -143,15 +143,15 @@ bool MyServer::send_play_sync_group(TcpConnection* connection, cppsocket_struct_
 bool MyServer::send_pause_sync_group(TcpConnection* connection, cppsocket_struct_server_send_pause_sync_group data)
 {
     packet_header header{};
-    header.cmd = command_type::pause_sync_group;
+    header.cmd = e_command_type::pause_sync_group;
     header.size = sizeof(packet_pause_sync_group_from_server);
 
     packet_pause_sync_group_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = (packet_result)data.result;
+    out_packet.result = (e_packet_result)data.result;
     out_packet.sync_group_index = data.sync_group_index;
 
-    std::shared_ptr<Packet> pause_sync_group_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    std::shared_ptr<Packet> pause_sync_group_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *pause_sync_group_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(pause_sync_group_packet);
 
@@ -161,15 +161,15 @@ bool MyServer::send_pause_sync_group(TcpConnection* connection, cppsocket_struct
 bool MyServer::send_stop_sync_group(TcpConnection* connection, cppsocket_struct_server_send_stop_sync_group data)
 {
     packet_header header{};
-    header.cmd = command_type::stop_sync_group;
+    header.cmd = e_command_type::stop_sync_group;
     header.size = sizeof(packet_stop_sync_group_from_server);
 
     packet_stop_sync_group_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = (packet_result)data.result;
+    out_packet.result = (e_packet_result)data.result;
     out_packet.sync_group_index = data.sync_group_index;
 
-    std::shared_ptr<Packet> stop_sync_group_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    std::shared_ptr<Packet> stop_sync_group_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *stop_sync_group_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(stop_sync_group_packet);
 
@@ -180,11 +180,11 @@ void MyServer::OnConnect(TcpConnection* newConnection)
 {
 	std::cout << newConnection->ToString() << " - New connection accepted." << std::endl;
 
-	std::shared_ptr<Packet> welcomeMessagePacket = std::make_shared<Packet>(PacketType::ChatMessage);
+	std::shared_ptr<Packet> welcomeMessagePacket = std::make_shared<Packet>(e_packet_type::ChatMessage);
 	*welcomeMessagePacket << std::string("Welcome!");
 	newConnection->m_pmOutgoing.Append(welcomeMessagePacket);
 
-	std::shared_ptr<Packet> newUserMessagePacket = std::make_shared<Packet>(PacketType::ChatMessage);
+	std::shared_ptr<Packet> newUserMessagePacket = std::make_shared<Packet>(e_packet_type::ChatMessage);
 	*newUserMessagePacket << std::string("New user connected!");
 	for (auto& connection : m_connections)
 	{
@@ -201,7 +201,7 @@ void MyServer::OnDisconnect(TcpConnection* lostConnection, std::string reason)
 {
 	std::cout << "[" << reason << "] Connection lost: " << lostConnection->ToString() << "." << std::endl;
 
-	std::shared_ptr<Packet> connectionLostPacket = std::make_shared<Packet>(PacketType::ChatMessage);
+	std::shared_ptr<Packet> connectionLostPacket = std::make_shared<Packet>(e_packet_type::ChatMessage);
 	*connectionLostPacket << std::string("A user disconnected!");
 	for (auto connection : m_connections)
 	{
@@ -218,14 +218,14 @@ bool MyServer::ProcessPacket(std::shared_ptr<Packet> packet)
 {
 	switch (packet->GetPacketType())
 	{
-	case PacketType::ChatMessage:
+	case e_packet_type::ChatMessage:
 	{
 		std::string chatMessage;
 		*packet >> chatMessage;
 		std::cout << "Chat Message: " << chatMessage << std::endl;
 		break;
 	}
-	case PacketType::IntegerArray:
+	case e_packet_type::IntegerArray:
 	{
 		uint32_t arraySize = 0;
 		*packet >> arraySize;
@@ -250,14 +250,14 @@ bool MyServer::ProcessPacket(std::shared_ptr<Packet> packet, TcpConnection* conn
 {
     switch (packet->GetPacketType())
     {
-    case PacketType::ChatMessage:
+    case e_packet_type::ChatMessage:
     {
         std::string chatMessage;
         *packet >> chatMessage;
         std::cout << "Chat Message: " << chatMessage << std::endl;
         break;
     }
-    case PacketType::IntegerArray:
+    case e_packet_type::IntegerArray:
     {
         uint32_t arraySize = 0;
         *packet >> arraySize;
@@ -270,7 +270,7 @@ bool MyServer::ProcessPacket(std::shared_ptr<Packet> packet, TcpConnection* conn
         }
         break;
     }
-    case PacketType::structured_data_from_client:
+    case e_packet_type::structured_data_from_client:
     {
         void* data = nullptr;
         *packet >> data;
@@ -297,12 +297,12 @@ bool MyServer::ProcessPacket(std::shared_ptr<Packet> packet, TcpConnection* conn
 bool MyServer::send_gplayer_play_url(TcpConnection* connection, cppsocket_struct_server_send_gplayer_play_url data)
 {
     packet_header header{};
-    header.cmd = command_type::gplayer_play_url;
+    header.cmd = e_command_type::gplayer_play_url;
     header.size = sizeof(packet_gplayer_play_url_from_server);
 
     packet_gplayer_play_url_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = packet_result(data.result);
+    out_packet.result = e_packet_result(data.result);
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
     out_packet.player_sync_group_input_count = data.player_sync_group_input_count;
@@ -310,7 +310,7 @@ bool MyServer::send_gplayer_play_url(TcpConnection* connection, cppsocket_struct
     out_packet.url_size = data.url_size;
     memcpy(out_packet.url, data.url, data.url_size);
 
-    std::shared_ptr<Packet> gplayer_play_url_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    std::shared_ptr<Packet> gplayer_play_url_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *gplayer_play_url_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(gplayer_play_url_packet);
 
@@ -320,12 +320,12 @@ bool MyServer::send_gplayer_play_url(TcpConnection* connection, cppsocket_struct
 bool MyServer::send_gplayer_play_url_different_videos(TcpConnection* connection, cppsocket_struct_server_send_gplayer_play_url_different_videos data)
 {
     packet_header header{};
-    header.cmd = command_type::gplayer_play_url_different_videos;
+    header.cmd = e_command_type::gplayer_play_url_different_videos;
     header.size = sizeof(packet_gplayer_play_url_different_videos_from_server);
 
     packet_gplayer_play_url_different_videos_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = packet_result(data.result);
+    out_packet.result = e_packet_result(data.result);
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
     out_packet.player_sync_group_input_count = data.player_sync_group_input_count;
@@ -333,7 +333,7 @@ bool MyServer::send_gplayer_play_url_different_videos(TcpConnection* connection,
     out_packet.url_size = data.url_size;
     memcpy(out_packet.url, data.url, data.url_size);
 
-    std::shared_ptr<Packet> gplayer_play_url_different_videos_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    std::shared_ptr<Packet> gplayer_play_url_different_videos_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *gplayer_play_url_different_videos_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(gplayer_play_url_different_videos_packet);
 
@@ -343,12 +343,12 @@ bool MyServer::send_gplayer_play_url_different_videos(TcpConnection* connection,
 bool MyServer::send_gplayer_play_rect(TcpConnection* connection, cppsocket_struct_server_send_gplayer_play_rect data)
 {
     packet_header header{};
-    header.cmd = command_type::gplayer_play_rect;
+    header.cmd = e_command_type::gplayer_play_rect;
     header.size = sizeof(packet_gplayer_play_rect_from_server);
 
     packet_gplayer_play_rect_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = packet_result(data.result);
+    out_packet.result = e_packet_result(data.result);
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
     out_packet.player_sync_group_output_count = data.player_sync_group_output_count;
@@ -358,7 +358,7 @@ bool MyServer::send_gplayer_play_rect(TcpConnection* connection, cppsocket_struc
     out_packet.width = data.width;
     out_packet.height = data.height;
 
-    std::shared_ptr<Packet> gplayer_play_url_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    std::shared_ptr<Packet> gplayer_play_url_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *gplayer_play_url_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(gplayer_play_url_packet);
 
@@ -368,13 +368,13 @@ bool MyServer::send_gplayer_play_rect(TcpConnection* connection, cppsocket_struc
 bool MyServer::send_gplayer_connect_data_url(TcpConnection* connection, cppsocket_struct_server_send_gplayer_connect_data_url data)
 {
     packet_header header{};
-    header.cmd = command_type::gplayer_connect_data_url;
+    header.cmd = e_command_type::gplayer_connect_data_url;
     header.size = sizeof(packet_gplayer_connect_data_url_from_server);
 
     packet_gplayer_connect_data_url_from_server out_packet{};
     out_packet.header = header;
     
-    out_packet.result = packet_result::ok;
+    out_packet.result = e_packet_result::ok;
     
     out_packet.player_sync_group_index = data.player_sync_group_index;
     out_packet.player_sync_group_input_count = data.player_sync_group_input_count;
@@ -382,7 +382,7 @@ bool MyServer::send_gplayer_connect_data_url(TcpConnection* connection, cppsocke
     out_packet.url_size = data.url_size;
     memcpy(out_packet.url, data.url, data.url_size);
 
-    std::shared_ptr<Packet> gplayer_connect_data_url_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    std::shared_ptr<Packet> gplayer_connect_data_url_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *gplayer_connect_data_url_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(gplayer_connect_data_url_packet);
 
@@ -392,13 +392,13 @@ bool MyServer::send_gplayer_connect_data_url(TcpConnection* connection, cppsocke
 bool MyServer::send_gplayer_connect_data_url_different_videos(TcpConnection* connection, cppsocket_struct_server_send_gplayer_connect_data_url_different_videos data)
 {
     packet_header header{};
-    header.cmd = command_type::gplayer_connect_data_url_different_videos;
+    header.cmd = e_command_type::gplayer_connect_data_url_different_videos;
     header.size = sizeof(packet_gplayer_connect_data_url_different_videos_from_server);
 
     packet_gplayer_connect_data_url_different_videos_from_server out_packet{};
     out_packet.header = header;
 
-    out_packet.result = packet_result::ok;
+    out_packet.result = e_packet_result::ok;
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
     out_packet.player_sync_group_input_count = data.player_sync_group_input_count;
@@ -406,7 +406,7 @@ bool MyServer::send_gplayer_connect_data_url_different_videos(TcpConnection* con
     out_packet.url_size = data.url_size;
     memcpy(out_packet.url, data.url, data.url_size);
 
-    std::shared_ptr<Packet> gplayer_connect_data_url_different_videos_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    std::shared_ptr<Packet> gplayer_connect_data_url_different_videos_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *gplayer_connect_data_url_different_videos_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(gplayer_connect_data_url_different_videos_packet);
 
@@ -416,13 +416,13 @@ bool MyServer::send_gplayer_connect_data_url_different_videos(TcpConnection* con
 bool MyServer::send_gplayer_connect_data_rect(TcpConnection* connection, cppsocket_struct_server_send_gplayer_connect_data_rect data)
 {
     packet_header header{};
-    header.cmd = command_type::gplayer_connect_data_rect;
+    header.cmd = e_command_type::gplayer_connect_data_rect;
     header.size = sizeof(packet_gplayer_connect_data_rect_from_server);
 
     packet_gplayer_connect_data_rect_from_server out_packet{};
     out_packet.header = header;
 
-    out_packet.result = packet_result::ok;
+    out_packet.result = e_packet_result::ok;
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
     out_packet.player_sync_group_output_count = data.player_sync_group_output_count;
@@ -432,7 +432,7 @@ bool MyServer::send_gplayer_connect_data_rect(TcpConnection* connection, cppsock
     out_packet.width = data.width;
     out_packet.height = data.height;
 
-    std::shared_ptr<Packet> gplayer_connect_data_rect_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    std::shared_ptr<Packet> gplayer_connect_data_rect_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *gplayer_connect_data_rect_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(gplayer_connect_data_rect_packet);
 
@@ -442,17 +442,17 @@ bool MyServer::send_gplayer_connect_data_rect(TcpConnection* connection, cppsock
 bool MyServer::send_gplayer_stop(TcpConnection* connection, cppsocket_struct_server_send_gplayer_stop data)
 {
     packet_header header{};
-    header.cmd = command_type::gplayer_stop;
+    header.cmd = e_command_type::gplayer_stop;
     header.size = sizeof(packet_gplayer_stop_from_server);
 
     packet_gplayer_stop_from_server out_packet{};
     out_packet.header = header;
 
-    out_packet.result = packet_result::ok;
+    out_packet.result = e_packet_result::ok;
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
 
-    std::shared_ptr<Packet> gplayer_stop_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    std::shared_ptr<Packet> gplayer_stop_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *gplayer_stop_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(gplayer_stop_packet);
 
@@ -462,13 +462,13 @@ bool MyServer::send_gplayer_stop(TcpConnection* connection, cppsocket_struct_ser
 bool MyServer::send_dplayer_play_url(TcpConnection* connection, cppsocket_struct_server_send_dplayer_play_url data)
 {
     packet_header header{};
-    header.cmd = command_type::dplayer_play_url;
+    header.cmd = e_command_type::dplayer_play_url;
     header.size = sizeof(packet_dplayer_play_url_from_server);
 
     packet_dplayer_play_url_from_server out_packet{};
     out_packet.header = header;
 
-    out_packet.result = packet_result::ok;
+    out_packet.result = e_packet_result::ok;
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
     out_packet.player_sync_group_input_count = data.player_sync_group_input_count;
@@ -478,7 +478,7 @@ bool MyServer::send_dplayer_play_url(TcpConnection* connection, cppsocket_struct
     out_packet.url_size = data.url_size;
     memcpy(out_packet.url, data.url, data.url_size);
 
-    std::shared_ptr<Packet> dplayer_connect_data_url_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    std::shared_ptr<Packet> dplayer_connect_data_url_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *dplayer_connect_data_url_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(dplayer_connect_data_url_packet);
 
@@ -488,13 +488,13 @@ bool MyServer::send_dplayer_play_url(TcpConnection* connection, cppsocket_struct
 bool MyServer::send_dplayer_play_rect(TcpConnection* connection, cppsocket_struct_server_send_dplayer_play_rect data)
 {
     packet_header header{};
-    header.cmd = command_type::dplayer_play_rect;
+    header.cmd = e_command_type::dplayer_play_rect;
     header.size = sizeof(packet_dplayer_play_rect_from_server);
 
     packet_dplayer_play_rect_from_server out_packet{};
     out_packet.header = header;
 
-    out_packet.result = packet_result::ok;
+    out_packet.result = e_packet_result::ok;
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
     out_packet.player_sync_group_output_count = data.player_sync_group_output_count;
@@ -506,7 +506,7 @@ bool MyServer::send_dplayer_play_rect(TcpConnection* connection, cppsocket_struc
     out_packet.width = data.width;
     out_packet.height = data.height;
 
-    std::shared_ptr<Packet> dplayer_connect_data_rect_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    std::shared_ptr<Packet> dplayer_connect_data_rect_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *dplayer_connect_data_rect_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(dplayer_connect_data_rect_packet);
 
@@ -516,13 +516,13 @@ bool MyServer::send_dplayer_play_rect(TcpConnection* connection, cppsocket_struc
 bool MyServer::send_dplayer_connect_data_url(TcpConnection* connection, cppsocket_struct_server_send_dplayer_connect_data_url data)
 {
     packet_header header{};
-    header.cmd = command_type::dplayer_connect_data_url;
+    header.cmd = e_command_type::dplayer_connect_data_url;
     header.size = sizeof(packet_dplayer_connect_data_url_from_server);
 
     packet_dplayer_connect_data_url_from_server out_packet{};
     out_packet.header = header;
 
-    out_packet.result = packet_result::ok;
+    out_packet.result = e_packet_result::ok;
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
     out_packet.player_sync_group_input_count = data.player_sync_group_input_count;
@@ -532,7 +532,7 @@ bool MyServer::send_dplayer_connect_data_url(TcpConnection* connection, cppsocke
     out_packet.url_size = data.url_size;
     memcpy(out_packet.url, data.url, data.url_size);
 
-    std::shared_ptr<Packet> dplayer_connect_data_url_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    std::shared_ptr<Packet> dplayer_connect_data_url_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *dplayer_connect_data_url_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(dplayer_connect_data_url_packet);
 
@@ -542,13 +542,13 @@ bool MyServer::send_dplayer_connect_data_url(TcpConnection* connection, cppsocke
 bool MyServer::send_dplayer_connect_data_rect(TcpConnection* connection, cppsocket_struct_server_send_dplayer_connect_data_rect data)
 {
     packet_header header{};
-    header.cmd = command_type::dplayer_connect_data_rect;
+    header.cmd = e_command_type::dplayer_connect_data_rect;
     header.size = sizeof(packet_dplayer_connect_data_rect_from_server);
 
     packet_dplayer_connect_data_rect_from_server out_packet{};
     out_packet.header = header;
 
-    out_packet.result = packet_result::ok;
+    out_packet.result = e_packet_result::ok;
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
     out_packet.player_sync_group_output_count = data.player_sync_group_output_count;
@@ -560,7 +560,7 @@ bool MyServer::send_dplayer_connect_data_rect(TcpConnection* connection, cppsock
     out_packet.width = data.width;
     out_packet.height = data.height;
 
-    std::shared_ptr<Packet> dplayer_connect_data_rect_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    std::shared_ptr<Packet> dplayer_connect_data_rect_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *dplayer_connect_data_rect_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(dplayer_connect_data_rect_packet);
 
@@ -570,17 +570,17 @@ bool MyServer::send_dplayer_connect_data_rect(TcpConnection* connection, cppsock
 bool MyServer::send_dplayer_stop(TcpConnection* connection, cppsocket_struct_server_send_dplayer_stop data)
 {
     packet_header header{};
-    header.cmd = command_type::dplayer_stop;
+    header.cmd = e_command_type::dplayer_stop;
     header.size = sizeof(packet_dplayer_stop_from_server);
 
     packet_dplayer_stop_from_server out_packet{};
     out_packet.header = header;
 
-    out_packet.result = packet_result::ok;
+    out_packet.result = e_packet_result::ok;
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
 
-    std::shared_ptr<Packet> dplayer_stop_packet = std::make_shared<Packet>(PacketType::structured_data_from_server);
+    std::shared_ptr<Packet> dplayer_stop_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *dplayer_stop_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(dplayer_stop_packet);
 

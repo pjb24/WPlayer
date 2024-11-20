@@ -1,7 +1,7 @@
 #ifndef RESULT_H
 #define RESULT_H
 
-enum class Result
+enum class e_result
 {
 	Success,
 	NotYetImplemented

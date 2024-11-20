@@ -99,14 +99,14 @@ private:
 
 #pragma region Read
     void read();
-    error_type read_internal(__out AVPacket*& packet);
+    e_error_type read_internal(__out AVPacket*& packet);
 #pragma endregion
 
 #pragma region Decode
     void open_codec();
     void decode();
-    error_type decode_internal(__in AVPacket* packet, __out AVFrame*& frame);
-    error_type flush_codec();
+    e_error_type decode_internal(__in AVPacket* packet, __out AVFrame*& frame);
+    e_error_type flush_codec();
 #pragma endregion
 
 #pragma region Pause
@@ -197,27 +197,27 @@ private:
     /// </summary>
     /// <param name="packet"></param>
     /// <returns> queue_is_full or ok </returns>
-    error_type input_packet(__in AVPacket* packet);
+    e_error_type input_packet(__in AVPacket* packet);
     /// <summary>
     /// 
     /// </summary>
     /// <param name="packet"></param>
     /// <returns> queue_is_empty or ok </returns>
-    error_type output_packet(__out AVPacket*& packet);
+    e_error_type output_packet(__out AVPacket*& packet);
     /// <summary>
     /// 
     /// </summary>
     /// <param name="frame"></param>
     /// <returns> queue_is_full or ok </returns>
-    error_type input_frame(__in AVFrame* frame);
+    e_error_type input_frame(__in AVFrame* frame);
     /// <summary>
     /// 
     /// </summary>
     /// <param name="frame"></param>
     /// <returns> queue_is_empty or ok </returns>
-    error_type output_frame(__out AVFrame*& frame);
+    e_error_type output_frame(__out AVFrame*& frame);
 
-    error_type output_frame(__out AVFrame*& frame, s32& index);
+    e_error_type output_frame(__out AVFrame*& frame, s32& index);
 
     u32 initialize_packet_queue();
     u32 initialize_frame_queue();

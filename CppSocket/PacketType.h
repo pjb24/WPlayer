@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-enum class PacketType : uint16_t
+enum class e_packet_type : uint16_t
 {
 	Invalid,
 	ChatMessage,
@@ -11,7 +11,7 @@ enum class PacketType : uint16_t
 	StructuredData,
 };
 
-enum class CommandType : uint16_t
+enum class e_command_type : uint16_t
 {
     Play,
     Pause,

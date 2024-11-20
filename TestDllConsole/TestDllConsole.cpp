@@ -31,7 +31,7 @@ void callback_data_connection_server(void* data, void* connection)
 
     switch (header->cmd)
     {
-    case command_type::play:
+    case e_command_type::play:
     {
         packet_play_from_client* packet = new packet_play_from_client();
         memcpy(packet, data, header->size);
@@ -48,7 +48,7 @@ void callback_data_connection_server(void* data, void* connection)
 
         cppsocket_struct_server_send_play data{};
         data.scene_index = 0;
-        data.result = (uint16_t)packet_result::ok;
+        data.result = (uint16_t)e_packet_result::ok;
         data.left = packet->left;
         data.top = packet->top;
         data.width = packet->width;
@@ -61,7 +61,7 @@ void callback_data_connection_server(void* data, void* connection)
         delete packet;
     }
     break;
-    case command_type::pause:
+    case e_command_type::pause:
     {
         packet_pause_from_client* packet = new packet_pause_from_client();
         memcpy(packet, data, header->size);
@@ -73,14 +73,14 @@ void callback_data_connection_server(void* data, void* connection)
 
         cppsocket_struct_server_send_pause data{};
         data.scene_index = packet->scene_index;
-        data.result = (uint16_t)packet_result::ok;
+        data.result = (uint16_t)e_packet_result::ok;
 
         cppsocket_server_send_pause(_server, connection, data);
 
         delete packet;
     }
     break;
-    case command_type::stop:
+    case e_command_type::stop:
     {
         packet_stop_from_client* packet = new packet_stop_from_client();
         memcpy(packet, data, header->size);
@@ -92,19 +92,19 @@ void callback_data_connection_server(void* data, void* connection)
 
         cppsocket_struct_server_send_stop data{};
         data.scene_index = packet->scene_index;
-        data.result = (uint16_t)packet_result::ok;
+        data.result = (uint16_t)e_packet_result::ok;
 
         cppsocket_server_send_stop(_server, connection, data);
 
         delete packet;
     }
     break;
-    case command_type::move:
+    case e_command_type::move:
     {
         // not implemented
     }
     break;
-    case command_type::jump_forward:
+    case e_command_type::jump_forward:
     {
         packet_jump_forward_from_client* packet = new packet_jump_forward_from_client();
         memcpy(packet, data, header->size);
@@ -116,14 +116,14 @@ void callback_data_connection_server(void* data, void* connection)
 
         cppsocket_struct_server_send_jump_forward data{};
         data.scene_index = packet->scene_index;
-        data.result = (uint16_t)packet_result::ok;
+        data.result = (uint16_t)e_packet_result::ok;
 
         cppsocket_server_send_jump_forward(_server, connection, data);
 
         delete packet;
     }
     break;
-    case command_type::jump_backwards:
+    case e_command_type::jump_backwards:
     {
         packet_jump_backwards_from_client* packet = new packet_jump_backwards_from_client();
         memcpy(packet, data, header->size);
@@ -135,14 +135,14 @@ void callback_data_connection_server(void* data, void* connection)
 
         cppsocket_struct_server_send_jump_backwards data{};
         data.scene_index = packet->scene_index;
-        data.result = (uint16_t)packet_result::ok;
+        data.result = (uint16_t)e_packet_result::ok;
 
         cppsocket_server_send_jump_backwards(_server, connection, data);
 
         delete packet;
     }
     break;
-    case command_type::play_sync_group:
+    case e_command_type::play_sync_group:
     {
         packet_play_sync_group_from_client* packet = new packet_play_sync_group_from_client();
         memcpy(packet, data, header->size);
@@ -161,7 +161,7 @@ void callback_data_connection_server(void* data, void* connection)
 
         cppsocket_struct_server_send_play_sync_group data{};
         data.scene_index = 0;
-        data.result = (uint16_t)packet_result::ok;
+        data.result = (uint16_t)e_packet_result::ok;
         data.left = packet->left;
         data.top = packet->top;
         data.width = packet->width;
@@ -176,7 +176,7 @@ void callback_data_connection_server(void* data, void* connection)
         delete packet;
     }
     break;
-    case command_type::pause_sync_group:
+    case e_command_type::pause_sync_group:
     {
         packet_pause_sync_group_from_client* packet = new packet_pause_sync_group_from_client();
         memcpy(packet, data, header->size);
@@ -188,14 +188,14 @@ void callback_data_connection_server(void* data, void* connection)
 
         cppsocket_struct_server_send_pause_sync_group data{};
         data.sync_group_index = packet->sync_group_index;
-        data.result = (uint16_t)packet_result::ok;
+        data.result = (uint16_t)e_packet_result::ok;
 
         cppsocket_server_send_pause_sync_group(_server, connection, data);
 
         delete packet;
     }
     break;
-    case command_type::stop_sync_group:
+    case e_command_type::stop_sync_group:
     {
         packet_stop_sync_group_from_client* packet = new packet_stop_sync_group_from_client();
         memcpy(packet, data, header->size);
@@ -207,14 +207,14 @@ void callback_data_connection_server(void* data, void* connection)
 
         cppsocket_struct_server_send_stop_sync_group data{};
         data.sync_group_index = packet->sync_group_index;
-        data.result = (uint16_t)packet_result::ok;
+        data.result = (uint16_t)e_packet_result::ok;
 
         cppsocket_server_send_stop_sync_group(_server, connection, data);
 
         delete packet;
     }
     break;
-    case command_type::program_quit:
+    case e_command_type::program_quit:
     {
         std::cout << "program_quit" << std::endl;
     }
@@ -230,7 +230,7 @@ void callback_ptr_client(void* data)
 
     switch (header->cmd)
     {
-    case command_type::play:
+    case e_command_type::play:
     {
         packet_play_from_server* packet = new packet_play_from_server();
         memcpy(packet, data, header->size);
@@ -250,7 +250,7 @@ void callback_ptr_client(void* data)
         delete packet;
     }
     break;
-    case command_type::pause:
+    case e_command_type::pause:
     {
         packet_pause_from_server* packet = new packet_pause_from_server();
         memcpy(packet, data, header->size);
@@ -264,7 +264,7 @@ void callback_ptr_client(void* data)
         delete packet;
     }
     break;
-    case command_type::stop:
+    case e_command_type::stop:
     {
         packet_stop_from_server* packet = new packet_stop_from_server();
         memcpy(packet, data, header->size);
@@ -278,12 +278,12 @@ void callback_ptr_client(void* data)
         delete packet;
     }
     break;
-    case command_type::move:
+    case e_command_type::move:
     {
         // not implemented
     }
     break;
-    case command_type::jump_forward:
+    case e_command_type::jump_forward:
     {
         packet_jump_forward_from_server* packet = new packet_jump_forward_from_server();
         memcpy(packet, data, header->size);
@@ -297,7 +297,7 @@ void callback_ptr_client(void* data)
         delete packet;
     }
     break;
-    case command_type::jump_backwards:
+    case e_command_type::jump_backwards:
     {
         packet_jump_backwards_from_server* packet = new packet_jump_backwards_from_server();
         memcpy(packet, data, header->size);
@@ -311,7 +311,7 @@ void callback_ptr_client(void* data)
         delete packet;
     }
     break;
-    case command_type::play_sync_group:
+    case e_command_type::play_sync_group:
     {
         packet_play_sync_group_from_server* packet = new packet_play_sync_group_from_server();
         memcpy(packet, data, header->size);
@@ -333,7 +333,7 @@ void callback_ptr_client(void* data)
         delete packet;
     }
     break;
-    case command_type::pause_sync_group:
+    case e_command_type::pause_sync_group:
     {
         packet_pause_sync_group_from_server* packet = new packet_pause_sync_group_from_server();
         memcpy(packet, data, header->size);
@@ -347,7 +347,7 @@ void callback_ptr_client(void* data)
         delete packet;
     }
     break;
-    case command_type::stop_sync_group:
+    case e_command_type::stop_sync_group:
     {
         packet_stop_sync_group_from_server* packet = new packet_stop_sync_group_from_server();
         memcpy(packet, data, header->size);
@@ -362,7 +362,7 @@ void callback_ptr_client(void* data)
     }
     break;
 
-    case command_type::gplayer_play_url:
+    case e_command_type::gplayer_play_url:
     {
         packet_gplayer_play_url_from_server* packet = new packet_gplayer_play_url_from_server();
         memcpy(packet, data, header->size);
@@ -378,7 +378,7 @@ void callback_ptr_client(void* data)
         delete packet;
     }
     break;
-    case command_type::gplayer_play_url_different_videos:
+    case e_command_type::gplayer_play_url_different_videos:
     {
         packet_gplayer_play_url_different_videos_from_server* packet = new packet_gplayer_play_url_different_videos_from_server();
         memcpy(packet, data, header->size);
@@ -394,7 +394,7 @@ void callback_ptr_client(void* data)
         delete packet;
     }
     break;
-    case command_type::gplayer_play_rect:
+    case e_command_type::gplayer_play_rect:
     {
         packet_gplayer_play_rect_from_server* packet = new packet_gplayer_play_rect_from_server();
         memcpy(packet, data, header->size);
@@ -413,7 +413,7 @@ void callback_ptr_client(void* data)
         delete packet;
     }
     break;
-    case command_type::gplayer_stop:
+    case e_command_type::gplayer_stop:
     {
         packet_gplayer_stop_from_server* packet = new packet_gplayer_stop_from_server();
         memcpy(packet, data, header->size);
@@ -428,7 +428,7 @@ void callback_ptr_client(void* data)
     }
     break;
 
-    case command_type::dplayer_play_url:
+    case e_command_type::dplayer_play_url:
     {
         packet_dplayer_play_url_from_server* packet = new packet_dplayer_play_url_from_server();
         memcpy(packet, data, header->size);
@@ -445,7 +445,7 @@ void callback_ptr_client(void* data)
         delete packet;
     }
     break;
-    case command_type::dplayer_play_rect:
+    case e_command_type::dplayer_play_rect:
     {
         packet_dplayer_play_rect_from_server* packet = new packet_dplayer_play_rect_from_server();
         memcpy(packet, data, header->size);
@@ -465,7 +465,7 @@ void callback_ptr_client(void* data)
         delete packet;
     }
     break;
-    case command_type::dplayer_stop:
+    case e_command_type::dplayer_stop:
     {
         packet_dplayer_stop_from_server* packet = new packet_dplayer_stop_from_server();
         memcpy(packet, data, header->size);
@@ -682,9 +682,9 @@ int main()
                 client_output_messages_step_1();
                 std::cin >> cmd;
                 
-                switch ((command_type)cmd)
+                switch ((e_command_type)cmd)
                 {
-                case command_type::play:
+                case e_command_type::play:
                 {
                     std::cout << "play, Input left top width height url" << std::endl;
 
@@ -706,7 +706,7 @@ int main()
                     cppsocket_client_send_play(_client, data);
                 }
                 break;
-                case command_type::pause:
+                case e_command_type::pause:
                 {
                     std::cout << "pause, Input scene_index" << std::endl;
 
@@ -719,7 +719,7 @@ int main()
                     cppsocket_client_send_pause(_client, data);
                 }
                 break;
-                case command_type::stop:
+                case e_command_type::stop:
                 {
                     std::cout << "stop, Input scene_index" << std::endl;
 
@@ -732,12 +732,12 @@ int main()
                     cppsocket_client_send_stop(_client, data);
                 }
                 break;
-                case command_type::move:
+                case e_command_type::move:
                 {
                     // not implemented
                 }
                 break;
-                case command_type::jump_forward:
+                case e_command_type::jump_forward:
                 {
                     std::cout << "jump_forward, Input scene_index" << std::endl;
 
@@ -750,7 +750,7 @@ int main()
                     cppsocket_client_send_jump_forward(_client, data);
                 }
                 break;
-                case command_type::jump_backwards:
+                case e_command_type::jump_backwards:
                 {
                     std::cout << "jump_backwards, Input scene_index" << std::endl;
 
@@ -763,7 +763,7 @@ int main()
                     cppsocket_client_send_jump_backwards(_client, data);
                 }
                 break;
-                case command_type::play_sync_group:
+                case e_command_type::play_sync_group:
                 {
                     std::cout << "play, Input left top width height url sync_group_index sync_group_count" << std::endl;
 
@@ -791,7 +791,7 @@ int main()
                     cppsocket_client_send_play_sync_group(_client, data);
                 }
                 break;
-                case command_type::pause_sync_group:
+                case e_command_type::pause_sync_group:
                 {
                     std::cout << "pause, Input sync_group_index" << std::endl;
 
@@ -804,7 +804,7 @@ int main()
                     cppsocket_client_send_pause_sync_group(_client, data);
                 }
                 break;
-                case command_type::stop_sync_group:
+                case e_command_type::stop_sync_group:
                 {
                     std::cout << "stop, Input sync_group_index" << std::endl;
 
@@ -817,13 +817,13 @@ int main()
                     cppsocket_client_send_stop_sync_group(_client, data);
                 }
                 break;
-                case command_type::program_quit:
+                case e_command_type::program_quit:
                 {
                     cppsocket_client_send_program_quit(_client);
                 }
                 break;
 
-                case command_type::gplayer_play_url:
+                case e_command_type::gplayer_play_url:
                 {
                     std::cout << "gplayer_play_url, Input url player_sync_group_index player_sync_group_input_count" << std::endl;
 
@@ -843,7 +843,7 @@ int main()
                     cppsocket_client_send_gplayer_play_url(_client, data);
                 }
                 break;
-                case command_type::gplayer_play_url_different_videos:
+                case e_command_type::gplayer_play_url_different_videos:
                 {
                     std::cout << "gplayer_play_url_different_videos, Input url player_sync_group_index player_sync_group_input_count" << std::endl;
 
@@ -863,7 +863,7 @@ int main()
                     cppsocket_client_send_gplayer_play_url_different_videos(_client, data);
                 }
                 break;
-                case command_type::gplayer_play_rect:
+                case e_command_type::gplayer_play_rect:
                 {
                     std::cout << "gplayer_play_rect, Input left top width height player_sync_group_index player_sync_group_output_count" << std::endl;
 
@@ -888,7 +888,7 @@ int main()
                     cppsocket_client_send_gplayer_play_rect(_client, data);
                 }
                 break;
-                case command_type::gplayer_stop:
+                case e_command_type::gplayer_stop:
                 {
                     std::cout << "gplayer_stop, Input player_sync_group_index" << std::endl;
 
@@ -903,10 +903,10 @@ int main()
                 }
                 break;
 
-                case command_type::dplayer_play_url:
+                case e_command_type::dplayer_play_url:
                 {
                     std::cout << "dplayer_play_url, Input url player_sync_group_index player_sync_group_input_count scene_index" << std::endl;
-                    
+
                     std::string url;
                     uint32_t player_sync_group_index;
                     uint16_t player_sync_group_input_count;
@@ -925,7 +925,7 @@ int main()
                     cppsocket_client_send_dplayer_play_url(_client, data);
                 }
                 break;
-                case command_type::dplayer_play_rect:
+                case e_command_type::dplayer_play_rect:
                 {
                     std::cout << "dplayer_play_rect, Input left top width height player_sync_group_index player_sync_group_output_count scene_index" << std::endl;
 
@@ -952,7 +952,7 @@ int main()
                     cppsocket_client_send_dplayer_play_rect(_client, data);
                 }
                 break;
-                case command_type::dplayer_stop:
+                case e_command_type::dplayer_stop:
                 {
                     std::cout << "dplayer_stop, Input player_sync_group_index" << std::endl;
 

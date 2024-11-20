@@ -182,7 +182,7 @@ int FFmpegCore::open_file()
 {
     if (_file_path.empty())
     {
-        return (int)error_type::file_path_unsetted;
+        return (int)e_error_type::file_path_unsetted;
     }
 
     int result = 0;
@@ -206,7 +206,7 @@ int FFmpegCore::open_file()
 
         // if (result == AVERROR_HTTP_UNAUTHORIZED)
 
-        return (int)error_type::file_not_exist;
+        return (int)e_error_type::file_not_exist;
     }
 
     _flag_succeed_open_input = true;
@@ -218,7 +218,7 @@ int FFmpegCore::open_file()
     _duration = _format_ctx->streams[_stream_index]->duration;
     _start_time = _format_ctx->streams[_stream_index]->start_time;
 
-    return (int)error_type::ok;
+    return (int)e_error_type::ok;
 }
 
 void FFmpegCore::play_start(void* connection)
@@ -246,22 +246,22 @@ void FFmpegCore::play_start(void* connection)
 
 void FFmpegCore::play_pause(void* connection)
 {
-    packet_result result = packet_result::ok;
+    e_packet_result result = e_packet_result::ok;
 
     if (_pause_flag)
     {
         play_continue();
-        result = packet_result::resume;
+        result = e_packet_result::resume;
     }
     else
     {
         pause();
-        result = packet_result::pause;
+        result = e_packet_result::pause;
     }
 
     ffmpeg_wrapper_callback_data* data = new ffmpeg_wrapper_callback_data();
     data->scene_index = _scene_index;
-    data->command = (u16)command_type::pause;
+    data->command = (u16)e_command_type::pause;
     data->connection = connection;
     data->result = (u16)result;
 
@@ -301,17 +301,17 @@ void FFmpegCore::play_stop(void* connection)
 
     if (_sync_group_index != u32_invalid_id)
     {
-        data->command = (u16)command_type::stop_sync_group;
+        data->command = (u16)e_command_type::stop_sync_group;
         data->sync_group_index = _sync_group_index;
         data->sync_group_count = _sync_group_count;
     }
     else
     {
-        data->command = (u16)command_type::stop;
+        data->command = (u16)e_command_type::stop;
     }
 
     data->connection = connection;
-    data->result = (u16)packet_result::ok;
+    data->result = (u16)e_packet_result::ok;
 
     _callback_ffmpeg(data);
 
@@ -343,9 +343,9 @@ void FFmpegCore::jump_forward(void* connection)
 
     ffmpeg_wrapper_callback_data* data = new ffmpeg_wrapper_callback_data();
     data->scene_index = _scene_index;
-    data->command = (u16)command_type::jump_forward;
+    data->command = (u16)e_command_type::jump_forward;
     data->connection = connection;
-    data->result = (u16)packet_result::ok;
+    data->result = (u16)e_packet_result::ok;
 
     _callback_ffmpeg(data);
 
@@ -371,9 +371,9 @@ void FFmpegCore::jump_backwards(void* connection)
 
     ffmpeg_wrapper_callback_data* data = new ffmpeg_wrapper_callback_data();
     data->scene_index = _scene_index;
-    data->command = (u16)command_type::jump_backwards;
+    data->command = (u16)e_command_type::jump_backwards;
     data->connection = connection;
-    data->result = (u16)packet_result::ok;
+    data->result = (u16)e_packet_result::ok;
 
     _callback_ffmpeg(data);
 
@@ -382,12 +382,12 @@ void FFmpegCore::jump_backwards(void* connection)
 
 s32 FFmpegCore::get_frame(AVFrame*& frame)
 {
-    error_type result = error_type::ok;
+    e_error_type result = e_error_type::ok;
     s32 index = -1;
 
     // queue에서 frame 가져오기
     result = output_frame(frame, index);
-    if (result != error_type::ok)
+    if (result != e_error_type::ok)
     {
         //if (_eof_read == true)
         if (_eof_read2 == true)
@@ -414,7 +414,7 @@ s32 FFmpegCore::frame_to_next()
     {
         if (_frame_numbering < _frame_count)
         {
-            return error_type::use_previous_frame;
+            return e_error_type::use_previous_frame;
         }
     }
 
@@ -426,7 +426,7 @@ s32 FFmpegCore::frame_to_next()
         {
             _time_started = 0.0;
         }
-        return error_type::queue_is_empty;
+        return e_error_type::queue_is_empty;
     }
 
     int frame_queue_size = get_frame_queue_size();
@@ -450,7 +450,7 @@ s32 FFmpegCore::frame_to_next()
 
     if (time_delta > -(_duration_frame_half))
     {
-        return error_type::use_previous_frame;
+        return e_error_type::use_previous_frame;
     }
 
     if (frame_queue_size > 2)
@@ -472,7 +472,7 @@ s32 FFmpegCore::frame_to_next()
         _frame_count++;
     }
 
-    return error_type::ok;
+    return e_error_type::ok;
 }
 
 s32 FFmpegCore::frame_to_next_non_waiting()
@@ -481,13 +481,13 @@ s32 FFmpegCore::frame_to_next_non_waiting()
 
     if (is_empty_frame_queue())
     {
-        return error_type::queue_is_empty;
+        return e_error_type::queue_is_empty;
     }
 
     av_frame_unref(_frame_queue[_output_frame_index]);
     _output_frame_index = (_output_frame_index + 1) % _frame_queue_size;
 
-    return error_type::ok;
+    return e_error_type::ok;
 }
 
 s32 FFmpegCore::check_frame_to_next_sync_group()
@@ -496,7 +496,7 @@ s32 FFmpegCore::check_frame_to_next_sync_group()
     {
         if (_frame_numbering < _frame_count)
         {
-            return error_type::use_previous_frame;
+            return e_error_type::use_previous_frame;
         }
     }
 
@@ -508,7 +508,7 @@ s32 FFmpegCore::check_frame_to_next_sync_group()
         {
             _time_started = 0.0;
         }
-        return error_type::queue_is_empty;
+        return e_error_type::queue_is_empty;
     }
 
     int frame_queue_size = get_frame_queue_size();
@@ -532,15 +532,15 @@ s32 FFmpegCore::check_frame_to_next_sync_group()
 
     if (time_delta > -(_duration_frame_half))
     {
-        return error_type::use_previous_frame;
+        return e_error_type::use_previous_frame;
     }
 
-    return error_type::ok;
+    return e_error_type::ok;
 }
 
 void FFmpegCore::read()
 {
-    error_type result = error_type::ok;
+    e_error_type result = e_error_type::ok;
 
     AVPacket* packet = nullptr;
     packet = av_packet_alloc();
@@ -569,14 +569,14 @@ void FFmpegCore::read()
             open_codec();
 
             result = read_internal(packet);
-            if (result == error_type::ok)
+            if (result == e_error_type::ok)
             {
                 //open_codec();
 
                 while (true)
                 {
                     result = input_packet(packet);
-                    if (result == error_type::ok)
+                    if (result == e_error_type::ok)
                     {
                         break;
                     }
@@ -610,18 +610,18 @@ void FFmpegCore::read()
     av_packet_free(&packet);
 }
 
-error_type FFmpegCore::read_internal(AVPacket*& packet)
+e_error_type FFmpegCore::read_internal(AVPacket*& packet)
 {
     if (!packet)
     {
-        return error_type::input_unallocated_packet;
+        return e_error_type::input_unallocated_packet;
     }
 
     int result = 0;
 
     if (_eof_read)
     {
-        return error_type::read_eof;
+        return e_error_type::read_eof;
     }
 
     result = av_read_frame(_format_ctx, packet);
@@ -633,21 +633,21 @@ error_type FFmpegCore::read_internal(AVPacket*& packet)
     else if (result == AVERROR(WSAECONNRESET))
     {
         _eof_read = true;
-        return error_type::read_fail_connect;
+        return e_error_type::read_fail_connect;
     }
     else if (result == AVERROR(ETIMEDOUT))
     {
         _eof_read = true;
-        return error_type::read_timeout;
+        return e_error_type::read_timeout;
     }
 
     if (packet->stream_index != _stream_index)
     {
         av_packet_unref(packet);
-        return error_type::read_audio_packet;
+        return e_error_type::read_audio_packet;
     }
 
-    return error_type::ok;
+    return e_error_type::ok;
 }
 
 void FFmpegCore::open_codec()
@@ -744,7 +744,7 @@ void FFmpegCore::open_codec()
 
 void FFmpegCore::decode()
 {
-    error_type result = error_type::ok;
+    e_error_type result = e_error_type::ok;
 
     AVPacket* packet = nullptr;
     packet = av_packet_alloc();
@@ -779,7 +779,7 @@ void FFmpegCore::decode()
             while (true)
             {
                 result = output_packet(packet);
-                if (result == error_type::ok)
+                if (result == e_error_type::ok)
                 {
                     break;
                 }
@@ -817,7 +817,7 @@ void FFmpegCore::decode()
             {
                 result = decode_internal(packet, frame);
             }
-            if (result == error_type::ok)
+            if (result == e_error_type::ok)
             {
                 if (_hw_decode == true)
                 {
@@ -840,15 +840,15 @@ void FFmpegCore::decode()
 
                     if (_sync_group_count == 0)
                     {
-                        data->command = (u16)command_type::play;
+                        data->command = (u16)e_command_type::play;
                     }
                     else
                     {
-                        data->command = (u16)command_type::play_sync_group;
+                        data->command = (u16)e_command_type::play_sync_group;
                     }
 
                     data->connection = _connection_play_start;
-                    data->result = (u16)packet_result::ok;
+                    data->result = (u16)e_packet_result::ok;
 
                     data->left = _rect.left;
                     data->top = _rect.top;
@@ -879,9 +879,9 @@ void FFmpegCore::decode()
                             ffmpeg_wrapper_callback_data* data = new ffmpeg_wrapper_callback_data();
                             data->scene_index = _scene_index;
 
-                            data->command = (u16)command_type::seek_repeat_self_sync_group;
+                            data->command = (u16)e_command_type::seek_repeat_self_sync_group;
 
-                            data->result = (u16)packet_result::ok;
+                            data->result = (u16)e_packet_result::ok;
 
                             data->sync_group_index = _sync_group_index;
                             data->sync_group_count = _sync_group_count;
@@ -902,15 +902,15 @@ void FFmpegCore::decode()
                     if (frame->data[0] != nullptr)
                     {
                         result = input_frame(frame);
-                        if (result == error_type::ok)
+                        if (result == e_error_type::ok)
                         {
                             if (_sync_group_frame_numbering == true && _sync_group_index != u32_invalid_id)
                             {
                                 ffmpeg_wrapper_callback_data* data = new ffmpeg_wrapper_callback_data();
                                 data->scene_index = _scene_index;
-                                data->command = (u16)command_type::sync_group_frame_numbering;
+                                data->command = (u16)e_command_type::sync_group_frame_numbering;
                                 data->connection = _connection_play_start;
-                                data->result = (u16)packet_result::ok;
+                                data->result = (u16)e_packet_result::ok;
 
                                 data->sync_group_index = _sync_group_index;
                                 data->sync_group_count = _sync_group_count;
@@ -945,7 +945,7 @@ void FFmpegCore::decode()
                 }
                 break;
             }
-            else if (result == error_type::decode_eof)
+            else if (result == e_error_type::decode_eof)
             {
                 break;
             }
@@ -958,7 +958,7 @@ void FFmpegCore::decode()
     av_frame_free(&frame);
 }
 
-error_type FFmpegCore::decode_internal(AVPacket* packet, AVFrame*& frame)
+e_error_type FFmpegCore::decode_internal(AVPacket* packet, AVFrame*& frame)
 {
     int result = 0;
 
@@ -969,11 +969,11 @@ error_type FFmpegCore::decode_internal(AVPacket* packet, AVFrame*& frame)
     }
     else if (result == AVERROR_EOF)
     {
-        return error_type::decode_eof;
+        return e_error_type::decode_eof;
     }
     else if (result == AVERROR(EINVAL))
     {
-        return error_type::codec_not_opened;
+        return e_error_type::codec_not_opened;
     }
 
     result = avcodec_receive_frame(_codec_ctx, frame);
@@ -983,24 +983,24 @@ error_type FFmpegCore::decode_internal(AVPacket* packet, AVFrame*& frame)
     }
     else if (result == AVERROR(EAGAIN))
     {
-        return error_type::insufficient_input_packets;
+        return e_error_type::insufficient_input_packets;
     }
     else if (result == AVERROR_EOF)
     {
-        return error_type::decode_eof;
+        return e_error_type::decode_eof;
     }
 
-    return error_type::ok;
+    return e_error_type::ok;
 }
 
-error_type FFmpegCore::flush_codec()
+e_error_type FFmpegCore::flush_codec()
 {
     if (_codec_ctx)
     {
         avcodec_flush_buffers(_codec_ctx);
     }
 
-    return error_type::ok;
+    return e_error_type::ok;
 }
 
 void FFmpegCore::pause()
@@ -1436,82 +1436,82 @@ bool FFmpegCore::is_empty_frame_queue()
     return _output_frame_index == _input_frame_index;
 }
 
-error_type FFmpegCore::input_packet(AVPacket* packet)
+e_error_type FFmpegCore::input_packet(AVPacket* packet)
 {
     std::lock_guard<std::mutex> lock(_packet_mutex);
 
     if (is_full_packet_queue())
     {
-        return error_type::queue_is_full;
+        return e_error_type::queue_is_full;
     }
 
     av_packet_move_ref(_packet_queue[_input_packet_index], packet);
     _input_packet_index = (_input_packet_index + 1) % _packet_queue_size;
 
-    return error_type::ok;
+    return e_error_type::ok;
 }
 
-error_type FFmpegCore::output_packet(AVPacket*& packet)
+e_error_type FFmpegCore::output_packet(AVPacket*& packet)
 {
     std::lock_guard<std::mutex> lock(_packet_mutex);
 
     if (is_empty_packet_queue())
     {
-        return error_type::queue_is_empty;
+        return e_error_type::queue_is_empty;
     }
 
     av_packet_move_ref(packet, _packet_queue[_output_packet_index]);
 
     _output_packet_index = (_output_packet_index + 1) % _packet_queue_size;
 
-    return error_type::ok;
+    return e_error_type::ok;
 }
 
-error_type FFmpegCore::input_frame(AVFrame* frame)
+e_error_type FFmpegCore::input_frame(AVFrame* frame)
 {
     std::lock_guard<std::mutex> lock(_frame_mutex);
 
     if (is_full_frame_queue())
     {
-        return error_type::queue_is_full;
+        return e_error_type::queue_is_full;
     }
 
     av_frame_move_ref(_frame_queue[_input_frame_index], frame);
     _input_frame_index = (_input_frame_index + 1) % _frame_queue_size;
 
-    return error_type::ok;
+    return e_error_type::ok;
 }
 
-error_type FFmpegCore::output_frame(AVFrame*& frame)
+e_error_type FFmpegCore::output_frame(AVFrame*& frame)
 {
     std::lock_guard<std::mutex> lock(_frame_mutex);
 
     if (is_empty_frame_queue())
     {
-        return error_type::queue_is_empty;
+        return e_error_type::queue_is_empty;
     }
 
     av_frame_move_ref(frame, _frame_queue[_output_frame_index]);
 
     _output_frame_index = (_output_frame_index + 1) % _frame_queue_size;
 
-    return error_type::ok;
+    return e_error_type::ok;
 }
 
-error_type FFmpegCore::output_frame(AVFrame*& frame, s32& index)
+e_error_type FFmpegCore::output_frame(AVFrame*& frame, s32& index)
 {
     std::lock_guard<std::mutex> lock(_frame_mutex);
 
     if (is_empty_frame_queue())
     {
-        return error_type::queue_is_empty;
+        return e_error_type::queue_is_empty;
     }
 
     index = _output_frame_index;
 
     av_frame_ref(frame, _frame_queue[_output_frame_index]);
 
-    return error_type::ok;
+    return e_error_type::ok;
 }
 
 u32 FFmpegCore::initialize_packet_queue()
@@ -1562,14 +1562,14 @@ void FFmpegCore::failed_free_frame_queue(u32 size)
 
 void FFmpegCore::clear_packet_queue()
 {
-    error_type result = error_type::ok;
+    e_error_type result = e_error_type::ok;
     AVPacket* packet = nullptr;
     packet = av_packet_alloc();
 
     while (true)
     {
         result = output_packet(packet);
-        if (result == error_type::queue_is_empty)
+        if (result == e_error_type::queue_is_empty)
         {
             break;
         }
@@ -1582,14 +1582,14 @@ void FFmpegCore::clear_packet_queue()
 
 void FFmpegCore::clear_frame_queue()
 {
-    error_type result = error_type::ok;
+    e_error_type result = e_error_type::ok;
     AVFrame* frame = nullptr;
     frame = av_frame_alloc();
 
     while (true)
     {
         result = output_frame(frame);
-        if (result == error_type::queue_is_empty)
+        if (result == e_error_type::queue_is_empty)
         {
             break;
         }

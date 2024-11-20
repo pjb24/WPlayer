@@ -5,18 +5,18 @@ bool Client::Connect(IPEndpoint ip)
 	m_isConnected = false;
 
 	Socket socket = Socket(ip.GetIPVersion());
-	if (socket.Create() == Result::Success)
-	{
-		if (socket.SetBlocking(true) != Result::Success)
-		{
-			return false;
-		}
+	if (socket.Create() == e_result::Success)
+    {
+        if (socket.SetBlocking(true) != e_result::Success)
+        {
+            return false;
+        }
 
-		std::cout << "Socket successfully created." << std::endl;
+        std::cout << "Socket successfully created." << std::endl;
 
-		if (socket.Connect(ip) == Result::Success)
-		{
-			if (socket.SetBlocking(false) == Result::Success)
+        if (socket.Connect(ip) == e_result::Success)
+        {
+            if (socket.SetBlocking(false) == e_result::Success)
 			{
 				m_connection = TcpConnection(socket, ip);
 
@@ -84,7 +84,7 @@ bool Client::Frame()
 		{
 			int bytesReceived = 0;
 
-			if (m_connection.m_pmIncoming.m_currentTask == PacketTask::ProcessPacketSize)
+			if (m_connection.m_pmIncoming.m_currentTask == e_packet_task::ProcessPacketSize)
 			{
 				bytesReceived = recv(m_useFd.fd, (char*)&m_connection.m_pmIncoming.m_currentPacketSize + m_connection.m_pmIncoming.m_currentPacketExtractionOffset, sizeof(uint16_t) - m_connection.m_pmIncoming.m_currentPacketExtractionOffset, 0);
 			}
@@ -112,7 +112,7 @@ bool Client::Frame()
 			if (bytesReceived > 0)
 			{
 				m_connection.m_pmIncoming.m_currentPacketExtractionOffset += bytesReceived;
-				if (m_connection.m_pmIncoming.m_currentTask == PacketTask::ProcessPacketSize)
+				if (m_connection.m_pmIncoming.m_currentTask == e_packet_task::ProcessPacketSize)
 				{
 					if (m_connection.m_pmIncoming.m_currentPacketExtractionOffset == sizeof(uint16_t))
 					{
@@ -124,7 +124,7 @@ bool Client::Frame()
 						}
 
 						m_connection.m_pmIncoming.m_currentPacketExtractionOffset = 0;
-						m_connection.m_pmIncoming.m_currentTask = PacketTask::ProcessPacketContents;
+						m_connection.m_pmIncoming.m_currentTask = e_packet_task::ProcessPacketContents;
 					}
 				}
 				else	// Processing packet contents
@@ -139,31 +139,31 @@ bool Client::Frame()
 
 						m_connection.m_pmIncoming.m_currentPacketSize = 0;
 						m_connection.m_pmIncoming.m_currentPacketExtractionOffset = 0;
-						m_connection.m_pmIncoming.m_currentTask = PacketTask::ProcessPacketSize;
-					}
-				}
-			}
-		}
+						m_connection.m_pmIncoming.m_currentTask = e_packet_task::ProcessPacketSize;
+                    }
+                }
+            }
+        }
 
-		if (m_useFd.revents & POLLWRNORM)	// If normal data can be written without blocking
-		{
-			PacketManager& pm = m_connection.m_pmOutgoing;
-			while (pm.HasPendingPackets())
-			{
-				if (pm.m_currentTask == PacketTask::ProcessPacketSize)	// Sending packet size
-				{
-					pm.m_currentPacketSize = pm.Retrieve()->buffer.size();
-					uint16_t bigEndianPacketSize = htons(pm.m_currentPacketSize);
-					int bytesSent = send(m_useFd.fd, (char*)(&bigEndianPacketSize) + pm.m_currentPacketExtractionOffset, sizeof(uint16_t) - pm.m_currentPacketExtractionOffset, 0);
-					if (bytesSent > 0)
-					{
-						pm.m_currentPacketExtractionOffset += bytesSent;
-					}
+        if (m_useFd.revents & POLLWRNORM)	// If normal data can be written without blocking
+        {
+            PacketManager& pm = m_connection.m_pmOutgoing;
+            while (pm.HasPendingPackets())
+            {
+                if (pm.m_currentTask == e_packet_task::ProcessPacketSize)	// Sending packet size
+                {
+                    pm.m_currentPacketSize = pm.Retrieve()->buffer.size();
+                    uint16_t bigEndianPacketSize = htons(pm.m_currentPacketSize);
+                    int bytesSent = send(m_useFd.fd, (char*)(&bigEndianPacketSize) + pm.m_currentPacketExtractionOffset, sizeof(uint16_t) - pm.m_currentPacketExtractionOffset, 0);
+                    if (bytesSent > 0)
+                    {
+                        pm.m_currentPacketExtractionOffset += bytesSent;
+                    }
 
-					if (pm.m_currentPacketExtractionOffset == sizeof(uint16_t))	// If full packet size was sent
-					{
-						pm.m_currentPacketExtractionOffset = 0;
-						pm.m_currentTask = PacketTask::ProcessPacketContents;
+                    if (pm.m_currentPacketExtractionOffset == sizeof(uint16_t))	// If full packet size was sent
+                    {
+                        pm.m_currentPacketExtractionOffset = 0;
+                        pm.m_currentTask = e_packet_task::ProcessPacketContents;
 					}
 					else	// If full packet size was not sent, break out of the loop for sending outgoing packets for this connection - we'll have to try again next time we are able to write normal data without blocking
 					{
@@ -182,7 +182,7 @@ bool Client::Frame()
 					if (pm.m_currentPacketExtractionOffset == pm.m_currentPacketSize)	// If full packet contents have been sent
 					{
 						pm.m_currentPacketExtractionOffset = 0;
-						pm.m_currentTask = PacketTask::ProcessPacketSize;
+						pm.m_currentTask = e_packet_task::ProcessPacketSize;
 						pm.Pop();	// Remove packet from queue after finished processing
 					}
 					else

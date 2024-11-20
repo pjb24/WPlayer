@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace TestCSharpConsoleCppSocket
 {
-    enum packet_result : UInt16
+    enum e_packet_result : UInt16
     {
         ok,     // 0
         fail,   // 1
@@ -17,7 +17,7 @@ namespace TestCSharpConsoleCppSocket
         invalid = UInt16.MaxValue
     };
 
-    enum command_type : UInt16
+    enum e_command_type : UInt16
     {
         play,   // 0
         pause,  // 1
@@ -63,7 +63,7 @@ namespace TestCSharpConsoleCppSocket
     [StructLayout(LayoutKind.Sequential)]
     struct packet_header
     {
-        public command_type cmd;    // 명령
+        public e_command_type cmd;    // 명령
         public UInt32 size;   // 패킷 전체 크기
     };
 
@@ -72,7 +72,7 @@ namespace TestCSharpConsoleCppSocket
     struct packet_play_from_server
     {
         public packet_header header;
-        public packet_result result;     // 명령 수행 결과
+        public e_packet_result result;     // 명령 수행 결과
         public UInt32 scene_index;
         public int left;
         public int top;
@@ -87,7 +87,7 @@ namespace TestCSharpConsoleCppSocket
     struct packet_pause_from_server
     {
         public packet_header header;
-        public packet_result result;     // 명령 수행 결과
+        public e_packet_result result;     // 명령 수행 결과
         public UInt32 scene_index;
     };
 
@@ -95,7 +95,7 @@ namespace TestCSharpConsoleCppSocket
     struct packet_stop_from_server
     {
         public packet_header header;
-        public packet_result result;     // 명령 수행 결과
+        public e_packet_result result;     // 명령 수행 결과
         public UInt32 scene_index;
     };
 
@@ -103,7 +103,7 @@ namespace TestCSharpConsoleCppSocket
     struct packet_move_from_server
     {
         public packet_header header;
-        public packet_result result; // 명령 수행 결과
+        public e_packet_result result; // 명령 수행 결과
         public UInt32 scene_index;
     };
 
@@ -111,7 +111,7 @@ namespace TestCSharpConsoleCppSocket
     struct packet_jump_forward_from_server
     {
         public packet_header header;
-        public packet_result result; // 명령 수행 결과
+        public e_packet_result result; // 명령 수행 결과
         public UInt32 scene_index;
     };
 
@@ -119,7 +119,7 @@ namespace TestCSharpConsoleCppSocket
     struct packet_jump_backwards_from_server
     {
         public packet_header header;
-        public packet_result result; // 명령 수행 결과
+        public e_packet_result result; // 명령 수행 결과
         public UInt32 scene_index;
     };
 
@@ -127,7 +127,7 @@ namespace TestCSharpConsoleCppSocket
     struct packet_play_sync_group_from_server
     {
         public packet_header header;
-        public packet_result result;     // 명령 수행 결과
+        public e_packet_result result;     // 명령 수행 결과
         public UInt32 scene_index;
         public int left;
         public int top;
@@ -144,7 +144,7 @@ namespace TestCSharpConsoleCppSocket
     struct packet_pause_sync_group_from_server
     {
         public packet_header header;
-        public packet_result result;     // 명령 수행 결과
+        public e_packet_result result;     // 명령 수행 결과
         public UInt32 sync_group_index;       // sync group 번호
     };
 
@@ -152,7 +152,7 @@ namespace TestCSharpConsoleCppSocket
     struct packet_stop_sync_group_from_server
     {
         public packet_header header;
-        public packet_result result;     // 명령 수행 결과
+        public e_packet_result result;     // 명령 수행 결과
         public UInt32 sync_group_index;       // sync group 번호
     };
 
@@ -160,7 +160,7 @@ namespace TestCSharpConsoleCppSocket
     struct packet_gplayer_play_url_from_server
     {
         public packet_header header;
-        public packet_result result;     // 명령 수행 결과
+        public e_packet_result result;     // 명령 수행 결과
 
         public UInt32 player_sync_group_index;       // sync group 번호
         public UInt16 player_sync_group_input_count;
@@ -174,7 +174,7 @@ namespace TestCSharpConsoleCppSocket
     struct packet_gplayer_play_url_different_videos_from_server
     {
         public packet_header header;
-        public packet_result result;     // 명령 수행 결과
+        public e_packet_result result;     // 명령 수행 결과
 
         public UInt32 player_sync_group_index;       // sync group 번호
         public UInt16 player_sync_group_input_count;
@@ -188,7 +188,7 @@ namespace TestCSharpConsoleCppSocket
     struct packet_gplayer_play_rect_from_server
     {
         public packet_header header;
-        public packet_result result;     // 명령 수행 결과
+        public e_packet_result result;     // 명령 수행 결과
 
         public UInt32 player_sync_group_index;       // sync group 번호
         public UInt16 player_sync_group_output_count;
@@ -203,7 +203,7 @@ namespace TestCSharpConsoleCppSocket
     struct packet_gplayer_stop_from_server
     {
         public packet_header header;
-        public packet_result result;     // 명령 수행 결과
+        public e_packet_result result;     // 명령 수행 결과
 
         public UInt32 player_sync_group_index;       // sync group 번호
     };
@@ -212,14 +212,14 @@ namespace TestCSharpConsoleCppSocket
     struct packet_gplayer_pause_from_server
     {
         public packet_header header;
-        public packet_result result;     // 명령 수행 결과
+        public e_packet_result result;     // 명령 수행 결과
     };
 
     [StructLayout(LayoutKind.Sequential)]
     struct packet_dplayer_play_url_from_server
     {
         public packet_header header;
-        public packet_result result;     // 명령 수행 결과
+        public e_packet_result result;     // 명령 수행 결과
 
         public UInt32 player_sync_group_index;       // sync group 번호
         public UInt16 player_sync_group_input_count;
@@ -235,7 +235,7 @@ namespace TestCSharpConsoleCppSocket
     struct packet_dplayer_play_rect_from_server
     {
         public packet_header header;
-        public packet_result result;     // 명령 수행 결과
+        public e_packet_result result;     // 명령 수행 결과
 
         public UInt32 player_sync_group_index;       // sync group 번호
         public UInt16 player_sync_group_output_count;
@@ -252,7 +252,7 @@ namespace TestCSharpConsoleCppSocket
     struct packet_dplayer_stop_from_server
     {
         public packet_header header;
-        public packet_result result;     // 명령 수행 결과
+        public e_packet_result result;     // 명령 수행 결과
 
         public UInt32 player_sync_group_index;       // sync group 번호
     };

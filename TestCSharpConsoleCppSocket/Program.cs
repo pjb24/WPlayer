@@ -143,7 +143,7 @@ namespace TestCSharpConsoleCppSocket
 
             switch (header.cmd)
             {
-                case command_type.play:
+                case e_command_type.play:
                     {
                         packet_play_from_server packet = Marshal.PtrToStructure<packet_play_from_server>(data);
 
@@ -160,7 +160,7 @@ namespace TestCSharpConsoleCppSocket
                         Console.WriteLine($"result: {(UInt16)packet.result}");
                     }
                     break;
-                case command_type.pause:
+                case e_command_type.pause:
                     {
                         packet_pause_from_server packet = Marshal.PtrToStructure<packet_pause_from_server>(data);
 
@@ -171,7 +171,7 @@ namespace TestCSharpConsoleCppSocket
                         Console.WriteLine($"result: {(UInt16)packet.result}");
                     }
                     break;
-                case command_type.stop:
+                case e_command_type.stop:
                     {
                         packet_stop_from_server packet = Marshal.PtrToStructure<packet_stop_from_server>(data);
 
@@ -182,12 +182,12 @@ namespace TestCSharpConsoleCppSocket
                         Console.WriteLine($"result: {(UInt16)packet.result}");
                     }
                     break;
-                case command_type.move:
+                case e_command_type.move:
                     {
                         // not implemented
                     }
                     break;
-                case command_type.jump_forward:
+                case e_command_type.jump_forward:
                     {
                         packet_jump_forward_from_server packet = Marshal.PtrToStructure<packet_jump_forward_from_server>(data);
 
@@ -198,7 +198,7 @@ namespace TestCSharpConsoleCppSocket
                         Console.WriteLine($"result: {(UInt16)packet.result}");
                     }
                     break;
-                case command_type.jump_backwards:
+                case e_command_type.jump_backwards:
                     {
                         packet_jump_backwards_from_server packet = Marshal.PtrToStructure<packet_jump_backwards_from_server>(data);
 
@@ -209,7 +209,7 @@ namespace TestCSharpConsoleCppSocket
                         Console.WriteLine($"result: {(UInt16)packet.result}");
                     }
                     break;
-                case command_type.play_sync_group:
+                case e_command_type.play_sync_group:
                     {
                         packet_play_sync_group_from_server packet = Marshal.PtrToStructure<packet_play_sync_group_from_server>(data);
 
@@ -228,7 +228,7 @@ namespace TestCSharpConsoleCppSocket
                         Console.WriteLine($"result: {(UInt16)packet.result}");
                     }
                     break;
-                case command_type.pause_sync_group:
+                case e_command_type.pause_sync_group:
                     {
                         packet_pause_sync_group_from_server packet = Marshal.PtrToStructure<packet_pause_sync_group_from_server>(data);
 
@@ -239,7 +239,7 @@ namespace TestCSharpConsoleCppSocket
                         Console.WriteLine($"result: {(UInt16)packet.result}");
                     }
                     break;
-                case command_type.stop_sync_group:
+                case e_command_type.stop_sync_group:
                     {
                         packet_stop_sync_group_from_server packet = Marshal.PtrToStructure<packet_stop_sync_group_from_server>(data);
 
@@ -250,12 +250,12 @@ namespace TestCSharpConsoleCppSocket
                         Console.WriteLine($"result: {(UInt16)packet.result}");
                     }
                     break;
-                case command_type.program_quit:
+                case e_command_type.program_quit:
                     {
                     }
                     break;
 
-                case command_type.gplayer_play_url:
+                case e_command_type.gplayer_play_url:
                     {
                         packet_gplayer_play_url_from_server packet = Marshal.PtrToStructure<packet_gplayer_play_url_from_server>(data);
 
@@ -268,7 +268,7 @@ namespace TestCSharpConsoleCppSocket
                         Console.WriteLine($"result: {(UInt16)packet.result}");
                     }
                     break;
-                case command_type.gplayer_play_url_different_videos:
+                case e_command_type.gplayer_play_url_different_videos:
                     {
                         packet_gplayer_play_url_different_videos_from_server packet = Marshal.PtrToStructure<packet_gplayer_play_url_different_videos_from_server>(data);
 
@@ -281,7 +281,7 @@ namespace TestCSharpConsoleCppSocket
                         Console.WriteLine($"result: {(UInt16)packet.result}");
                     }
                     break;
-                case command_type.gplayer_play_rect:
+                case e_command_type.gplayer_play_rect:
                     {
                         packet_gplayer_play_rect_from_server packet = Marshal.PtrToStructure<packet_gplayer_play_rect_from_server>(data);
 
@@ -297,7 +297,7 @@ namespace TestCSharpConsoleCppSocket
                         Console.WriteLine($"result: {(UInt16)packet.result}");
                     }
                     break;
-                case command_type.gplayer_stop:
+                case e_command_type.gplayer_stop:
                     {
                         packet_gplayer_stop_from_server packet = Marshal.PtrToStructure<packet_gplayer_stop_from_server>(data);
 
@@ -309,7 +309,7 @@ namespace TestCSharpConsoleCppSocket
                     }
                     break;
 
-                case command_type.dplayer_play_url:
+                case e_command_type.dplayer_play_url:
                     {
                         packet_dplayer_play_url_from_server packet = Marshal.PtrToStructure<packet_dplayer_play_url_from_server>(data);
 
@@ -322,7 +322,7 @@ namespace TestCSharpConsoleCppSocket
                         Console.WriteLine($"result: {(UInt16)packet.result}");
                     }
                     break;
-                case command_type.dplayer_play_rect:
+                case e_command_type.dplayer_play_rect:
                     {
                         packet_dplayer_play_rect_from_server packet = Marshal.PtrToStructure<packet_dplayer_play_rect_from_server>(data);
 
@@ -338,7 +338,7 @@ namespace TestCSharpConsoleCppSocket
                         Console.WriteLine($"result: {(UInt16)packet.result}");
                     }
                     break;
-                case command_type.dplayer_stop:
+                case e_command_type.dplayer_stop:
                     {
                         packet_dplayer_stop_from_server packet = Marshal.PtrToStructure<packet_dplayer_stop_from_server>(data);
 
@@ -421,9 +421,9 @@ namespace TestCSharpConsoleCppSocket
                     string[] words = line.Split(' ');
                     cmd = UInt16.Parse(words[0]);
 
-                    switch ((command_type)cmd)
+                    switch ((e_command_type)cmd)
                     {
-                        case command_type.play:
+                        case e_command_type.play:
                             {
                                 Console.WriteLine("play, Input left top width height url");
 
@@ -443,7 +443,7 @@ namespace TestCSharpConsoleCppSocket
                                 CppSocketAPI.cppsocket_client_send_play(socket._client, data);
                             }
                             break;
-                        case command_type.pause:
+                        case e_command_type.pause:
                             {
                                 Console.WriteLine("pause, Input scene_index");
 
@@ -455,7 +455,7 @@ namespace TestCSharpConsoleCppSocket
                                 CppSocketAPI.cppsocket_client_send_pause(socket._client, data);
                             }
                             break;
-                        case command_type.stop:
+                        case e_command_type.stop:
                             {
                                 Console.WriteLine("stop, Input scene_index");
 
@@ -467,12 +467,12 @@ namespace TestCSharpConsoleCppSocket
                                 CppSocketAPI.cppsocket_client_send_stop(socket._client, data);
                             }
                             break;
-                        case command_type.move:
+                        case e_command_type.move:
                             {
                                 // not implemented
                             }
                             break;
-                        case command_type.jump_forward:
+                        case e_command_type.jump_forward:
                             {
                                 Console.WriteLine("jump_forward, Input scene_index");
 
@@ -484,7 +484,7 @@ namespace TestCSharpConsoleCppSocket
                                 CppSocketAPI.cppsocket_client_send_jump_forward(socket._client, data);
                             }
                             break;
-                        case command_type.jump_backwards:
+                        case e_command_type.jump_backwards:
                             {
                                 Console.WriteLine("jump_backwards, Input scene_index");
 
@@ -496,7 +496,7 @@ namespace TestCSharpConsoleCppSocket
                                 CppSocketAPI.cppsocket_client_send_jump_backwards(socket._client, data);
                             }
                             break;
-                        case command_type.play_sync_group:
+                        case e_command_type.play_sync_group:
                             {
                                 Console.WriteLine("play, Input left top width height url sync_group_index sync_group_count");
 
@@ -518,7 +518,7 @@ namespace TestCSharpConsoleCppSocket
                                 CppSocketAPI.cppsocket_client_send_play_sync_group(socket._client, data);
                             }
                             break;
-                        case command_type.pause_sync_group:
+                        case e_command_type.pause_sync_group:
                             {
                                 Console.WriteLine("pause, Input sync_group_index");
 
@@ -530,7 +530,7 @@ namespace TestCSharpConsoleCppSocket
                                 CppSocketAPI.cppsocket_client_send_pause_sync_group(socket._client, data);
                             }
                             break;
-                        case command_type.stop_sync_group:
+                        case e_command_type.stop_sync_group:
                             {
                                 Console.WriteLine("stop, Input sync_group_index");
 
@@ -542,13 +542,13 @@ namespace TestCSharpConsoleCppSocket
                                 CppSocketAPI.cppsocket_client_send_stop_sync_group(socket._client, data);
                             }
                             break;
-                        case command_type.program_quit:
+                        case e_command_type.program_quit:
                             {
                                 CppSocketAPI.cppsocket_client_send_program_quit(socket._client);
                             }
                             break;
 
-                        case command_type.gplayer_play_url:
+                        case e_command_type.gplayer_play_url:
                             {
                                 Console.WriteLine("gplayer_play_url, Input url player_sync_group_index player_sync_group_input_count");
 
@@ -566,7 +566,7 @@ namespace TestCSharpConsoleCppSocket
                                 CppSocketAPI.cppsocket_client_send_gplayer_play_url(socket._client, data);
                             }
                             break;
-                        case command_type.gplayer_play_url_different_videos:
+                        case e_command_type.gplayer_play_url_different_videos:
                             {
                                 Console.WriteLine("gplayer_play_url_different_videos, Input url player_sync_group_index player_sync_group_input_count");
 
@@ -584,7 +584,7 @@ namespace TestCSharpConsoleCppSocket
                                 CppSocketAPI.cppsocket_client_send_gplayer_play_url_different_videos(socket._client, data);
                             }
                             break;
-                        case command_type.gplayer_play_rect:
+                        case e_command_type.gplayer_play_rect:
                             {
                                 Console.WriteLine("gplayer_play_rect, Input left top width height player_sync_group_index player_sync_group_output_count");
 
@@ -602,7 +602,7 @@ namespace TestCSharpConsoleCppSocket
                                 CppSocketAPI.cppsocket_client_send_gplayer_play_rect(socket._client, data);
                             }
                             break;
-                        case command_type.gplayer_stop:
+                        case e_command_type.gplayer_stop:
                             {
                                 Console.WriteLine("gplayer_stop, Input player_sync_group_index");
 
@@ -615,7 +615,7 @@ namespace TestCSharpConsoleCppSocket
                             }
                             break;
 
-                        case command_type.dplayer_play_url:
+                        case e_command_type.dplayer_play_url:
                             {
                                 Console.WriteLine("dplayer_play_url, Input url player_sync_group_index player_sync_group_input_count scene_index");
 
@@ -634,7 +634,7 @@ namespace TestCSharpConsoleCppSocket
                                 CppSocketAPI.cppsocket_client_send_dplayer_play_url(socket._client, data);
                             }
                             break;
-                        case command_type.dplayer_play_rect:
+                        case e_command_type.dplayer_play_rect:
                             {
                                 Console.WriteLine("dplayer_play_rect, Input left top width height player_sync_group_index player_sync_group_output_count scene_index");
 
@@ -653,7 +653,7 @@ namespace TestCSharpConsoleCppSocket
                                 CppSocketAPI.cppsocket_client_send_dplayer_play_rect(socket._client, data);
                             }
                             break;
-                        case command_type.dplayer_stop:
+                        case e_command_type.dplayer_stop:
                             {
                                 Console.WriteLine("dplayer_stop, Input player_sync_group_index");
 

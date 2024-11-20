@@ -17,26 +17,26 @@ public:
 	Socket(IPVersion ipversion = IPVersion::IPv4
 		, SocketHandle handle = INVALID_SOCKET);
 
-	Result Create();
-	Result Close();
-	Result Bind(IPEndpoint endpoint);
-	Result Listen(IPEndpoint endpoint, int backlog);
-	Result Accept(Socket& outSocket, IPEndpoint* endpoint = nullptr);
-	Result Receive(void* destination, int numberOfBytes, int& bytesReceived);
-	Result ReceiveAll(void* data, int numberOfBytes);
-	Result Receive(Packet& packet);
+	e_result Create();
+    e_result Close();
+    e_result Bind(IPEndpoint endpoint);
+    e_result Listen(IPEndpoint endpoint, int backlog);
+    e_result Accept(Socket& outSocket, IPEndpoint* endpoint = nullptr);
+    e_result Receive(void* destination, int numberOfBytes, int& bytesReceived);
+    e_result ReceiveAll(void* data, int numberOfBytes);
+    e_result Receive(Packet& packet);
 
-	Result Connect(IPEndpoint endpoint);
-	Result Send(const void* data, int numberOfBytes, int& bytesSent);
-	Result SendAll(const void* data, int numberOfBytes);
-	Result Send(Packet& packet);
+    e_result Connect(IPEndpoint endpoint);
+    e_result Send(const void* data, int numberOfBytes, int& bytesSent);
+    e_result SendAll(const void* data, int numberOfBytes);
+    e_result Send(Packet& packet);
 
 	SocketHandle GetHandle();
 	IPVersion GetIPVersion();
-	Result SetBlocking(bool isBlocking);
+    e_result SetBlocking(bool isBlocking);
 
 private:
-	Result setSocketOption(SocketOption option, int value);
+    e_result setSocketOption(e_socket_option option, int value);
 
 	IPVersion m_ipversion = IPVersion::IPv4;
 	SocketHandle m_handle = INVALID_SOCKET;

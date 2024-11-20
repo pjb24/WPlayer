@@ -17,7 +17,7 @@ public:
 
 	uint16_t m_currentPacketSize = 0;
 	int m_currentPacketExtractionOffset = 0;
-	PacketTask m_currentTask = PacketTask::ProcessPacketSize;
+	e_packet_task m_currentTask = e_packet_task::ProcessPacketSize;
 
 private:
 	std::queue<std::shared_ptr<Packet>> m_packets;

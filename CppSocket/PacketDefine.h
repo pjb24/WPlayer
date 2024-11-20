@@ -2,7 +2,7 @@
 
 #include "TypesDefine.h"
 
-enum class PacketType : uint16_t
+enum class e_packet_type : uint16_t
 {
     Invalid,        // 0
     ChatMessage,    // 1
@@ -11,7 +11,7 @@ enum class PacketType : uint16_t
     structured_data_from_server, // 4
 };
 
-enum class packet_result : uint16_t
+enum class e_packet_result : uint16_t
 {
     ok,     // 0
     fail,   // 1
@@ -21,7 +21,7 @@ enum class packet_result : uint16_t
     invalid = u16_invalid_id
 };
 
-enum class command_type : uint16_t
+enum class e_command_type : uint16_t
 {
     play,   // 0
     pause,  // 1
@@ -66,7 +66,7 @@ enum class command_type : uint16_t
 
 struct packet_header
 {
-    command_type    cmd;    // 명령
+    e_command_type    cmd;    // 명령
     uint32_t        size;   // 패킷 전체 크기
 };
 
@@ -85,7 +85,7 @@ struct packet_play_from_client
 struct packet_play_from_server
 {
     packet_header   header;
-    packet_result   result;     // 명령 수행 결과
+    e_packet_result   result;     // 명령 수행 결과
     uint32_t        scene_index;
     int             left;
     int             top;
@@ -107,7 +107,7 @@ struct packet_pause_from_client
 struct packet_pause_from_server
 {
     packet_header   header;
-    packet_result   result;     // 명령 수행 결과
+    e_packet_result   result;     // 명령 수행 결과
     uint32_t        scene_index;
 };
 // --------------------------------
@@ -122,7 +122,7 @@ struct packet_stop_from_client
 struct packet_stop_from_server
 {
     packet_header   header;
-    packet_result   result;     // 명령 수행 결과
+    e_packet_result   result;     // 명령 수행 결과
     uint32_t        scene_index;
 };
 // --------------------------------
@@ -141,7 +141,7 @@ struct packet_move_from_client
 struct packet_move_from_server
 {
     packet_header   header;
-    packet_result   result; // 명령 수행 결과
+    e_packet_result   result; // 명령 수행 결과
     uint32_t        scene_index;
 };
 // --------------------------------
@@ -156,7 +156,7 @@ struct packet_jump_forward_from_client
 struct packet_jump_forward_from_server
 {
     packet_header   header;
-    packet_result   result; // 명령 수행 결과
+    e_packet_result   result; // 명령 수행 결과
     uint32_t        scene_index;
 };
 // --------------------------------
@@ -171,7 +171,7 @@ struct packet_jump_backwards_from_client
 struct packet_jump_backwards_from_server
 {
     packet_header   header;
-    packet_result   result; // 명령 수행 결과
+    e_packet_result   result; // 명령 수행 결과
     uint32_t        scene_index;
 };
 // --------------------------------
@@ -202,7 +202,7 @@ struct packet_play_sync_group_from_client
 struct packet_play_sync_group_from_server
 {
     packet_header   header;
-    packet_result   result;     // 명령 수행 결과
+    e_packet_result   result;     // 명령 수행 결과
     uint32_t        scene_index;
     int             left;
     int             top;
@@ -226,7 +226,7 @@ struct packet_pause_sync_group_from_client
 struct packet_pause_sync_group_from_server
 {
     packet_header   header;
-    packet_result   result;     // 명령 수행 결과
+    e_packet_result   result;     // 명령 수행 결과
     uint32_t        sync_group_index;       // sync group 번호
 };
 
@@ -242,7 +242,7 @@ struct packet_stop_sync_group_from_client
 struct packet_stop_sync_group_from_server
 {
     packet_header   header;
-    packet_result   result;     // 명령 수행 결과
+    e_packet_result   result;     // 명령 수행 결과
     uint32_t        sync_group_index;       // sync group 번호
 };
 
@@ -259,7 +259,7 @@ struct packet_player_connect_from_client
 struct packet_player_connect_from_server
 {
     packet_header header;
-    packet_result result;
+    e_packet_result result;
 
     uint32_t        player_sync_group_index;   // sync group 번호
 };
@@ -281,7 +281,7 @@ struct packet_gplayer_play_url_from_client
 struct packet_gplayer_play_url_from_server
 {
     packet_header   header;
-    packet_result   result;     // 명령 수행 결과
+    e_packet_result   result;     // 명령 수행 결과
     
     uint32_t        player_sync_group_index;   // sync group 번호
     uint16_t        player_sync_group_input_count;
@@ -307,7 +307,7 @@ struct packet_gplayer_play_url_different_videos_from_client
 struct packet_gplayer_play_url_different_videos_from_server
 {
     packet_header   header;
-    packet_result   result;     // 명령 수행 결과
+    e_packet_result   result;     // 명령 수행 결과
 
     uint32_t        player_sync_group_index;   // sync group 번호
     uint16_t        player_sync_group_input_count;
@@ -335,7 +335,7 @@ struct packet_gplayer_play_rect_from_client
 struct packet_gplayer_play_rect_from_server
 {
     packet_header   header;
-    packet_result   result;     // 명령 수행 결과
+    e_packet_result   result;     // 명령 수행 결과
     
     uint32_t        player_sync_group_index;   // sync group 번호
     uint16_t        player_sync_group_output_count;
@@ -359,7 +359,7 @@ struct packet_gplayer_stop_from_client
 struct packet_gplayer_stop_from_server
 {
     packet_header header;
-    packet_result result;
+    e_packet_result result;
 
     uint32_t        player_sync_group_index;   // sync group 번호
 };
@@ -376,7 +376,7 @@ struct packet_gplayer_pause_from_client
 struct packet_gplayer_pause_from_server
 {
     packet_header header;
-    packet_result result;
+    e_packet_result result;
 
 };
 
@@ -397,7 +397,7 @@ struct packet_gplayer_connect_data_url_from_client
 struct packet_gplayer_connect_data_url_from_server
 {
     packet_header   header;
-    packet_result   result;     // 명령 수행 결과
+    e_packet_result   result;     // 명령 수행 결과
 
     uint32_t        player_sync_group_index;   // sync group 번호
     uint16_t        player_sync_group_input_count;
@@ -423,7 +423,7 @@ struct packet_gplayer_connect_data_url_different_videos_from_client
 struct packet_gplayer_connect_data_url_different_videos_from_server
 {
     packet_header   header;
-    packet_result   result;     // 명령 수행 결과
+    e_packet_result   result;     // 명령 수행 결과
 
     uint32_t        player_sync_group_index;   // sync group 번호
     uint16_t        player_sync_group_input_count;
@@ -451,7 +451,7 @@ struct packet_gplayer_connect_data_rect_from_client
 struct packet_gplayer_connect_data_rect_from_server
 {
     packet_header   header;
-    packet_result   result;     // 명령 수행 결과
+    e_packet_result   result;     // 명령 수행 결과
 
     uint32_t        player_sync_group_index;   // sync group 번호
     uint16_t        player_sync_group_output_count;
@@ -481,7 +481,7 @@ struct packet_dplayer_play_url_from_client
 struct packet_dplayer_play_url_from_server
 {
     packet_header   header;
-    packet_result   result;     // 명령 수행 결과
+    e_packet_result   result;     // 명령 수행 결과
 
     uint32_t        player_sync_group_index;   // sync group 번호
     uint16_t        player_sync_group_input_count;
@@ -513,7 +513,7 @@ struct packet_dplayer_play_rect_from_client
 struct packet_dplayer_play_rect_from_server
 {
     packet_header   header;
-    packet_result   result;     // 명령 수행 결과
+    e_packet_result   result;     // 명령 수행 결과
 
     uint32_t        player_sync_group_index;   // sync group 번호
     uint16_t        player_sync_group_output_count;
@@ -539,7 +539,7 @@ struct packet_dplayer_stop_from_client
 struct packet_dplayer_stop_from_server
 {
     packet_header header;
-    packet_result result;
+    e_packet_result result;
 
     uint32_t        player_sync_group_index;   // sync group 번호
 };
@@ -563,7 +563,7 @@ struct packet_dplayer_connect_data_url_from_client
 struct packet_dplayer_connect_data_url_from_server
 {
     packet_header   header;
-    packet_result   result;     // 명령 수행 결과
+    e_packet_result   result;     // 명령 수행 결과
 
     uint32_t        player_sync_group_index;   // sync group 번호
     uint16_t        player_sync_group_input_count;
@@ -595,7 +595,7 @@ struct packet_dplayer_connect_data_rect_from_client
 struct packet_dplayer_connect_data_rect_from_server
 {
     packet_header   header;
-    packet_result   result;     // 명령 수행 결과
+    e_packet_result   result;     // 명령 수행 결과
 
     uint32_t        player_sync_group_index;   // sync group 번호
     uint16_t        player_sync_group_output_count;

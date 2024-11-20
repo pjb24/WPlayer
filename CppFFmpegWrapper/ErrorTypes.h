@@ -1,6 +1,6 @@
 #pragma once
 
-enum error_type : int32_t
+enum e_error_type : int32_t
 {
     ok = 0,
     file_not_exist = 1,

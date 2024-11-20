@@ -1,29 +1,29 @@
 #include "Packet.h"
 #include "Constants.h"
 
-Packet::Packet(PacketType packetType)
+Packet::Packet(e_packet_type packetType)
 {
 	Clear();
 	AssignPacketType(packetType);
 }
 
-PacketType Packet::GetPacketType()
+e_packet_type Packet::GetPacketType()
 {
-	PacketType* packetTypePtr = reinterpret_cast<PacketType*>(&buffer[0]);
-	return static_cast<PacketType>(ntohs((uint16_t)*packetTypePtr));
+    e_packet_type* packetTypePtr = reinterpret_cast<e_packet_type*>(&buffer[0]);
+    return static_cast<e_packet_type>(ntohs((uint16_t)*packetTypePtr));
 }
 
-void Packet::AssignPacketType(PacketType packetType)
+void Packet::AssignPacketType(e_packet_type packetType)
 {
-	PacketType* packetTypePtr = reinterpret_cast<PacketType*>(&buffer[0]);
-	*packetTypePtr = static_cast<PacketType>(htons((uint16_t)packetType));
+    e_packet_type* packetTypePtr = reinterpret_cast<e_packet_type*>(&buffer[0]);
+    *packetTypePtr = static_cast<e_packet_type>(htons((uint16_t)packetType));
 }
 
 void Packet::Clear()
 {
-	buffer.resize(sizeof(PacketType));
-	AssignPacketType(PacketType::Invalid);
-	extractionOffset = sizeof(PacketType);
+    buffer.resize(sizeof(e_packet_type));
+    AssignPacketType(e_packet_type::Invalid);
+	extractionOffset = sizeof(e_packet_type);
 }
 
 void Packet::Append(const void* data, uint32_t size)

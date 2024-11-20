@@ -10,9 +10,9 @@
 class Packet
 {
 public:
-	Packet(PacketType packetType = PacketType::Invalid);
-	PacketType GetPacketType();
-	void AssignPacketType(PacketType packetType);
+	Packet(e_packet_type packet_type = e_packet_type::Invalid);
+    e_packet_type GetPacketType();
+    void AssignPacketType(e_packet_type packet_type);
 
 	void Clear();
 	void Append(const void* data, uint32_t size);
