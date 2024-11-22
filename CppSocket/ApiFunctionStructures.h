@@ -5,6 +5,8 @@
 #define WIN32_LEAN_AND_MEAN             // 거의 사용되지 않는 내용을 Windows 헤더에서 제외합니다.
 #include <Windows.h>
 
+#include "PacketDefine.h"
+
 // client ////////////////////////////////
 
 struct cppsocket_struct_client_send_play
@@ -134,6 +136,97 @@ struct cppsocket_struct_client_send_dplayer_play_rect
 struct cppsocket_struct_client_send_dplayer_stop
 {
     uint32_t player_sync_group_index;
+};
+
+struct cppsocket_struct_client_send_font_create
+{
+    cppsocket_struct_client_send_font_create()
+    {
+        index_font = 0;
+
+        content_string = "Font_Test";
+        content_size = 9;
+
+        font_family = "Arial";
+        font_family_size = 5;
+
+        font_size = 20;
+
+        font_color_r = 255;
+        font_color_g = 255;
+        font_color_b = 255;
+        font_color_a = 255;
+
+        background_color_r = 0;
+        background_color_g = 0;
+        background_color_b = 0;
+        background_color_a = 0;
+
+        movement_type_horizontal = (int)e_movement_type_horizontal::none;
+        movement_speed_horizontal = 0;
+        movement_threshold_horizontal = INT32_MIN;
+
+        movement_type_vertical = (int)e_movement_type_vertical::none;
+        movement_speed_vertical = 0;
+        movement_threshold_vertical = INT32_MIN;
+
+        font_start_coordinate_x = 0;
+        font_start_coordinate_y = 0;
+
+        background_rectangle_left = 0;
+        backgound_rectangle_top = 0;
+        backgound_rectangle_width = 0;
+        backgound_rectangle_height = 0;
+
+        font_weight = (int)e_dwrite_font_weight::DWRITE_FONT_WEIGHT_NORMAL;
+        font_style = (int)e_dwrite_font_style::DWRITE_FONT_STYLE_NORMAL;
+        font_stretch = (int)e_dwrite_font_stretch::DWRITE_FONT_STRETCH_NORMAL;
+    }
+
+    uint32_t index_font;
+
+    int font_size;
+
+    int font_color_r;
+    int font_color_g;
+    int font_color_b;
+    int font_color_a;
+
+    int background_color_r;
+    int background_color_g;
+    int background_color_b;
+    int background_color_a;
+
+    int movement_type_horizontal;
+    int movement_speed_horizontal;
+    int movement_threshold_horizontal;
+
+    int movement_type_vertical;
+    int movement_speed_vertical;
+    int movement_threshold_vertical;
+
+    int font_start_coordinate_x;
+    int font_start_coordinate_y;
+
+    int background_rectangle_left;
+    int backgound_rectangle_top;
+    int backgound_rectangle_width;
+    int backgound_rectangle_height;
+
+    int font_weight;
+    int font_style;
+    int font_stretch;
+
+    int content_size;
+    const char* content_string;
+
+    int font_family_size;
+    const char* font_family;
+};
+
+struct cppsocket_struct_client_send_font_delete
+{
+    uint32_t index_font;
 };
 
 // --------------------------------
@@ -346,6 +439,20 @@ struct cppsocket_struct_server_send_dplayer_stop
     uint16_t result;
 
     uint32_t player_sync_group_index;
+};
+
+struct cppsocket_struct_server_send_font_create
+{
+    uint16_t result;
+
+    uint32_t index_font;
+};
+
+struct cppsocket_struct_server_send_font_delete
+{
+    uint16_t result;
+
+    uint32_t index_font;
 };
 
 // --------------------------------

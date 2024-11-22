@@ -2,6 +2,9 @@
 
 #include "TypesDefine.h"
 
+#include <dwrite.h>
+#pragma comment(lib, "Dwrite")
+
 enum class e_packet_type : uint16_t
 {
     Invalid,        // 0
@@ -61,7 +64,69 @@ enum class e_command_type : uint16_t
     gplayer_play_url_different_videos,   // 26
     gplayer_connect_data_url_different_videos,   // 27
 
+    font_create,    // 28
+    font_delete,    // 29
+
     invalid = u16_invalid_id
+};
+
+enum class e_dwrite_font_weight : int
+{
+    DWRITE_FONT_WEIGHT_THIN = 100,
+    DWRITE_FONT_WEIGHT_EXTRA_LIGHT = 200,
+    DWRITE_FONT_WEIGHT_ULTRA_LIGHT = 200,
+    DWRITE_FONT_WEIGHT_LIGHT = 300,
+    DWRITE_FONT_WEIGHT_SEMI_LIGHT = 350,
+    DWRITE_FONT_WEIGHT_NORMAL = 400,
+    DWRITE_FONT_WEIGHT_REGULAR = 400,
+    DWRITE_FONT_WEIGHT_MEDIUM = 500,
+    DWRITE_FONT_WEIGHT_DEMI_BOLD = 600,
+    DWRITE_FONT_WEIGHT_SEMI_BOLD = 600,
+    DWRITE_FONT_WEIGHT_BOLD = 700,
+    DWRITE_FONT_WEIGHT_EXTRA_BOLD = 800,
+    DWRITE_FONT_WEIGHT_ULTRA_BOLD = 800,
+    DWRITE_FONT_WEIGHT_BLACK = 900,
+    DWRITE_FONT_WEIGHT_HEAVY = 900,
+    DWRITE_FONT_WEIGHT_EXTRA_BLACK = 950,
+    DWRITE_FONT_WEIGHT_ULTRA_BLACK = 950
+};
+
+enum class e_dwrite_font_style : int
+{
+    DWRITE_FONT_STYLE_NORMAL = 0,
+    DWRITE_FONT_STYLE_OBLIQUE = 1,
+    DWRITE_FONT_STYLE_ITALIC = 2
+};
+
+enum class e_dwrite_font_stretch : int
+{
+    DWRITE_FONT_STRETCH_UNDEFINED = 0,
+    DWRITE_FONT_STRETCH_ULTRA_CONDENSED = 1,
+    DWRITE_FONT_STRETCH_EXTRA_CONDENSED = 2,
+    DWRITE_FONT_STRETCH_CONDENSED = 3,
+    DWRITE_FONT_STRETCH_SEMI_CONDENSED = 4,
+    DWRITE_FONT_STRETCH_NORMAL = 5,
+    DWRITE_FONT_STRETCH_MEDIUM = 5,
+    DWRITE_FONT_STRETCH_SEMI_EXPANDED = 6,
+    DWRITE_FONT_STRETCH_EXPANDED = 7,
+    DWRITE_FONT_STRETCH_EXTRA_EXPANDED = 8,
+    DWRITE_FONT_STRETCH_ULTRA_EXPANDED = 9
+};
+
+enum class e_movement_type_horizontal : int
+{
+    none = 0,
+    left = 1,
+    right = 2,
+
+};
+
+enum class e_movement_type_vertical : int
+{
+    none = 0,
+    top = 1,
+    bottom = 2,
+
 };
 
 struct packet_header
@@ -606,6 +671,80 @@ struct packet_dplayer_connect_data_rect_from_server
     int             top;
     int             width;
     int             height;
+};
+
+// --------------------------------
+
+// font_create ////////////////////////////////
+struct packet_font_create_from_client
+{
+    packet_header   header;
+
+    uint32_t index_font;
+
+    int font_size;
+
+    int font_color_r;
+    int font_color_g;
+    int font_color_b;
+    int font_color_a;
+
+    int background_color_r;
+    int background_color_g;
+    int background_color_b;
+    int background_color_a;
+
+    int movement_type_horizontal;
+    int movement_speed_horizontal;
+    int movement_threshold_horizontal;
+
+    int movement_type_vertical;
+    int movement_speed_vertical;
+    int movement_threshold_vertical;
+
+    int font_start_coordinate_x;
+    int font_start_coordinate_y;
+
+    int background_rectangle_left;
+    int backgound_rectangle_top;
+    int backgound_rectangle_width;
+    int backgound_rectangle_height;
+
+    int font_weight;
+    int font_style;
+    int font_stretch;
+
+    int content_size;
+    char content_string[260];
+
+    int font_family_size;
+    char font_family[100];
+};
+
+struct packet_font_create_from_server
+{
+    packet_header   header;
+    e_packet_result   result;     // 명령 수행 결과
+
+    uint32_t index_font;
+};
+
+// --------------------------------
+
+// font_delete ////////////////////////////////
+struct packet_font_delete_from_client
+{
+    packet_header   header;
+
+    uint32_t index_font;
+};
+
+struct packet_font_delete_from_server
+{
+    packet_header   header;
+    e_packet_result   result;     // 명령 수행 결과
+
+    uint32_t index_font;
 };
 
 // --------------------------------

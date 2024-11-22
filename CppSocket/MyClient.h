@@ -40,6 +40,9 @@ public:
     bool send_dplayer_play_rect(cppsocket_struct_client_send_dplayer_play_rect data);
     bool send_dplayer_connect(cppsocket_struct_client_send_player_connect data);
     bool send_dplayer_stop(cppsocket_struct_client_send_dplayer_stop data);
+    
+    bool send_font_create(cppsocket_struct_client_send_font_create data);
+    bool send_font_delete(cppsocket_struct_client_send_font_delete data);
 
 private:
 	bool ProcessPacket(std::shared_ptr<Packet> packet) override;

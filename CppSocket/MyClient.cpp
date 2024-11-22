@@ -478,3 +478,77 @@ bool MyClient::send_dplayer_stop(cppsocket_struct_client_send_dplayer_stop data)
 
     return true;
 }
+
+bool MyClient::send_font_create(cppsocket_struct_client_send_font_create data)
+{
+    packet_header header{};
+    header.cmd = e_command_type::font_create;
+    header.size = sizeof(packet_font_create_from_client);
+
+    packet_font_create_from_client packet{};
+    packet.header = header;
+
+    packet.index_font = data.index_font;
+
+    packet.font_size = data.font_size;
+
+    packet.font_color_r = data.font_color_r;
+    packet.font_color_g = data.font_color_g;
+    packet.font_color_b = data.font_color_b;
+    packet.font_color_a = data.font_color_a;
+
+    packet.background_color_r = data.background_color_r;
+    packet.background_color_g = data.background_color_g;
+    packet.background_color_b = data.background_color_b;
+    packet.background_color_a = data.background_color_a;
+
+    packet.movement_type_horizontal = data.movement_type_horizontal;
+    packet.movement_speed_horizontal = data.movement_speed_horizontal;
+    packet.movement_threshold_horizontal = data.movement_threshold_horizontal;
+
+    packet.movement_type_vertical = data.movement_type_vertical;
+    packet.movement_speed_vertical = data.movement_speed_vertical;
+    packet.movement_threshold_vertical = data.movement_threshold_vertical;
+
+    packet.font_start_coordinate_x = data.font_start_coordinate_x;
+    packet.font_start_coordinate_y = data.font_start_coordinate_y;
+
+    packet.background_rectangle_left = data.background_rectangle_left;
+    packet.backgound_rectangle_top = data.backgound_rectangle_top;
+    packet.backgound_rectangle_width = data.backgound_rectangle_width;
+    packet.backgound_rectangle_height = data.backgound_rectangle_height;
+
+    packet.font_weight = data.font_weight;
+    packet.font_style = data.font_style;
+    packet.font_stretch = data.font_stretch;
+
+    packet.content_size = data.content_size;
+    memcpy(packet.content_string, data.content_string, data.content_size);
+
+    packet.font_family_size = data.font_family_size;
+    memcpy(packet.font_family, data.font_family, data.font_family_size);
+
+    std::shared_ptr<Packet> font_create_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_client);
+    *font_create_packet << (void*)&packet;
+    m_connection.m_pmOutgoing.Append(font_create_packet);
+
+    return true;
+}
+
+bool MyClient::send_font_delete(cppsocket_struct_client_send_font_delete data)
+{
+    packet_header header{};
+    header.cmd = e_command_type::font_delete;
+    header.size = sizeof(packet_font_delete_from_client);
+
+    packet_font_delete_from_client packet{};
+    packet.header = header;
+
+    packet.index_font = data.index_font;
+
+    std::shared_ptr<Packet> font_delete_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_client);
+    *font_delete_packet << (void*)&packet;
+    m_connection.m_pmOutgoing.Append(font_delete_packet);
+
+    return true;
+}

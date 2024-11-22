@@ -586,3 +586,43 @@ bool MyServer::send_dplayer_stop(TcpConnection* connection, cppsocket_struct_ser
 
     return true;
 }
+
+bool MyServer::send_font_create(TcpConnection* connection, cppsocket_struct_server_send_font_create data)
+{
+    packet_header header{};
+    header.cmd = e_command_type::font_create;
+    header.size = sizeof(packet_font_create_from_server);
+
+    packet_font_create_from_server out_packet{};
+    out_packet.header = header;
+
+    out_packet.result = e_packet_result::ok;
+
+    out_packet.index_font = data.index_font;
+
+    std::shared_ptr<Packet> font_create_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
+    *font_create_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(font_create_packet);
+
+    return true;
+}
+
+bool MyServer::send_font_delete(TcpConnection* connection, cppsocket_struct_server_send_font_delete data)
+{
+    packet_header header{};
+    header.cmd = e_command_type::font_delete;
+    header.size = sizeof(packet_font_delete_from_server);
+
+    packet_font_delete_from_server out_packet{};
+    out_packet.header = header;
+
+    out_packet.result = e_packet_result::ok;
+
+    out_packet.index_font = data.index_font;
+
+    std::shared_ptr<Packet> font_delete_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
+    *font_delete_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(font_delete_packet);
+
+    return true;
+}

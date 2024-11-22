@@ -59,6 +59,9 @@ EXPORT void cppsocket_server_send_dplayer_stop(void* server_instance, void* conn
 EXPORT void cppsocket_server_send_dplayer_connect_data_url(void* server_instance, void* connection, cppsocket_struct_server_send_dplayer_connect_data_url data);
 EXPORT void cppsocket_server_send_dplayer_connect_data_rect(void* server_instance, void* connection, cppsocket_struct_server_send_dplayer_connect_data_rect data);
 
+EXPORT void cppsocket_server_send_font_create(void* server_instance, void* connection, cppsocket_struct_server_send_font_create data);
+EXPORT void cppsocket_server_send_font_delete(void* server_instance, void* connection, cppsocket_struct_server_send_font_delete data);
+
 // --------------------------------
 
 EXPORT void* cppsocket_client_create();
@@ -99,5 +102,8 @@ EXPORT void cppsocket_client_send_dplayer_connect(void* client_instance, cppsock
 EXPORT void cppsocket_client_send_dplayer_play_url(void* client_instance, cppsocket_struct_client_send_dplayer_play_url data);
 EXPORT void cppsocket_client_send_dplayer_play_rect(void* client_instance, cppsocket_struct_client_send_dplayer_play_rect data);
 EXPORT void cppsocket_client_send_dplayer_stop(void* client_instance, cppsocket_struct_client_send_dplayer_stop data);
+
+EXPORT void cppsocket_client_send_font_create(void* client_instance, cppsocket_struct_client_send_font_create data);
+EXPORT void cppsocket_client_send_font_delete(void* client_instance, cppsocket_struct_client_send_font_delete data);
 
 // --------------------------------

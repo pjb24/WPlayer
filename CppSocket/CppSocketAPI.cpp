@@ -174,6 +174,18 @@ void cppsocket_server_send_dplayer_stop(void* server_instance, void* connection,
     server->send_dplayer_stop((TcpConnection*)connection, data);
 }
 
+void cppsocket_server_send_font_create(void* server_instance, void* connection, cppsocket_struct_server_send_font_create data)
+{
+    MyServer* server = (MyServer*)server_instance;
+    server->send_font_create((TcpConnection*)connection, data);
+}
+
+void cppsocket_server_send_font_delete(void* server_instance, void* connection, cppsocket_struct_server_send_font_delete data)
+{
+    MyServer* server = (MyServer*)server_instance;
+    server->send_font_delete((TcpConnection*)connection, data);
+}
+
 // --------------------------------
 
 void * cppsocket_client_create()
@@ -330,6 +342,18 @@ void cppsocket_client_send_dplayer_stop(void* client_instance, cppsocket_struct_
 {
     MyClient* client = (MyClient*)client_instance;
     client->send_dplayer_stop(data);
+}
+
+void cppsocket_client_send_font_create(void* client_instance, cppsocket_struct_client_send_font_create data)
+{
+    MyClient* client = (MyClient*)client_instance;
+    client->send_font_create(data);
+}
+
+void cppsocket_client_send_font_delete(void* client_instance, cppsocket_struct_client_send_font_delete data)
+{
+    MyClient* client = (MyClient*)client_instance;
+    client->send_font_delete(data);
 }
 
 // --------------------------------

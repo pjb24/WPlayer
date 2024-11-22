@@ -43,6 +43,9 @@ public:
     bool send_dplayer_connect_data_rect(TcpConnection* connection, cppsocket_struct_server_send_dplayer_connect_data_rect data);
 
     bool send_dplayer_stop(TcpConnection* connection, cppsocket_struct_server_send_dplayer_stop data);
+    
+    bool send_font_create(TcpConnection* connection, cppsocket_struct_server_send_font_create data);
+    bool send_font_delete(TcpConnection* connection, cppsocket_struct_server_send_font_delete data);
 
 private:
 	void OnConnect(TcpConnection* newConnection) override;
