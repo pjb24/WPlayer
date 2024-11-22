@@ -3110,9 +3110,6 @@ void thread_packet_processing()
 
             delete packet;
 
-            packet_dplayer_connect_data_url_from_server* data_delete = (packet_dplayer_connect_data_url_from_server*)data;
-            delete data_delete;
-
             check_ready_to_playback();
         }
         break;
@@ -3149,9 +3146,6 @@ void thread_packet_processing()
 
             delete packet;
 
-            packet_dplayer_connect_data_rect_from_server* data_delete = (packet_dplayer_connect_data_rect_from_server*)data;
-            delete data_delete;
-
             check_ready_to_playback();
         }
         break;
@@ -3161,9 +3155,6 @@ void thread_packet_processing()
             memcpy(packet, data, header->size);
 
             delete packet;
-
-            packet_dplayer_stop_from_server* data_delete = (packet_dplayer_stop_from_server*)data;
-            delete data_delete;
 
             for (auto it_scene_coordinate = _map_scene_coordinate.begin(); it_scene_coordinate != _map_scene_coordinate.end();)
             {
@@ -3178,6 +3169,8 @@ void thread_packet_processing()
         default:
             break;
         }
+
+        delete[] data;
     }
 }
 

@@ -3132,7 +3132,7 @@ void thread_packet_processing()
             break;
         }
 
-        delete data_pair.first;
+        delete[] data_pair.first;
     }
 }
 

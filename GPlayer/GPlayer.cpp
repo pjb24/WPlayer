@@ -940,10 +940,6 @@ void thread_packet_processing()
 
             delete packet;
 
-            packet_gplayer_connect_data_url_from_server* packet_delete = (packet_gplayer_connect_data_url_from_server*)data;
-            delete packet_delete;
-            packet_delete = nullptr;
-
             if (_flag_different_videos == true)
             {
                 _flag_different_videos = false;
@@ -1000,10 +996,6 @@ void thread_packet_processing()
 
             delete packet;
 
-            packet_gplayer_connect_data_url_different_videos_from_server* packet_delete = (packet_gplayer_connect_data_url_different_videos_from_server*)data;
-            delete packet_delete;
-            packet_delete = nullptr;
-
             if (_flag_different_videos == false)
             {
                 _flag_different_videos = true;
@@ -1053,10 +1045,6 @@ void thread_packet_processing()
 
             delete packet;
 
-            packet_gplayer_connect_data_rect_from_server* packet_delete = (packet_gplayer_connect_data_rect_from_server*)data;
-            delete packet_delete;
-            packet_delete = nullptr;
-
             check_ready_to_playback();
         }
         break;
@@ -1078,10 +1066,6 @@ void thread_packet_processing()
 
             delete packet;
 
-            packet_gplayer_stop_from_server* packet_delete = (packet_gplayer_stop_from_server*)data;
-            delete packet_delete;
-            packet_delete = nullptr;
-
             _is_running = false;
 
             if (_flag_set_logger)
@@ -1101,6 +1085,8 @@ void thread_packet_processing()
         default:
             break;
         }
+
+        delete[] data;
     }
 }
 

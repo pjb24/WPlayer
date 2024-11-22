@@ -688,7 +688,7 @@ void thread_packet_processing()
 
                 // to_console
                 cppsocket_server_send_dplayer_stop(_server, data_pair.second, data);
-                // to_gplayer
+                // to_dplayer
                 cppsocket_server_send_dplayer_stop(_server, player_connection, data);
 
                 for (auto it_url = dplayer->map_url.begin(); it_url != dplayer->map_url.end();)
@@ -721,7 +721,7 @@ void thread_packet_processing()
             break;
         }
 
-        delete data_pair.first;
+        delete[] data_pair.first;
     }
 }
 
