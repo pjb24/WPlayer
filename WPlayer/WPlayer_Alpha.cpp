@@ -1605,7 +1605,7 @@ void delete_swap_chains()
     {
         pst_swap_chain data_swap_chain = it_swap_chain->second;
 
-        if (data_swap_chain->swap_chain)
+        if (data_swap_chain->swap_chain != nullptr)
         {
             data_swap_chain->swap_chain->Release();
             data_swap_chain->swap_chain = nullptr;
@@ -1624,7 +1624,7 @@ void delete_srv_heaps()
     {
         pst_srv_heap data_srv_heap = it_srv_heap->second;
 
-        if (data_srv_heap->srv_heap)
+        if (data_srv_heap->srv_heap != nullptr)
         {
             data_srv_heap->srv_heap->Release();
             data_srv_heap->srv_heap = nullptr;
@@ -1643,7 +1643,7 @@ void delete_rtv_heaps()
     {
         pst_rtv_heap data_rtv_heap = it_rtv_heap->second;
 
-        if (data_rtv_heap->rtv_heap)
+        if (data_rtv_heap->rtv_heap != nullptr)
         {
             data_rtv_heap->rtv_heap->Release();
             data_rtv_heap->rtv_heap = nullptr;
@@ -1662,25 +1662,25 @@ void delete_fences()
     {
         pst_fence data_fence = it_fence->second;
 
-        if (data_fence->fence_device)
+        if (data_fence->fence_device != nullptr)
         {
             data_fence->fence_device->Release();
             data_fence->fence_device = nullptr;
         }
 
-        if (data_fence->fence_upload)
+        if (data_fence->fence_upload != nullptr)
         {
             data_fence->fence_upload->Release();
             data_fence->fence_upload = nullptr;
         }
 
-        if (data_fence->fence_event_device)
+        if (data_fence->fence_event_device != nullptr)
         {
             CloseHandle(data_fence->fence_event_device);
             data_fence->fence_event_device = nullptr;
         }
 
-        if (data_fence->fence_event_upload)
+        if (data_fence->fence_event_upload != nullptr)
         {
             CloseHandle(data_fence->fence_event_upload);
             data_fence->fence_event_upload = nullptr;
@@ -1725,7 +1725,7 @@ void delete_pipeline_state_objects()
     {
         pst_pso data_pso = it_pso->second;
 
-        if (data_pso->pso)
+        if (data_pso->pso != nullptr)
         {
             data_pso->pso->Release();
             data_pso->pso = nullptr;
@@ -1744,7 +1744,7 @@ void delete_root_sigs()
     {
         pst_root_signature data_root_sig = it_root_sig->second;
 
-        if (data_root_sig->root_sig)
+        if (data_root_sig->root_sig != nullptr)
         {
             data_root_sig->root_sig->Release();
             data_root_sig->root_sig = nullptr;
@@ -1786,7 +1786,7 @@ void delete_command_queues()
     {
         pst_command_queue data_command_queue = it_command_queue->second;
 
-        if (data_command_queue->command_queue)
+        if (data_command_queue->command_queue != nullptr)
         {
             data_command_queue->command_queue->Release();
             data_command_queue->command_queue = nullptr;
@@ -1805,19 +1805,19 @@ void delete_devices()
     {
         pst_device data_device = it_device->second;
 
-        if (data_device->device)
+        if (data_device->device != nullptr)
         {
             data_device->device->Release();
             data_device->device = nullptr;
         }
 
-        if (data_device->event_upload_to_device)
+        if (data_device->event_upload_to_device != nullptr)
         {
             CloseHandle(data_device->event_upload_to_device);
             data_device->event_upload_to_device = nullptr;
         }
 
-        if (data_device->event_device_to_window)
+        if (data_device->event_device_to_window != nullptr)
         {
             CloseHandle(data_device->event_device_to_window);
             data_device->event_device_to_window = nullptr;
@@ -1857,13 +1857,13 @@ void delete_windows()
     {
         pst_window data_window = it_window->second;
 
-        if (data_window->handle)
+        if (data_window->handle != nullptr)
         {
             DestroyWindow(data_window->handle);
             data_window->handle = nullptr;
         }
 
-        if (data_window->event_window_to_scene)
+        if (data_window->event_window_to_scene != nullptr)
         {
             CloseHandle(data_window->event_window_to_scene);
             data_window->event_window_to_scene = nullptr;
@@ -1927,7 +1927,7 @@ void delete_adapters()
 
 void delete_factory()
 {
-    if (_factory)
+    if (_factory != nullptr)
     {
         _factory->Release();
         _factory = nullptr;
@@ -2189,7 +2189,7 @@ void delete_index_buffers()
     {
         pst_index_buffer data_index_buffer = it_index_buffer->second;
 
-        if (data_index_buffer->index_buffer)
+        if (data_index_buffer->index_buffer != nullptr)
         {
             data_index_buffer->index_buffer->Release();
             data_index_buffer->index_buffer = nullptr;
@@ -2207,7 +2207,7 @@ void delete_index_buffers()
     {
         pst_index_upload_buffer data_index_upload_buffer = it_index_upload_buffer->second;
 
-        if (data_index_upload_buffer->index_upload_buffer)
+        if (data_index_upload_buffer->index_upload_buffer != nullptr)
         {
             data_index_upload_buffer->index_upload_buffer->Release();
             data_index_upload_buffer->index_upload_buffer = nullptr;
@@ -2810,25 +2810,25 @@ void delete_scenes()
             data_scene->mutex_deque_index_unref = nullptr;
         }
 
-        if (data_scene->event_scene_to_upload)
+        if (data_scene->event_scene_to_upload != nullptr)
         {
             CloseHandle(data_scene->event_scene_to_upload);
             data_scene->event_scene_to_upload = nullptr;
         }
 
-        if (data_scene->condition_variable_window_to_scene)
+        if (data_scene->condition_variable_window_to_scene != nullptr)
         {
             delete data_scene->condition_variable_window_to_scene;
             data_scene->condition_variable_window_to_scene = nullptr;
         }
 
-        if (data_scene->mutex_window_to_scene)
+        if (data_scene->mutex_window_to_scene != nullptr)
         {
             delete data_scene->mutex_window_to_scene;
             data_scene->mutex_window_to_scene = nullptr;
         }
 
-        if (data_scene)
+        if (data_scene != nullptr)
         {
             delete data_scene;
             data_scene = nullptr;
@@ -4125,7 +4125,7 @@ void thread_window(pst_window data_window)
             logger->debug(str.c_str());
         }
 
-        if (!data_window->flag_thread_window)
+        if (data_window->flag_thread_window == false)
         {
             break;
         }
@@ -4187,19 +4187,19 @@ void thread_scene(pst_scene data_scene)
     int index_frame_check_delay = 0;
 
     bool flag_is_realtime = false;
-    if (ffmpeg_instance_current)
+    if (ffmpeg_instance_current != nullptr)
     {
         cpp_ffmpeg_wrapper_get_is_realtime(ffmpeg_instance_current, flag_is_realtime);
     }
 
     bool flag_succeed_open_input = false;
-    if (ffmpeg_instance_current)
+    if (ffmpeg_instance_current != nullptr)
     {
         cpp_ffmpeg_wrapper_get_flag_succeed_open_input(ffmpeg_instance_current, flag_succeed_open_input);
     }
 
     bool flag_play_started = false;
-    if (ffmpeg_instance_current)
+    if (ffmpeg_instance_current != nullptr)
     {
         cpp_ffmpeg_wrapper_get_flag_play_started(ffmpeg_instance_current, flag_play_started);
     }
@@ -4274,7 +4274,7 @@ void thread_scene(pst_scene data_scene)
                 data_scene->flag_use_last_frame = false;
             }
 
-            if (ffmpeg_instance_current
+            if (ffmpeg_instance_current != nullptr
                 && flag_is_realtime == true
                 && flag_succeed_open_input == false)
             {
@@ -4282,7 +4282,7 @@ void thread_scene(pst_scene data_scene)
                 cpp_ffmpeg_wrapper_get_flag_succeed_open_input(ffmpeg_instance_current, flag_succeed_open_input);
             }
 
-            if (ffmpeg_instance_current
+            if (ffmpeg_instance_current != nullptr
                 && flag_is_realtime == true
                 && flag_succeed_open_input == true
                 && flag_play_started == false)
@@ -4967,7 +4967,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     delete _mutex_map_srv_handle_chrominance;
     _mutex_map_srv_handle_chrominance = nullptr;
 
-    if (_frame_default_image)
+    if (_frame_default_image != nullptr)
     {
         av_frame_free(&_frame_default_image);
     }
@@ -5157,7 +5157,7 @@ int create_texture_default(pst_device data_device)
     desc_texture.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
     desc_texture.Alignment = 0;
 
-    if (_frame_default_image)
+    if (_frame_default_image != nullptr)
     {
         desc_texture.Width = _frame_default_image->width;
         desc_texture.Height = _frame_default_image->height;
@@ -5244,19 +5244,19 @@ int create_texture_default(pst_device data_device)
 
 int delete_texture_default(pst_device data_device)
 {
-    if (data_device->texture_default)
+    if (data_device->texture_default != nullptr)
     {
         data_device->texture_default->Release();
         data_device->texture_default = nullptr;
     }
 
-    if (data_device->upload_heap_texture_default_luminance)
+    if (data_device->upload_heap_texture_default_luminance != nullptr)
     {
         data_device->upload_heap_texture_default_luminance->Release();
         data_device->upload_heap_texture_default_luminance = nullptr;
     }
 
-    if (data_device->upload_heap_texture_default_chrominance)
+    if (data_device->upload_heap_texture_default_chrominance != nullptr)
     {
         data_device->upload_heap_texture_default_chrominance->Release();
         data_device->upload_heap_texture_default_chrominance = nullptr;
@@ -5269,7 +5269,7 @@ int upload_texture_default(pst_device data_device, int index_command_list)
 {
     ID3D12Device* device = data_device->device;
 
-    if (_frame_default_image)
+    if (_frame_default_image != nullptr)
     {
         D3D12_SUBRESOURCE_DATA texture_data_luminance{};
         texture_data_luminance.pData = _frame_default_image->data[0];
