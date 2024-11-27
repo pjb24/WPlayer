@@ -302,7 +302,7 @@ bool MyServer::send_gplayer_play_url(TcpConnection* connection, cppsocket_struct
 
     packet_gplayer_play_url_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = e_packet_result(data.result);
+    out_packet.result = (e_packet_result)data.result;
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
     out_packet.player_sync_group_input_count = data.player_sync_group_input_count;
@@ -325,7 +325,7 @@ bool MyServer::send_gplayer_play_url_different_videos(TcpConnection* connection,
 
     packet_gplayer_play_url_different_videos_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = e_packet_result(data.result);
+    out_packet.result = (e_packet_result)data.result;
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
     out_packet.player_sync_group_input_count = data.player_sync_group_input_count;
@@ -348,7 +348,7 @@ bool MyServer::send_gplayer_play_rect(TcpConnection* connection, cppsocket_struc
 
     packet_gplayer_play_rect_from_server out_packet{};
     out_packet.header = header;
-    out_packet.result = e_packet_result(data.result);
+    out_packet.result = (e_packet_result)data.result;
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
     out_packet.player_sync_group_output_count = data.player_sync_group_output_count;
@@ -374,7 +374,7 @@ bool MyServer::send_gplayer_connect_data_url(TcpConnection* connection, cppsocke
     packet_gplayer_connect_data_url_from_server out_packet{};
     out_packet.header = header;
     
-    out_packet.result = e_packet_result::ok;
+    out_packet.result = (e_packet_result)data.result;
     
     out_packet.player_sync_group_index = data.player_sync_group_index;
     out_packet.player_sync_group_input_count = data.player_sync_group_input_count;
@@ -398,7 +398,7 @@ bool MyServer::send_gplayer_connect_data_url_different_videos(TcpConnection* con
     packet_gplayer_connect_data_url_different_videos_from_server out_packet{};
     out_packet.header = header;
 
-    out_packet.result = e_packet_result::ok;
+    out_packet.result = (e_packet_result)data.result;
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
     out_packet.player_sync_group_input_count = data.player_sync_group_input_count;
@@ -422,7 +422,7 @@ bool MyServer::send_gplayer_connect_data_rect(TcpConnection* connection, cppsock
     packet_gplayer_connect_data_rect_from_server out_packet{};
     out_packet.header = header;
 
-    out_packet.result = e_packet_result::ok;
+    out_packet.result = (e_packet_result)data.result;
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
     out_packet.player_sync_group_output_count = data.player_sync_group_output_count;
@@ -448,7 +448,7 @@ bool MyServer::send_gplayer_stop(TcpConnection* connection, cppsocket_struct_ser
     packet_gplayer_stop_from_server out_packet{};
     out_packet.header = header;
 
-    out_packet.result = e_packet_result::ok;
+    out_packet.result = (e_packet_result)data.result;
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
 
@@ -468,7 +468,7 @@ bool MyServer::send_dplayer_play_url(TcpConnection* connection, cppsocket_struct
     packet_dplayer_play_url_from_server out_packet{};
     out_packet.header = header;
 
-    out_packet.result = e_packet_result::ok;
+    out_packet.result = (e_packet_result)data.result;
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
     out_packet.player_sync_group_input_count = data.player_sync_group_input_count;
@@ -494,7 +494,7 @@ bool MyServer::send_dplayer_play_rect(TcpConnection* connection, cppsocket_struc
     packet_dplayer_play_rect_from_server out_packet{};
     out_packet.header = header;
 
-    out_packet.result = e_packet_result::ok;
+    out_packet.result = (e_packet_result)data.result;
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
     out_packet.player_sync_group_output_count = data.player_sync_group_output_count;
@@ -522,7 +522,7 @@ bool MyServer::send_dplayer_connect_data_url(TcpConnection* connection, cppsocke
     packet_dplayer_connect_data_url_from_server out_packet{};
     out_packet.header = header;
 
-    out_packet.result = e_packet_result::ok;
+    out_packet.result = (e_packet_result)data.result;
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
     out_packet.player_sync_group_input_count = data.player_sync_group_input_count;
@@ -548,7 +548,7 @@ bool MyServer::send_dplayer_connect_data_rect(TcpConnection* connection, cppsock
     packet_dplayer_connect_data_rect_from_server out_packet{};
     out_packet.header = header;
 
-    out_packet.result = e_packet_result::ok;
+    out_packet.result = (e_packet_result)data.result;
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
     out_packet.player_sync_group_output_count = data.player_sync_group_output_count;
@@ -576,7 +576,7 @@ bool MyServer::send_dplayer_stop(TcpConnection* connection, cppsocket_struct_ser
     packet_dplayer_stop_from_server out_packet{};
     out_packet.header = header;
 
-    out_packet.result = e_packet_result::ok;
+    out_packet.result = (e_packet_result)data.result;
 
     out_packet.player_sync_group_index = data.player_sync_group_index;
 
@@ -596,7 +596,7 @@ bool MyServer::send_font_create(TcpConnection* connection, cppsocket_struct_serv
     packet_font_create_from_server out_packet{};
     out_packet.header = header;
 
-    out_packet.result = e_packet_result::ok;
+    out_packet.result = (e_packet_result)data.result;
 
     out_packet.index_font = data.index_font;
 
@@ -616,7 +616,7 @@ bool MyServer::send_font_delete(TcpConnection* connection, cppsocket_struct_serv
     packet_font_delete_from_server out_packet{};
     out_packet.header = header;
 
-    out_packet.result = e_packet_result::ok;
+    out_packet.result = (e_packet_result)data.result;
 
     out_packet.index_font = data.index_font;
 
