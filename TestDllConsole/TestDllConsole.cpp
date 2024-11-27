@@ -480,6 +480,67 @@ void callback_ptr_client(void* data)
     }
     break;
 
+    case e_command_type::font_create:
+    {
+        packet_font_create_from_server* packet = new packet_font_create_from_server();
+        memcpy(packet, data, header->size);
+
+        std::cout << "font_create" << ", ";
+        std::cout << "command_type: " << (uint16_t)packet->header.cmd << ", ";
+        std::cout << "packet size: " << packet->header.size << ", ";
+        std::cout << "index_font: " << packet->index_font << ", ";
+        std::cout << "font_size: " << packet->font_size << ", ";
+        std::cout << "font_color_r: " << packet->font_color_r << ", ";
+        std::cout << "font_color_g: " << packet->font_color_g << ", ";
+        std::cout << "font_color_b: " << packet->font_color_b << ", ";
+        std::cout << "font_color_a: " << packet->font_color_a << ", ";
+        std::cout << "background_color_r: " << packet->background_color_r << ", ";
+        std::cout << "background_color_g: " << packet->background_color_g << ", ";
+        std::cout << "background_color_b: " << packet->background_color_b << ", ";
+        std::cout << "background_color_a: " << packet->background_color_a << ", ";
+        std::cout << "movement_type_horizontal: " << packet->movement_type_horizontal << ", ";
+        std::cout << "movement_speed_horizontal: " << packet->movement_speed_horizontal << ", ";
+        std::cout << "movement_threshold_horizontal: " << packet->movement_threshold_horizontal << ", ";
+        std::cout << "movement_type_horizontal_background: " << packet->movement_type_horizontal_background << ", ";
+        std::cout << "movement_speed_horizontal_background: " << packet->movement_speed_horizontal_background << ", ";
+        std::cout << "movement_threshold_horizontal_background: " << packet->movement_threshold_horizontal_background << ", ";
+        std::cout << "movement_type_vertical: " << packet->movement_type_vertical << ", ";
+        std::cout << "movement_speed_vertical: " << packet->movement_speed_vertical << ", ";
+        std::cout << "movement_threshold_vertical: " << packet->movement_threshold_vertical << ", ";
+        std::cout << "movement_type_vertical_background: " << packet->movement_type_vertical_background << ", ";
+        std::cout << "movement_speed_vertical_background: " << packet->movement_speed_vertical_background << ", ";
+        std::cout << "movement_threshold_vertical_background: " << packet->movement_threshold_vertical_background << ", ";
+        std::cout << "font_start_coordinate_left: " << packet->font_start_coordinate_left << ", ";
+        std::cout << "font_start_coordinate_top: " << packet->font_start_coordinate_top << ", ";
+        std::cout << "backgound_rectangle_width: " << packet->backgound_rectangle_width << ", ";
+        std::cout << "backgound_rectangle_height: " << packet->backgound_rectangle_height << ", ";
+        std::cout << "font_weight: " << packet->font_weight << ", ";
+        std::cout << "font_style: " << packet->font_style << ", ";
+        std::cout << "font_stretch: " << packet->font_stretch << ", ";
+        std::cout << "content_size: " << packet->content_size << ", ";
+        std::cout << "content_string: " << packet->content_string << ", ";
+        std::cout << "font_family_size: " << packet->font_family_size << ", ";
+        std::cout << "font_family: " << packet->font_family << ", ";
+        std::cout << "result: " << (uint16_t)packet->result << std::endl;
+
+        delete packet;
+    }
+    break;
+    case e_command_type::font_delete:
+    {
+        packet_font_delete_from_server* packet = new packet_font_delete_from_server();
+        memcpy(packet, data, header->size);
+
+        std::cout << "font_delete" << ", ";
+        std::cout << "command_type: " << (uint16_t)packet->header.cmd << ", ";
+        std::cout << "packet size: " << packet->header.size << ", ";
+        std::cout << "index_font: " << packet->index_font << ", ";
+        std::cout << "result: " << (uint16_t)packet->result << std::endl;
+
+        delete packet;
+    }
+    break;
+
     default:
         break;
     }
@@ -531,6 +592,9 @@ void client_output_messages_step_1()
     std::cout << "22(dplayer_play_stop)" << std::endl;
     std::cout << std::endl;
     std::cout << "26(gplayer_play_url_different_videos)" << std::endl;
+    std::cout << std::endl;
+    std::cout << "28(font_create)" << std::endl;
+    std::cout << "29(font_delete)" << std::endl;
 
     std::cout << std::endl;
     std::cout << "input 99 to stop program" << std::endl;
@@ -964,6 +1028,363 @@ int main()
                     data.player_sync_group_index = player_sync_group_index;
 
                     cppsocket_client_send_dplayer_stop(_client, data);
+                }
+                break;
+
+                case e_command_type::font_create:
+                {
+                    uint32_t index_font;
+
+                    std::cout << "font_create, Input index_font" << std::endl;
+                    std::cin >> index_font;
+
+                    // content_string
+#pragma region content_string
+                    std::string content_string = "Font_Test";
+                    int content_size = content_string.size();
+                    
+                    std::cout << "font_create, Input content_string" << std::endl;
+                    std::cin >> content_string;
+                    content_size = content_string.size();
+#pragma endregion         
+                    // font_family
+#pragma region font_family
+                    std::string font_family = "Arial";
+                    int font_family_size = font_family.size();
+
+                    std::cout << "font_create, Input font_family, If Input -1, font_family use default value" << std::endl;
+
+                    std::cin >> font_family;
+                    if (font_family == "-1")
+                    {
+                        font_family = "Arial";
+                    }
+                    font_family_size = font_family.size();
+#pragma endregion
+                    // font_size
+#pragma region font_size
+                    int font_size = 32;
+
+                    std::cout << "font_create, Input font_size, If Input -1, font_size use default value" << std::endl;
+
+                    std::cin >> font_size;
+                    if (font_size == -1)
+                    {
+                        font_size = 32;
+                    }
+#pragma endregion
+                    // font_color
+#pragma region font_color
+                    bool flag_input_minus_one_font_color = false;
+
+                    int font_color_r = 255;
+                    int font_color_g = 255;
+                    int font_color_b = 255;
+                    int font_color_a = 255;
+
+                    if (flag_input_minus_one_font_color == false)
+                    {
+                        std::cout << "font_create, Input font_color_r font_color_g font_color_b font_color_a, If Input -1, font_color use default value" << std::endl;
+                    }
+
+                    if (flag_input_minus_one_font_color == false)
+                    {
+                        std::cin >> font_color_r;
+                    }
+                    if (font_color_r == -1)
+                    {
+                        flag_input_minus_one_font_color = true;
+                    }
+
+                    if (flag_input_minus_one_font_color == false)
+                    {
+                        std::cin >> font_color_g;
+                    }
+                    if (font_color_g == -1)
+                    {
+                        flag_input_minus_one_font_color = true;
+                    }
+
+                    if (flag_input_minus_one_font_color == false)
+                    {
+                        std::cin >> font_color_b;
+                    }
+                    if (font_color_b == -1)
+                    {
+                        flag_input_minus_one_font_color = true;
+                    }
+
+                    if (flag_input_minus_one_font_color == false)
+                    {
+                        std::cin >> font_color_a;
+                    }
+                    if (font_color_a == -1)
+                    {
+                        flag_input_minus_one_font_color = true;
+                    }
+
+                    if (flag_input_minus_one_font_color)
+                    {
+                        font_color_r = 255;
+                        font_color_g = 255;
+                        font_color_b = 255;
+                        font_color_a = 255;
+                    }
+#pragma endregion
+                    // background_color
+#pragma region background_color
+                    bool flag_input_minus_one_background_color = false;
+
+                    int background_color_r = 0;
+                    int background_color_g = 0;
+                    int background_color_b = 0;
+                    int background_color_a = 0;
+
+                    if (flag_input_minus_one_background_color == false)
+                    {
+                        std::cout << "font_create, Input background_color_r background_color_g background_color_b background_color_a, If Input -1, background_color use default value" << std::endl;
+                    }
+
+                    if (flag_input_minus_one_background_color == false)
+                    {
+                        std::cin >> background_color_r;
+                    }
+                    if (background_color_r == -1)
+                    {
+                        flag_input_minus_one_background_color = true;
+                    }
+
+                    if (flag_input_minus_one_background_color == false)
+                    {
+                        std::cin >> background_color_g;
+                    }
+                    if (background_color_g == -1)
+                    {
+                        flag_input_minus_one_background_color = true;
+                    }
+
+                    if (flag_input_minus_one_background_color == false)
+                    {
+                        std::cin >> background_color_b;
+                    }
+                    if (background_color_b == -1)
+                    {
+                        flag_input_minus_one_background_color = true;
+                    }
+
+                    if (flag_input_minus_one_background_color == false)
+                    {
+                        std::cin >> background_color_a;
+                    }
+                    if (background_color_a == -1)
+                    {
+                        flag_input_minus_one_background_color = true;
+                    }
+
+                    if (flag_input_minus_one_background_color)
+                    {
+                        background_color_r = 0;
+                        background_color_g = 0;
+                        background_color_b = 0;
+                        background_color_a = 0;
+                    }
+#pragma endregion
+                    // movement_type_horizontal
+#pragma region movement_type_horizontal
+                    int movement_type_horizontal = (int)e_movement_type_horizontal::none;
+                    int movement_speed_horizontal = 0;
+                    int movement_threshold_horizontal = INT_MIN;
+
+                    std::cout << "font_create, Input movement_type_horizontal, If Input 0: none, 1: move to left, 2: move to right" << std::endl;
+                    std::cin >> movement_type_horizontal;
+
+                    if (movement_type_horizontal != (int)e_movement_type_horizontal::none)
+                    {
+                        std::cout << "font_create, Input movement_speed_horizontal, If Input negative value, speed use default value, 0" << std::endl;
+                        std::cin >> movement_speed_horizontal;
+                        if (movement_speed_horizontal < 0)
+                        {
+                            movement_speed_horizontal = 0;
+                        }
+                    }
+
+                    if (movement_speed_horizontal != 0)
+                    {
+                        std::cout << "font_create, Input movement_threshold_horizontal, Any number in the int range, but if enter a number that is too large, the font will not be visible for too long" << std::endl;
+                        std::cin >> movement_threshold_horizontal;
+                    }
+#pragma endregion
+                    // movement_type_horizontal_background
+#pragma region movement_type_horizontal_background
+                    int movement_type_horizontal_background = (int)e_movement_type_horizontal::none;
+                    int movement_speed_horizontal_background = 0;
+                    int movement_threshold_horizontal_background = INT_MIN;
+
+                    std::cout << "font_create, Input movement_type_horizontal_background, If Input 0: none, 1: move to left, 2: move to right" << std::endl;
+                    std::cin >> movement_type_horizontal_background;
+
+                    if (movement_type_horizontal_background != (int)e_movement_type_horizontal::none)
+                    {
+                        std::cout << "font_create, Input movement_speed_horizontal_background, If Input negative value, speed use default value, 0" << std::endl;
+                        std::cin >> movement_speed_horizontal_background;
+                        if (movement_speed_horizontal_background < 0)
+                        {
+                            movement_speed_horizontal_background = 0;
+                        }
+                    }
+
+                    if (movement_speed_horizontal_background != 0)
+                    {
+                        std::cout << "font_create, Input movement_threshold_horizontal_background, Any number in the int range, but if enter a number that is too large, the font will not be visible for too long" << std::endl;
+                        std::cin >> movement_threshold_horizontal_background;
+                    }
+#pragma endregion
+                    // movement_type_vertical
+#pragma region movement_type_vertical
+                    int movement_type_vertical = (int)e_movement_type_vertical::none;
+                    int movement_speed_vertical = 0;
+                    int movement_threshold_vertical = INT_MIN;
+
+                    std::cout << "font_create, Input movement_type_vertical, If Input 0: none, 1: move to top, 2: move to bottom" << std::endl;
+                    std::cin >> movement_type_vertical;
+
+                    if (movement_type_vertical != (int)e_movement_type_vertical::none)
+                    {
+                        std::cout << "font_create, Input movement_speed_vertical, If Input negative value, speed use default value, 0" << std::endl;
+                        std::cin >> movement_speed_vertical;
+                        if (movement_speed_vertical < 0)
+                        {
+                            movement_speed_vertical = 0;
+                        }
+                    }
+
+                    if (movement_speed_vertical != 0)
+                    {
+                        std::cout << "font_create, Input movement_threshold_vertical, Any number in the int range, but if enter a number that is too large, the font will not be visible for too long" << std::endl;
+                        std::cin >> movement_threshold_vertical;
+                    }
+#pragma endregion
+                    // movement_type_vertical_background
+#pragma region movement_type_vertical_background
+                    int movement_type_vertical_background = (int)e_movement_type_vertical::none;
+                    int movement_speed_vertical_background = 0;
+                    int movement_threshold_vertical_background = INT_MIN;
+
+                    std::cout << "font_create, Input movement_type_vertical_background, If Input 0: none, 1: move to top, 2: move to bottom" << std::endl;
+                    std::cin >> movement_type_vertical_background;
+
+                    if (movement_type_vertical_background != (int)e_movement_type_vertical::none)
+                    {
+                        std::cout << "font_create, Input movement_speed_vertical_background, If Input negative value, speed use default value, 0" << std::endl;
+                        std::cin >> movement_speed_vertical_background;
+                        if (movement_speed_vertical_background < 0)
+                        {
+                            movement_speed_vertical_background = 0;
+                        }
+                    }
+
+                    if (movement_speed_vertical_background != 0)
+                    {
+                        std::cout << "font_create, Input movement_threshold_vertical_background, Any number in the int range, but if enter a number that is too large, the font will not be visible for too long" << std::endl;
+                        std::cin >> movement_threshold_vertical_background;
+                    }
+#pragma endregion
+                    // font_start_coordinate
+#pragma region font_start_coordinate
+                    int font_start_coordinate_left = 0;
+                    int font_start_coordinate_top = 0;
+
+                    std::cout << "font_create, Input font_start_coordinate_left" << std::endl;
+                    std::cin >> font_start_coordinate_left;
+
+                    std::cout << "font_create, Input font_start_coordinate_top" << std::endl;
+                    std::cin >> font_start_coordinate_top;
+#pragma endregion
+                    // background_rectangle
+#pragma region background_rectangle
+                    int backgound_rectangle_width = 0;
+                    int backgound_rectangle_height = 0;
+
+                    std::cout << "font_create, Input backgound_rectangle_width backgound_rectangle_height, If Input 0 or negative value, will not use background_rectangle" << std::endl;
+                    std::cin >> backgound_rectangle_width;
+                    std::cin >> backgound_rectangle_height;
+
+                    if (backgound_rectangle_width < 0 || backgound_rectangle_height < 0)
+                    {
+                        backgound_rectangle_width = 0;
+                        backgound_rectangle_height = 0;
+                    }
+#pragma endregion
+                    // font_style
+#pragma region font_style
+                    int font_weight = (int)e_dwrite_font_weight::DWRITE_FONT_WEIGHT_NORMAL;
+                    int font_style = (int)e_dwrite_font_style::DWRITE_FONT_STYLE_NORMAL;
+                    int font_stretch = (int)e_dwrite_font_stretch::DWRITE_FONT_STRETCH_NORMAL;
+#pragma endregion
+
+                    cppsocket_struct_client_send_font_create data{};
+
+                    data.index_font = index_font;
+
+                    data.content_string = content_string.c_str();
+                    data.content_size = content_size;
+
+                    data.font_family = font_family.c_str();
+                    data.font_family_size = font_family_size;
+
+                    data.font_size = font_size;
+
+                    data.font_color_r = font_color_r;
+                    data.font_color_g = font_color_g;
+                    data.font_color_b = font_color_b;
+                    data.font_color_a = font_color_a;
+                    
+                    data.background_color_r = background_color_r;
+                    data.background_color_g = background_color_g;
+                    data.background_color_b = background_color_b;
+                    data.background_color_a = background_color_a;
+
+                    data.movement_type_horizontal = movement_type_horizontal;
+                    data.movement_speed_horizontal = movement_speed_horizontal;
+                    data.movement_threshold_horizontal = movement_threshold_horizontal;
+
+                    data.movement_type_horizontal_background = movement_type_horizontal_background;
+                    data.movement_speed_horizontal_background = movement_speed_horizontal_background;
+                    data.movement_threshold_horizontal_background = movement_threshold_horizontal_background;
+
+                    data.movement_type_vertical = movement_type_vertical;
+                    data.movement_speed_vertical = movement_speed_vertical;
+                    data.movement_threshold_vertical = movement_threshold_vertical;
+
+                    data.movement_type_vertical_background = movement_type_vertical_background;
+                    data.movement_speed_vertical_background = movement_speed_vertical_background;
+                    data.movement_threshold_vertical_background = movement_threshold_vertical_background;
+
+                    data.font_start_coordinate_left = font_start_coordinate_left;
+                    data.font_start_coordinate_top = font_start_coordinate_top;
+
+                    data.backgound_rectangle_width = backgound_rectangle_width;
+                    data.backgound_rectangle_height = backgound_rectangle_height;
+                    
+                    data.font_weight = font_weight;
+                    data.font_style = font_style;
+                    data.font_stretch = font_stretch;
+
+                    cppsocket_client_send_font_create(_client, data);
+                }
+                break;
+                case e_command_type::font_delete:
+                {
+                    std::cout << "font_delete, Input index_font" << std::endl;
+
+                    uint32_t index_font;
+
+                    std::cin >> index_font;
+
+                    cppsocket_struct_client_send_font_delete data{};
+                    data.index_font = index_font;
+
+                    cppsocket_client_send_font_delete(_client, data);
                 }
                 break;
 

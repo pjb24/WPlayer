@@ -39,6 +39,56 @@ typedef struct st_coordinate
     int height;
 }*pst_coordinate;
 
+typedef struct st_font
+{
+    uint32_t index_font = UINT32_MAX;
+
+    std::string content_string;
+    int content_size;
+
+    std::string font_family;
+    int font_family_size;
+
+    int font_size;
+
+    int font_color_r;
+    int font_color_g;
+    int font_color_b;
+    int font_color_a;
+
+    int background_color_r;
+    int background_color_g;
+    int background_color_b;
+    int background_color_a;
+
+    int movement_type_horizontal;
+    int movement_speed_horizontal;
+    int movement_threshold_horizontal;
+
+    int movement_type_horizontal_background;
+    int movement_speed_horizontal_background;
+    int movement_threshold_horizontal_background;
+
+    int movement_type_vertical;
+    int movement_speed_vertical;
+    int movement_threshold_vertical;
+
+    int movement_type_vertical_background;
+    int movement_speed_vertical_background;
+    int movement_threshold_vertical_background;
+
+    int font_start_coordinate_left;
+    int font_start_coordinate_top;
+
+    int backgound_rectangle_width;
+    int backgound_rectangle_height;
+
+    int font_weight;
+    int font_style;
+    int font_stretch;
+
+}*pst_font;
+
 typedef struct st_gplayer
 {
     uint32_t player_sync_group_index = UINT32_MAX;
@@ -62,6 +112,8 @@ typedef struct st_dplayer
 
     uint16_t player_sync_group_output_count = UINT16_MAX;
     std::map<uint32_t, pst_coordinate> map_coordinate;
+
+    std::map<uint32_t, pst_font> map_font;
 
 }*pst_dplayer;
 
@@ -708,6 +760,207 @@ void thread_packet_processing()
                 _map_dplayer.erase(it_dplayer);
 
                 _map_player_connection.erase(it_player_connection);
+            }
+        }
+        break;
+
+        case e_command_type::font_create:
+        {
+            packet_font_create_from_client* packet = (packet_font_create_from_client*)data_pair.first;
+            
+            cppsocket_struct_server_send_font_create data{};
+            data.result = (uint16_t)e_packet_result::ok;
+
+            data.index_font = packet->index_font;
+
+            data.font_size = packet->font_size;
+
+            data.font_color_r = packet->font_color_r;
+            data.font_color_g = packet->font_color_g;
+            data.font_color_b = packet->font_color_b;
+            data.font_color_a = packet->font_color_a;
+
+            data.background_color_r = packet->background_color_r;
+            data.background_color_g = packet->background_color_g;
+            data.background_color_b = packet->background_color_b;
+            data.background_color_a = packet->background_color_a;
+
+            data.movement_type_horizontal = packet->movement_type_horizontal;
+            data.movement_speed_horizontal = packet->movement_speed_horizontal;
+            data.movement_threshold_horizontal = packet->movement_threshold_horizontal;
+
+            data.movement_type_horizontal_background = packet->movement_type_horizontal_background;
+            data.movement_speed_horizontal_background = packet->movement_speed_horizontal_background;
+            data.movement_threshold_horizontal_background = packet->movement_threshold_horizontal_background;
+
+            data.movement_type_vertical = packet->movement_type_vertical;
+            data.movement_speed_vertical = packet->movement_speed_vertical;
+            data.movement_threshold_vertical = packet->movement_threshold_vertical;
+
+            data.movement_type_vertical_background = packet->movement_type_vertical_background;
+            data.movement_speed_vertical_background = packet->movement_speed_vertical_background;
+            data.movement_threshold_vertical_background = packet->movement_threshold_vertical_background;
+
+            data.font_start_coordinate_left = packet->font_start_coordinate_left;
+            data.font_start_coordinate_top = packet->font_start_coordinate_top;
+
+            data.backgound_rectangle_width = packet->backgound_rectangle_width;
+            data.backgound_rectangle_height = packet->backgound_rectangle_height;
+
+            data.font_weight = packet->font_weight;
+            data.font_style = packet->font_style;
+            data.font_stretch = packet->font_stretch;
+
+            data.content_size = packet->content_size;
+            memcpy(data.content_string, packet->content_string, packet->content_size);
+
+            data.font_family_size = packet->font_family_size;
+            memcpy(data.font_family, packet->font_family, packet->font_family_size);
+
+            for (auto it_dplayer = _map_dplayer.begin(); it_dplayer != _map_dplayer.end(); it_dplayer++)
+            {
+                pst_dplayer data_dplayer = it_dplayer->second;
+
+                auto it_player_connection = _map_player_connection.find(data_dplayer->player_sync_group_index);
+                if (it_player_connection == _map_player_connection.end())
+                {
+                    continue;
+                }
+
+                void* player_connection = it_player_connection->second;
+
+                pst_font font = nullptr;
+
+                auto it_font = data_dplayer->map_font.find(packet->index_font);
+                if (it_font != data_dplayer->map_font.end())
+                {
+                    font = it_font->second;
+                }
+                else
+                {
+                    font = new st_font();
+                    data_dplayer->map_font.insert({ packet->index_font, font });
+                }
+
+                font->index_font = packet->index_font;
+
+                font->content_string = packet->content_string;
+                font->content_size = packet->content_size;
+
+                font->font_family = packet->font_family;
+                font->font_family_size = packet->font_family_size;
+
+                font->font_size = packet->font_size;
+
+                font->font_color_r = packet->font_color_r;
+                font->font_color_g = packet->font_color_g;
+                font->font_color_b = packet->font_color_b;
+                font->font_color_a = packet->font_color_a;
+
+                font->background_color_r = packet->background_color_r;
+                font->background_color_g = packet->background_color_g;
+                font->background_color_b = packet->background_color_b;
+                font->background_color_a = packet->background_color_a;
+
+                font->movement_type_horizontal = packet->movement_type_horizontal;
+                font->movement_speed_horizontal = packet->movement_speed_horizontal;
+                font->movement_threshold_horizontal = packet->movement_threshold_horizontal;
+
+                font->movement_type_horizontal_background = packet->movement_type_horizontal_background;
+                font->movement_speed_horizontal_background = packet->movement_speed_horizontal_background;
+                font->movement_threshold_horizontal_background = packet->movement_threshold_horizontal_background;
+
+                font->movement_type_vertical = packet->movement_type_vertical;
+                font->movement_speed_vertical = packet->movement_speed_vertical;
+                font->movement_threshold_vertical = packet->movement_threshold_vertical;
+
+                font->movement_type_vertical_background = packet->movement_type_vertical_background;
+                font->movement_speed_vertical_background = packet->movement_speed_vertical_background;
+                font->movement_threshold_vertical_background = packet->movement_threshold_vertical_background;
+
+                font->font_start_coordinate_left = packet->font_start_coordinate_left;
+                font->font_start_coordinate_top = packet->font_start_coordinate_top;
+
+                font->backgound_rectangle_width = packet->backgound_rectangle_width;
+                font->backgound_rectangle_height = packet->backgound_rectangle_height;
+
+                font->font_weight = packet->font_weight;
+                font->font_style = packet->font_style;
+                font->font_stretch = packet->font_stretch;
+
+                // to dplayer
+                cppsocket_server_send_font_create(_server, player_connection, data);
+            }
+
+            {
+                // to console
+                cppsocket_server_send_font_create(_server, data_pair.second, data);
+            }
+        }
+        break;
+        case e_command_type::font_delete:
+        {
+            bool err = false;
+
+            packet_font_delete_from_client* packet = (packet_font_delete_from_client*)data_pair.first;
+
+            for (auto it_dplayer = _map_dplayer.begin(); it_dplayer != _map_dplayer.end(); it_dplayer++)
+            {
+                pst_dplayer data_dplayer = it_dplayer->second;
+
+                auto it_player_connection = _map_player_connection.find(data_dplayer->player_sync_group_index);
+                if (it_player_connection == _map_player_connection.end())
+                {
+                    continue;
+                }
+
+                void* player_connection = it_player_connection->second;
+
+                pst_font font = nullptr;
+
+                auto it_font = data_dplayer->map_font.find(packet->index_font);
+                if (it_font != data_dplayer->map_font.end())
+                {
+                    font = it_font->second;
+                }
+                else
+                {
+                    err = true;
+                }
+
+                if (err == false)
+                {
+                    font->content_string.clear();
+                    font->content_string.shrink_to_fit();
+                    font->font_family.clear();
+                    font->font_family.shrink_to_fit();
+
+                    delete font;
+                    font = nullptr;
+
+                    data_dplayer->map_font.erase(it_font);
+                }
+
+                if (err)
+                {
+                    cppsocket_struct_server_send_font_delete data{};
+                    data.result = (uint16_t)e_packet_result::fail;
+                    data.index_font = packet->index_font;
+
+                    // to console
+                    cppsocket_server_send_font_delete(_server, data_pair.second, data);
+                }
+                else
+                {
+                    cppsocket_struct_server_send_font_delete data{};
+                    data.result = (uint16_t)e_packet_result::ok;
+                    data.index_font = packet->index_font;
+
+                    // to dplayer
+                    cppsocket_server_send_font_delete(_server, player_connection, data);
+                    // to console
+                    cppsocket_server_send_font_delete(_server, data_pair.second, data);
+                }
             }
         }
         break;

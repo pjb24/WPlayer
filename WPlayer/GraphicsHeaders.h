@@ -17,6 +17,9 @@ using namespace Microsoft::WRL;
 
 #include <DirectXMath.h>
 
+#include <d3d11on12.h>
+#pragma comment(lib, "D3D11")
+
 #ifdef _DEBUG
 // Sets the name of the COM object and outputs a debug string in Visual Studio's output panel.
 #define NAME_D3D12_OBJECT(obj, name) obj->SetName(name); OutputDebugString(L"::D3D12 Object Created: "); OutputDebugString(name); OutputDebugString(L"\n");

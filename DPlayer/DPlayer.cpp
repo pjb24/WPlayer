@@ -26,12 +26,19 @@
 #include <mutex>
 #include <deque>
 #include <map>
+#include <shared_mutex>
 
 #if _DEBUG
 #include "dxgidebug.h"
 #endif // _DEBUG
 
 #include "GraphicsHeaders.h"
+
+#include <d2d1_3.h>
+#pragma comment(lib, "D2d1")
+
+#include <dwrite.h>
+#pragma comment(lib, "Dwrite")
 
 #include "nvapi.h"
 #pragma comment(lib, "nvapi64.lib")
@@ -68,6 +75,23 @@ extern "C"
 // --------------------------------
 
 #define MAX_LOADSTRING 100
+
+#define DEFAULT_TEXT_STRING L"Test Text"
+#define DEFAULT_TEXT_COLOR 1.0f
+#define DEFAULT_TEXT_SIZE 32
+#define DEFAULT_TEXT_FONT_FAMILY L"Arial"
+#define DEFAULT_TEXT_COLOR_BACKGROUND 0.0f
+#define DEFAULT_TEXT_BACKGROUND_RECTANGLE 0.0f
+#define DEFAULT_TEXT_WEIGHT e_dwrite_font_weight::DWRITE_FONT_WEIGHT_NORMAL
+#define DEFAULT_TEXT_STYLE e_dwrite_font_style::DWRITE_FONT_STYLE_NORMAL
+#define DEFAULT_TEXT_STRETCH e_dwrite_font_stretch::DWRITE_FONT_STRETCH_NORMAL
+#define DEFAULT_TEXT_MOVEMENT_TYPE 0
+#define DEFAULT_TEXT_MOVEMENT_SPEED 0.0f
+#define DEFAULT_TEXT_MOVEMENT_THRESHOLD FLT_MIN
+#define DEFAULT_TEXT_MOVEMENT_THRESHOLD_PACKET INT_MIN
+#define DEFAULT_TEXT_MOVEMENT_TRANSLATION 0.0f
+
+#define PRESENT_COUNT_PER_SECOND 60.0f
 
 // --------------------------------
 
@@ -123,6 +147,15 @@ struct st_input_object
 
 };
 
+typedef struct st_color
+{
+    float r;
+    float g;
+    float b;
+    float a;
+
+}*pst_color;
+
 typedef struct st_adapter
 {
     IDXGIAdapter1* adapter = nullptr;
@@ -161,6 +194,12 @@ typedef struct st_device
     ID3D12Resource* texture_default = nullptr;
     ID3D12Resource* upload_heap_texture_default_luminance = nullptr;
     ID3D12Resource* upload_heap_texture_default_chrominance = nullptr;
+
+    ID3D11Device* device_11 = nullptr;
+    ID3D11DeviceContext* device_context_11 = nullptr;
+    ID3D11On12Device* device_11_on_12 = nullptr;
+    ID2D1Device2* device_2d = nullptr;
+    ID2D1DeviceContext2* device_context_2d = nullptr;
 
 }*pst_device;
 
@@ -228,6 +267,10 @@ typedef struct st_rtv
 
     UINT window_index = UINT_MAX;
     UINT device_index = UINT_MAX;
+
+    std::vector<ID3D11Resource*> vector_wrapped_back_buffer;
+    std::vector<IDXGISurface*> vector_surface;
+    std::vector<ID2D1Bitmap1*> vector_rtv_2d;
 
 }*pst_rtv;
 
@@ -420,6 +463,63 @@ typedef struct st_scene
     int64_t pts_in_milliseconds_last = 0;
 
 }*pst_scene;
+
+typedef struct st_text_internal
+{
+    UINT index_text_internal;
+
+    std::wstring text_string;
+    pst_color text_color;
+    int* text_size;
+    std::wstring text_font_family;
+    pst_color text_color_background;
+    float* text_start_coordinate_left;
+    float* text_start_coordinate_top;
+    float* text_background_width;
+    float* text_background_height;
+    e_dwrite_font_weight* text_weight;
+    e_dwrite_font_style* text_style;
+    e_dwrite_font_stretch* text_stretch;
+
+    IDWriteTextFormat* text_format;
+    ID2D1SolidColorBrush* text_brush;
+
+    IDWriteTextLayout* text_layout;
+    DWRITE_TEXT_METRICS* text_matrics;
+    ID2D1SolidColorBrush* text_brush_background;
+
+    e_movement_type_horizontal* movement_type_horizontal;
+    float* movement_speed_horizontal;
+    float* movement_threshold_horizontal;
+    float* movement_translation_horizontal;
+
+    e_movement_type_horizontal* movement_type_horizontal_background;
+    float* movement_speed_horizontal_background;
+    float* movement_threshold_horizontal_background;
+    float* movement_translation_horizontal_background;
+
+    e_movement_type_vertical* movement_type_vertical;
+    float* movement_speed_vertical;
+    float* movement_threshold_vertical;
+    float* movement_translation_vertical;
+
+    e_movement_type_vertical* movement_type_vertical_background;
+    float* movement_speed_vertical_background;
+    float* movement_threshold_vertical_background;
+    float* movement_translation_vertical_background;
+
+    bool flag_created;
+    bool flag_deleted;
+
+}*pst_text_internal;
+
+typedef struct st_text
+{
+    UINT index_device = UINT_MAX;
+
+    std::map<UINT, pst_text_internal> map_text_internal;
+
+}*pst_text;
 
 typedef struct st_coordinate
 {
@@ -655,6 +755,12 @@ AVFrame* _frame_default_image = nullptr;
 
 bool _flag_use_default_image = false;
 
+ID2D1Factory7* _factory_2d = nullptr;
+IDWriteFactory* _factory_dwrite = nullptr;
+
+std::map<UINT, pst_text> _map_text;
+std::shared_mutex* _mutex_map_text_internal = nullptr;
+
 // --------------------------------
 
 // 이 코드 모듈에 포함된 함수의 선언을 전달합니다:
@@ -679,8 +785,10 @@ void create_fences();
 void create_swap_chains();
 void create_rtvs();
 void create_viewports();
+void create_device_11_on_12();
 
 
+void delete_device_11_on_12();
 void delete_viewports();
 void delete_rtvs();
 void delete_swap_chains();
@@ -785,6 +893,40 @@ int create_ffmpeg_instance_check_open_file_on_live_stream(void* instance);
 int create_ffmpeg_instance_play_start_set_data(void* instance, UINT index_scene, RECT rect);
 int create_ffmpeg_instance_play_start_on_live_stream(void* instance);
 
+void create_texts();
+void delete_texts();
+
+void create_text(int index_text);
+void delete_text(int index_text);
+
+void set_text_string(int index_text, std::wstring text_string);
+void set_text_color(int index_text, int color_r, int color_g, int color_b, int color_a);
+void set_text_size(int index_text, int font_size);
+void set_text_font_family(int index_text, std::wstring font_family);
+void set_text_color_background(int index_text, int color_r, int color_g, int color_b, int color_a);
+void set_text_start_coordinate_left(int index_text, int left);
+void set_text_start_coordinate_top(int index_text, int top);
+void set_text_background_width(int index_text, int width);
+void set_text_background_height(int index_text, int height);
+void set_text_weight(int index_text, e_dwrite_font_weight weight);
+void set_text_style(int index_text, e_dwrite_font_style style);
+void set_text_stretch(int index_text, e_dwrite_font_stretch stretch);
+void set_text_movement_type_horizontal(int index_text, e_movement_type_horizontal type);
+void set_text_movement_speed_horizontal(int index_text, int speed);
+void set_text_movement_threshold_horizontal(int index_text, int threshold);
+void set_text_movement_type_horizontal_background(int index_text, e_movement_type_horizontal type);
+void set_text_movement_speed_horizontal_background(int index_text, int speed);
+void set_text_movement_threshold_horizontal_background(int index_text, int threshold);
+void set_text_movement_type_vertical(int index_text, e_movement_type_vertical type);
+void set_text_movement_speed_vertical(int index_text, int speed);
+void set_text_movement_threshold_vertical(int index_text, int threshold);
+void set_text_movement_type_vertical_background(int index_text, e_movement_type_vertical type);
+void set_text_movement_speed_vertical_background(int index_text, int speed);
+void set_text_movement_threshold_vertical_background(int index_text, int threshold);
+
+void create_text_instance(int index_text, pst_text data_text);
+void delete_text_instance(int index_text);
+
 // --------------------------------
 
 void set_logger();
@@ -816,6 +958,14 @@ void create_factory()
 #endif
 
     hr = CreateDXGIFactory2(dxgi_factory_flags, IID_PPV_ARGS(&_factory));
+
+    D2D1_FACTORY_OPTIONS d2d_factory_options = {};
+#ifdef _DEBUG
+    d2d_factory_options.debugLevel = D2D1_DEBUG_LEVEL_INFORMATION;
+#endif //_DEBUG
+    D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, __uuidof(ID2D1Factory7), &d2d_factory_options, (void**)(&_factory_2d));
+
+    DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown**)(&_factory_dwrite));
 }
 
 void enum_adapters()
@@ -1092,7 +1242,8 @@ void create_devices()
 
         ID3D12Device* device = nullptr;
 
-        hr = D3D12CreateDevice(data_adapter->adapter, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&device));
+        //hr = D3D12CreateDevice(data_adapter->adapter, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&device));
+        hr = D3D12CreateDevice(data_adapter->adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
 
         if (hr == S_OK)
         {
@@ -1565,6 +1716,35 @@ void create_rtvs()
             NAME_D3D12_OBJECT_INDEXED_2(rtv, data_swap_chain->device_index, i, L"ID3D12Resource_rtv");
 
             data_rtv->vector_rtv.push_back(rtv);
+
+            ID3D11Resource* wrapped_back_buffer = nullptr;
+            D3D11_RESOURCE_FLAGS flag_d3d11 = { D3D11_BIND_RENDER_TARGET };
+            data_device->device_11_on_12->CreateWrappedResource(
+                rtv,
+                &flag_d3d11,
+                //D3D12_RESOURCE_STATE_RENDER_TARGET,
+                //D3D12_RESOURCE_STATE_RENDER_TARGET,
+                D3D12_RESOURCE_STATE_PRESENT,
+                D3D12_RESOURCE_STATE_PRESENT,
+                IID_PPV_ARGS(&wrapped_back_buffer)
+            );
+            data_rtv->vector_wrapped_back_buffer.push_back(wrapped_back_buffer);
+
+            IDXGISurface* surface = nullptr;
+            wrapped_back_buffer->QueryInterface(IID_PPV_ARGS(&surface));
+            data_rtv->vector_surface.push_back(surface);
+
+            D2D1_BITMAP_PROPERTIES1 bitmap_properties = D2D1::BitmapProperties1(
+                D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+                D2D1::PixelFormat(DXGI_FORMAT_UNKNOWN, D2D1_ALPHA_MODE_PREMULTIPLIED)
+            );
+            ID2D1Bitmap1* rtv_2d = nullptr;
+            data_device->device_context_2d->CreateBitmapFromDxgiSurface(
+                surface,
+                &bitmap_properties,
+                &rtv_2d
+            );
+            data_rtv->vector_rtv_2d.push_back(rtv_2d);
         }
 
         data_rtv->device_index = data_swap_chain->device_index;
@@ -1598,6 +1778,89 @@ void create_viewports()
     }
 }
 
+void create_device_11_on_12()
+{
+    for (auto it_device = _map_device.begin(); it_device != _map_device.end(); it_device++)
+    {
+        pst_device data_device = it_device->second;
+
+        auto it_command_queue = _map_command_queue.find(data_device->device_index);
+        if (it_command_queue == _map_command_queue.end())
+        {
+            continue;
+        }
+
+        pst_command_queue data_command_queue = it_command_queue->second;
+
+        UINT flag_d3d11 = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+
+#ifdef _DEBUG
+        flag_d3d11 |= D3D11_CREATE_DEVICE_DEBUG;
+#endif // _DEBUG
+
+        D3D11On12CreateDevice(
+            data_device->device,
+            flag_d3d11,
+            nullptr, 0,
+            (IUnknown**)&data_command_queue->command_queue, 1,
+            0,
+            &data_device->device_11,
+            &data_device->device_context_11,
+            nullptr
+        );
+
+        data_device->device_11->QueryInterface(IID_PPV_ARGS(&data_device->device_11_on_12));
+        IDXGIDevice* device_dxgi = nullptr;
+        data_device->device_11_on_12->QueryInterface(&device_dxgi);
+        _factory_2d->CreateDevice(device_dxgi, &data_device->device_2d);
+
+        device_dxgi->Release();
+        device_dxgi = nullptr;
+
+        D2D1_DEVICE_CONTEXT_OPTIONS device_options = D2D1_DEVICE_CONTEXT_OPTIONS_NONE;
+        data_device->device_2d->CreateDeviceContext(device_options, &data_device->device_context_2d);
+        
+    }
+}
+
+
+void delete_device_11_on_12()
+{
+    for (auto it_device = _map_device.begin(); it_device != _map_device.end(); it_device++)
+    {
+        pst_device data_device = it_device->second;
+
+        if (data_device->device_context_2d != nullptr)
+        {
+            data_device->device_context_2d->Release();
+            data_device->device_context_2d = nullptr;
+        }
+
+        if (data_device->device_2d != nullptr)
+        {
+            data_device->device_2d->Release();
+            data_device->device_2d = nullptr;
+        }
+
+        if (data_device->device_11_on_12 != nullptr)
+        {
+            data_device->device_11_on_12->Release();
+            data_device->device_11_on_12 = nullptr;
+        }
+
+        if (data_device->device_11 != nullptr)
+        {
+            data_device->device_11->Release();
+            data_device->device_11 = nullptr;
+        }
+
+        if (data_device->device_context_11 != nullptr)
+        {
+            data_device->device_context_11->Release();
+            data_device->device_context_11 = nullptr;
+        }
+    }
+}
 
 void delete_viewports()
 {
@@ -1626,6 +1889,36 @@ void delete_rtvs()
             rtv = nullptr;
 
             it_vector = data_rtv->vector_rtv.erase(it_vector);
+        }
+
+        for (auto it_vector = data_rtv->vector_wrapped_back_buffer.begin(); it_vector != data_rtv->vector_wrapped_back_buffer.end();)
+        {
+            ID3D11Resource* wrapped_back_buffer = *it_vector;
+
+            wrapped_back_buffer->Release();
+            wrapped_back_buffer = nullptr;
+
+            it_vector = data_rtv->vector_wrapped_back_buffer.erase(it_vector);
+        }
+
+        for (auto it_vector = data_rtv->vector_surface.begin(); it_vector != data_rtv->vector_surface.end();)
+        {
+            IDXGISurface* surface = *it_vector;
+
+            surface->Release();
+            surface = nullptr;
+
+            it_vector = data_rtv->vector_surface.erase(it_vector);
+        }
+
+        for (auto it_vector = data_rtv->vector_rtv_2d.begin(); it_vector != data_rtv->vector_rtv_2d.end();)
+        {
+            ID2D1Bitmap1* rtv_2d = *it_vector;
+
+            rtv_2d->Release();
+            rtv_2d = nullptr;
+
+            it_vector = data_rtv->vector_rtv_2d.erase(it_vector);
         }
 
         delete data_rtv;
@@ -1967,6 +2260,18 @@ void delete_factory()
     {
         _factory->Release();
         _factory = nullptr;
+    }
+
+    if (_factory_2d != nullptr)
+    {
+        _factory_2d->Release();
+        _factory_2d = nullptr;
+    }
+
+    if (_factory_dwrite != nullptr)
+    {
+        _factory_dwrite->Release();
+        _factory_dwrite = nullptr;
     }
 }
 
@@ -3166,6 +3471,80 @@ void thread_packet_processing()
             _is_running = false;
         }
         break;
+
+        case e_command_type::font_create:
+        {
+            if (_flag_set_logger)
+            {
+                std::string str = "";
+                str.append("thread_packet_processing");
+                str.append(", font_create");
+
+                auto logger = spdlog::get(_logger_name.c_str());
+                logger->debug(str.c_str());
+            }
+
+            packet_font_create_from_server* packet = new packet_font_create_from_server();
+            memcpy(packet, data, header->size);
+
+            create_text(packet->index_font);
+
+            std::wstring text_string;
+            convert_ansi_to_unicode_string(text_string, packet->content_string, packet->content_size);
+
+            set_text_string(packet->index_font, text_string);
+            set_text_color(packet->index_font, packet->font_color_r, packet->font_color_g, packet->font_color_b, packet->font_color_a);
+            set_text_size(packet->index_font, packet->font_size);
+
+            std::wstring text_font_family;
+            convert_ansi_to_unicode_string(text_font_family, packet->font_family, packet->font_family_size);
+
+            set_text_font_family(packet->index_font, text_font_family);
+            set_text_color_background(packet->index_font, packet->background_color_r, packet->background_color_g, packet->background_color_b, packet->background_color_a);
+            set_text_start_coordinate_left(packet->index_font, packet->font_start_coordinate_left);
+            set_text_start_coordinate_top(packet->index_font, packet->font_start_coordinate_top);
+            set_text_background_width(packet->index_font, packet->backgound_rectangle_width);
+            set_text_background_height(packet->index_font, packet->backgound_rectangle_height);
+            set_text_weight(packet->index_font, (e_dwrite_font_weight)packet->font_weight);
+            set_text_style(packet->index_font, (e_dwrite_font_style)packet->font_style);
+            set_text_stretch(packet->index_font, (e_dwrite_font_stretch)packet->font_stretch);
+            set_text_movement_type_horizontal(packet->index_font, (e_movement_type_horizontal)packet->movement_type_horizontal);
+            set_text_movement_speed_horizontal(packet->index_font, packet->movement_speed_horizontal);
+            set_text_movement_threshold_horizontal(packet->index_font, packet->movement_threshold_horizontal);
+            set_text_movement_type_horizontal_background(packet->index_font, (e_movement_type_horizontal)packet->movement_type_horizontal_background);
+            set_text_movement_speed_horizontal_background(packet->index_font, packet->movement_speed_horizontal_background);
+            set_text_movement_threshold_horizontal_background(packet->index_font, packet->movement_threshold_horizontal_background);
+            set_text_movement_type_vertical(packet->index_font, (e_movement_type_vertical)packet->movement_type_vertical);
+            set_text_movement_speed_vertical(packet->index_font, packet->movement_speed_vertical);
+            set_text_movement_threshold_vertical(packet->index_font, packet->movement_threshold_vertical);
+            set_text_movement_type_vertical_background(packet->index_font, (e_movement_type_vertical)packet->movement_type_vertical_background);
+            set_text_movement_speed_vertical_background(packet->index_font, packet->movement_speed_vertical_background);
+            set_text_movement_threshold_vertical_background(packet->index_font, packet->movement_threshold_vertical_background);
+
+            delete packet;
+        }
+        break;
+        case e_command_type::font_delete:
+        {
+            if (_flag_set_logger)
+            {
+                std::string str = "";
+                str.append("thread_packet_processing");
+                str.append(", font_delete");
+
+                auto logger = spdlog::get(_logger_name.c_str());
+                logger->debug(str.c_str());
+            }
+
+            packet_font_delete_from_server* packet = new packet_font_delete_from_server();
+            memcpy(packet, data, header->size);
+
+            delete_text(packet->index_font);
+
+            delete packet;
+        }
+        break;
+
         default:
             break;
         }
@@ -3899,6 +4278,240 @@ void thread_device(pst_device data_device)
         ID3D12CommandQueue* command_queue = data_command_queue->command_queue;
 
         command_queue->ExecuteCommandLists(_countof(command_lists), command_lists);
+
+        // ----------------------------------------------------------------
+        auto it_text = _map_text.find(data_device->device_index);
+        pst_text data_text = it_text->second;
+
+        {
+            std::unique_lock<std::shared_mutex> lk(*_mutex_map_text_internal);
+            for (auto it_text_internal = data_text->map_text_internal.begin(); it_text_internal != data_text->map_text_internal.end(); )
+            {
+                pst_text_internal data_text_internal = it_text_internal->second;
+
+                if (data_text_internal->flag_deleted == true 
+                    && data_text_internal->flag_created == true)
+                {
+                    delete_text_instance(data_text_internal->index_text_internal);
+                    it_text_internal = data_text->map_text_internal.erase(it_text_internal);
+                }
+                else
+                {
+                    it_text_internal++;
+                }
+            }
+        }
+
+        {
+            std::unique_lock<std::shared_mutex> lk(*_mutex_map_text_internal);
+            for (auto it_text_internal = data_text->map_text_internal.begin(); it_text_internal != data_text->map_text_internal.end(); it_text_internal++)
+            {
+                pst_text_internal data_text_internal = it_text_internal->second;
+
+                if (data_text_internal->flag_created == false)
+                {
+                    create_text_instance(data_text_internal->index_text_internal, data_text);
+                }
+            }
+        }
+        
+        data_device->device_11_on_12->AcquireWrappedResources(&data_rtv->vector_wrapped_back_buffer.at(backbuffer_index), 1);
+
+        data_device->device_context_2d->SetTarget(data_rtv->vector_rtv_2d.at(backbuffer_index));
+        data_device->device_context_2d->BeginDraw();
+
+        {
+            std::shared_lock<std::shared_mutex> lk(*_mutex_map_text_internal);
+            for (auto it_text_internal = data_text->map_text_internal.begin(); it_text_internal != data_text->map_text_internal.end(); it_text_internal++)
+            {
+                pst_text_internal data_text_internal = it_text_internal->second;
+
+                if (data_text_internal->flag_created == false)
+                {
+                    continue;
+                }
+
+                if (data_text_internal->flag_deleted == true)
+                {
+                    continue;
+                }
+
+                D2D1_RECT_F rect_background = D2D1::RectF(*data_text_internal->text_start_coordinate_left + *data_text_internal->movement_translation_horizontal_background,
+                    *data_text_internal->text_start_coordinate_top + *data_text_internal->movement_translation_vertical_background,
+                    data_text_internal->text_matrics->layoutWidth + *data_text_internal->text_start_coordinate_left + *data_text_internal->movement_translation_horizontal_background,
+                    data_text_internal->text_matrics->layoutHeight + *data_text_internal->text_start_coordinate_top + *data_text_internal->movement_translation_vertical_background);
+
+                if (data_text_internal->text_color_background->r != 0 
+                    || data_text_internal->text_color_background->g != 0
+                    || data_text_internal->text_color_background->b != 0
+                    || data_text_internal->text_color_background->a != 0)
+                {
+                    data_device->device_context_2d->FillRectangle(rect_background, data_text_internal->text_brush_background);
+                }
+
+                data_device->device_context_2d->PushAxisAlignedClip(rect_background, D2D1_ANTIALIAS_MODE_ALIASED);
+
+                data_device->device_context_2d->SetTransform(D2D1::Matrix3x2F::Translation(*data_text_internal->text_start_coordinate_left + *data_text_internal->movement_translation_horizontal_background, 
+                    *data_text_internal->text_start_coordinate_top + *data_text_internal->movement_translation_vertical_background));
+
+                data_device->device_context_2d->DrawTextLayout(
+                    D2D1::Point2F(*data_text_internal->movement_translation_horizontal, *data_text_internal->movement_translation_vertical),
+                    data_text_internal->text_layout,
+                    data_text_internal->text_brush
+                );
+
+                if (*data_text_internal->movement_type_horizontal == e_movement_type_horizontal::left)
+                {
+                    *data_text_internal->movement_translation_horizontal -= (*data_text_internal->movement_speed_horizontal / PRESENT_COUNT_PER_SECOND);
+                    if (*data_text_internal->movement_type_horizontal_background == e_movement_type_horizontal::left)
+                    {
+                        *data_text_internal->movement_translation_horizontal -= (*data_text_internal->movement_speed_horizontal_background / PRESENT_COUNT_PER_SECOND);
+                    }
+                    else if (*data_text_internal->movement_type_horizontal_background == e_movement_type_horizontal::right)
+                    {
+                        *data_text_internal->movement_translation_horizontal -= (*data_text_internal->movement_speed_horizontal_background / PRESENT_COUNT_PER_SECOND);
+                    }
+
+                    if (*data_text_internal->movement_threshold_horizontal <= 0)
+                    {
+                        if (*data_text_internal->text_start_coordinate_left + *data_text_internal->movement_translation_horizontal + data_text_internal->text_matrics->width < *data_text_internal->text_start_coordinate_left + *data_text_internal->movement_threshold_horizontal)
+                        {
+                            *data_text_internal->movement_translation_horizontal = data_text_internal->text_matrics->layoutWidth;
+                        }
+                    }
+                    else
+                    {
+                        if (*data_text_internal->text_start_coordinate_left + *data_text_internal->movement_translation_horizontal < *data_text_internal->text_start_coordinate_left + *data_text_internal->movement_threshold_horizontal)
+                        {
+                            *data_text_internal->movement_translation_horizontal = data_text_internal->text_matrics->layoutWidth;
+                        }
+                    }
+                }
+                else if (*data_text_internal->movement_type_horizontal == e_movement_type_horizontal::right)
+                {
+                    *data_text_internal->movement_translation_horizontal += (*data_text_internal->movement_speed_horizontal / PRESENT_COUNT_PER_SECOND);
+                    if (*data_text_internal->movement_type_horizontal_background == e_movement_type_horizontal::left)
+                    {
+                        *data_text_internal->movement_translation_horizontal += (*data_text_internal->movement_speed_horizontal_background / PRESENT_COUNT_PER_SECOND);
+                    }
+                    else if (*data_text_internal->movement_type_horizontal_background == e_movement_type_horizontal::right)
+                    {
+                        *data_text_internal->movement_translation_horizontal += (*data_text_internal->movement_speed_horizontal_background / PRESENT_COUNT_PER_SECOND);
+                    }
+
+                    if (*data_text_internal->movement_translation_horizontal <= 0)
+                    {
+                        if (*data_text_internal->text_start_coordinate_left + *data_text_internal->movement_translation_horizontal > *data_text_internal->text_start_coordinate_left + data_text_internal->text_matrics->layoutWidth - *data_text_internal->movement_threshold_horizontal)
+                        {
+                            *data_text_internal->movement_translation_horizontal = DEFAULT_TEXT_MOVEMENT_TRANSLATION;
+                        }
+                    }
+                    else
+                    {
+                        if (*data_text_internal->text_start_coordinate_left + *data_text_internal->movement_translation_horizontal + data_text_internal->text_matrics->width > *data_text_internal->text_start_coordinate_left + data_text_internal->text_matrics->layoutWidth - *data_text_internal->movement_threshold_horizontal)
+                        {
+                            *data_text_internal->movement_translation_horizontal = DEFAULT_TEXT_MOVEMENT_TRANSLATION;
+                        }
+                    }
+                }
+                if (*data_text_internal->movement_type_vertical == e_movement_type_vertical::top)
+                {
+                    *data_text_internal->movement_translation_vertical -= (*data_text_internal->movement_speed_vertical / PRESENT_COUNT_PER_SECOND);
+                    if (*data_text_internal->movement_type_vertical_background == e_movement_type_vertical::top)
+                    {
+                        *data_text_internal->movement_translation_vertical -= (*data_text_internal->movement_speed_vertical_background / PRESENT_COUNT_PER_SECOND);
+                    }
+                    else if (*data_text_internal->movement_type_vertical_background == e_movement_type_vertical::bottom)
+                    {
+                        *data_text_internal->movement_translation_vertical -= (*data_text_internal->movement_speed_vertical_background / PRESENT_COUNT_PER_SECOND);
+                    }
+
+                    if (*data_text_internal->movement_threshold_vertical <= 0)
+                    {
+                        if (*data_text_internal->text_start_coordinate_top + *data_text_internal->movement_translation_vertical + data_text_internal->text_matrics->height < *data_text_internal->text_start_coordinate_top + *data_text_internal->movement_threshold_vertical)
+                        {
+                            *data_text_internal->movement_translation_vertical = data_text_internal->text_matrics->layoutHeight;
+                        }
+                    }
+                    else
+                    {
+                        if (*data_text_internal->text_start_coordinate_top + *data_text_internal->movement_translation_vertical < *data_text_internal->text_start_coordinate_top + *data_text_internal->movement_threshold_vertical)
+                        {
+                            *data_text_internal->movement_translation_vertical = data_text_internal->text_matrics->layoutHeight;
+                        }
+                    }
+                }
+                else if (*data_text_internal->movement_type_vertical == e_movement_type_vertical::bottom)
+                {
+                    *data_text_internal->movement_translation_vertical += (*data_text_internal->movement_speed_vertical / PRESENT_COUNT_PER_SECOND);
+                    if (*data_text_internal->movement_type_vertical_background == e_movement_type_vertical::top)
+                    {
+                        *data_text_internal->movement_translation_vertical += (*data_text_internal->movement_speed_vertical_background / PRESENT_COUNT_PER_SECOND);
+                    }
+                    else if (*data_text_internal->movement_type_vertical_background == e_movement_type_vertical::bottom)
+                    {
+                        *data_text_internal->movement_translation_vertical += (*data_text_internal->movement_speed_vertical_background / PRESENT_COUNT_PER_SECOND);
+                    }
+
+                    if (*data_text_internal->movement_threshold_vertical <= 0)
+                    {
+                        if (*data_text_internal->text_start_coordinate_top + *data_text_internal->movement_translation_vertical > *data_text_internal->text_start_coordinate_top + data_text_internal->text_matrics->layoutHeight - *data_text_internal->movement_threshold_vertical)
+                        {
+                            *data_text_internal->movement_translation_vertical = DEFAULT_TEXT_MOVEMENT_TRANSLATION;
+                        }
+                    }
+                    else
+                    {
+                        if (*data_text_internal->text_start_coordinate_top + *data_text_internal->movement_translation_vertical + data_text_internal->text_matrics->height > *data_text_internal->text_start_coordinate_top + data_text_internal->text_matrics->layoutHeight - *data_text_internal->movement_threshold_vertical)
+                        {
+                            *data_text_internal->movement_translation_vertical = DEFAULT_TEXT_MOVEMENT_TRANSLATION;
+                        }
+                    }
+                }
+
+                if (*data_text_internal->movement_type_horizontal_background == e_movement_type_horizontal::left)
+                {
+                    *data_text_internal->movement_translation_horizontal_background -= (*data_text_internal->movement_speed_horizontal_background / PRESENT_COUNT_PER_SECOND);
+                    if (*data_text_internal->text_start_coordinate_left + *data_text_internal->movement_translation_horizontal_background < *data_text_internal->movement_threshold_horizontal_background)
+                    {
+                        *data_text_internal->movement_translation_horizontal_background = DEFAULT_TEXT_MOVEMENT_TRANSLATION;
+                    }
+                }
+                else if (*data_text_internal->movement_type_horizontal_background == e_movement_type_horizontal::right)
+                {
+                    *data_text_internal->movement_translation_horizontal_background += (*data_text_internal->movement_speed_horizontal_background / PRESENT_COUNT_PER_SECOND);
+                    if (data_text_internal->text_matrics->layoutWidth + *data_text_internal->text_start_coordinate_left + *data_text_internal->movement_translation_horizontal_background > *data_text_internal->movement_threshold_horizontal_background)
+                    {
+                        *data_text_internal->movement_translation_horizontal_background = DEFAULT_TEXT_MOVEMENT_TRANSLATION;
+                    }
+                }
+                if (*data_text_internal->movement_type_vertical_background == e_movement_type_vertical::top)
+                {
+                    *data_text_internal->movement_translation_vertical_background -= (*data_text_internal->movement_speed_vertical_background / PRESENT_COUNT_PER_SECOND);
+                    if (*data_text_internal->text_start_coordinate_top + *data_text_internal->movement_translation_vertical_background < *data_text_internal->movement_threshold_vertical_background)
+                    {
+                        *data_text_internal->movement_translation_vertical_background = DEFAULT_TEXT_MOVEMENT_TRANSLATION;
+                    }
+                }
+                else if (*data_text_internal->movement_type_vertical_background == e_movement_type_vertical::bottom)
+                {
+                    *data_text_internal->movement_translation_vertical_background += (*data_text_internal->movement_speed_vertical_background / PRESENT_COUNT_PER_SECOND);
+                    if (data_text_internal->text_matrics->layoutHeight + *data_text_internal->text_start_coordinate_top + *data_text_internal->movement_translation_vertical_background > *data_text_internal->movement_threshold_vertical_background)
+                    {
+                        *data_text_internal->movement_translation_vertical_background = DEFAULT_TEXT_MOVEMENT_TRANSLATION;
+                    }
+                }
+
+                data_device->device_context_2d->SetTransform(D2D1::Matrix3x2F::Identity());
+                data_device->device_context_2d->PopAxisAlignedClip();
+            }
+        }
+
+        data_device->device_context_2d->EndDraw();
+
+        data_device->device_11_on_12->ReleaseWrappedResources(&data_rtv->vector_wrapped_back_buffer.at(backbuffer_index), 1);
+        data_device->device_context_11->Flush();
+        // ----------------------------------------------------------------
 
         data_fence->fence_value_device++;
         if (data_fence->fence_value_device == UINT64_MAX)
@@ -4766,6 +5379,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _mutex_map_srv_handle_luminance = new std::mutex();
     _mutex_map_srv_handle_chrominance = new std::mutex();
 
+    _mutex_map_text_internal = new std::shared_mutex();
+
     if (_use_nvapi)
     {
         _nvapi_status = NvAPI_Initialize();
@@ -4786,7 +5401,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         create_devices();
         create_command_queues();
         create_command_allocators();
-        
+        create_device_11_on_12();
+
         // NV12
         create_root_sigs();
         
@@ -4799,6 +5415,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         create_swap_chains();
         create_rtvs();
         create_viewports();
+
+        create_texts();
     }
 
     {
@@ -5031,6 +5649,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         delete_swap_locks();
     }
 
+    delete_texts();
+
     delete_viewports();
     delete_rtvs();
     delete_swap_chains();
@@ -5041,6 +5661,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     delete_command_lists();
     delete_pipeline_state_objects();
     delete_root_sigs();
+    delete_device_11_on_12();
     delete_command_allocators();
     delete_command_queues();
     delete_devices();
@@ -5074,6 +5695,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _mutex_map_srv_handle_luminance = nullptr;
     delete _mutex_map_srv_handle_chrominance;
     _mutex_map_srv_handle_chrominance = nullptr;
+
+    delete _mutex_map_text_internal;
+    _mutex_map_text_internal = nullptr;
 
     if (_frame_default_image != nullptr)
     {
@@ -5576,4 +6200,1236 @@ int create_ffmpeg_instance_play_start_on_live_stream(void* instance)
     cpp_ffmpeg_wrapper_play_start(instance, nullptr);
 
     return 0;
+}
+
+void create_texts()
+{
+    for (auto it_device = _map_device.begin(); it_device != _map_device.end(); it_device++)
+    {
+        pst_device data_device = it_device->second;
+
+        pst_text data_text = new st_text();
+        data_text->index_device = data_device->device_index;
+
+        _map_text.insert({ data_text->index_device, data_text });
+    }
+}
+
+void delete_texts()
+{
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); )
+    {
+        pst_text data_text = it_text->second;
+
+        {
+            std::unique_lock<std::shared_mutex> lk(*_mutex_map_text_internal);
+            for (auto it_text_internal = data_text->map_text_internal.begin(); it_text_internal != data_text->map_text_internal.end(); )
+            {
+                pst_text_internal data_text_internal = it_text_internal->second;
+
+                if (data_text_internal != nullptr)
+                {
+                    if (data_text_internal->text_string.empty() == false)
+                    {
+                        data_text_internal->text_string.clear();
+                        data_text_internal->text_string.shrink_to_fit();
+                    }
+                    if (data_text_internal->text_color != nullptr)
+                    {
+                        delete data_text_internal->text_color;
+                        data_text_internal->text_color = nullptr;
+                    }
+                    if (data_text_internal->text_size != nullptr)
+                    {
+                        delete data_text_internal->text_size;
+                        data_text_internal->text_size = nullptr;
+                    }
+                    if (data_text_internal->text_font_family.empty() == false)
+                    {
+                        data_text_internal->text_font_family.clear();
+                        data_text_internal->text_font_family.shrink_to_fit();
+                    }
+
+                    if (data_text_internal->text_color_background != nullptr)
+                    {
+                        delete data_text_internal->text_color_background;
+                        data_text_internal->text_color_background = nullptr;
+                    }
+                    if (data_text_internal->text_start_coordinate_left != nullptr)
+                    {
+                        delete data_text_internal->text_start_coordinate_left;
+                        data_text_internal->text_start_coordinate_left = nullptr;
+                    }
+                    if (data_text_internal->text_start_coordinate_top != nullptr)
+                    {
+                        delete data_text_internal->text_start_coordinate_top;
+                        data_text_internal->text_start_coordinate_top = nullptr;
+                    }
+                    if (data_text_internal->text_background_width != nullptr)
+                    {
+                        delete data_text_internal->text_background_width;
+                        data_text_internal->text_background_width = nullptr;
+                    }
+                    if (data_text_internal->text_background_height != nullptr)
+                    {
+                        delete data_text_internal->text_background_height;
+                        data_text_internal->text_background_height = nullptr;
+                    }
+
+                    if (data_text_internal->text_weight != nullptr)
+                    {
+                        delete data_text_internal->text_weight;
+                        data_text_internal->text_weight = nullptr;
+                    }
+                    if (data_text_internal->text_style != nullptr)
+                    {
+                        delete data_text_internal->text_style;
+                        data_text_internal->text_style = nullptr;
+                    }
+                    if (data_text_internal->text_stretch != nullptr)
+                    {
+                        delete data_text_internal->text_stretch;
+                        data_text_internal->text_stretch = nullptr;
+                    }
+
+                    if (data_text_internal->text_format != nullptr)
+                    {
+                        data_text_internal->text_format->Release();
+                        data_text_internal->text_format = nullptr;
+                    }
+                    if (data_text_internal->text_brush != nullptr)
+                    {
+                        data_text_internal->text_brush->Release();
+                        data_text_internal->text_brush = nullptr;
+                    }
+                    if (data_text_internal->text_layout != nullptr)
+                    {
+                        data_text_internal->text_layout->Release();
+                        data_text_internal->text_layout = nullptr;
+                    }
+                    if (data_text_internal->text_matrics != nullptr)
+                    {
+                        delete data_text_internal->text_matrics;
+                        data_text_internal->text_matrics = nullptr;
+                    }
+                    if (data_text_internal->text_brush_background != nullptr)
+                    {
+                        data_text_internal->text_brush_background->Release();
+                        data_text_internal->text_brush_background = nullptr;
+                    }
+
+                    if (data_text_internal->movement_type_horizontal != nullptr)
+                    {
+                        delete data_text_internal->movement_type_horizontal;
+                        data_text_internal->movement_type_horizontal = nullptr;
+                    }
+                    if (data_text_internal->movement_speed_horizontal != nullptr)
+                    {
+                        delete data_text_internal->movement_speed_horizontal;
+                        data_text_internal->movement_speed_horizontal = nullptr;
+                    }
+                    if (data_text_internal->movement_threshold_horizontal != nullptr)
+                    {
+                        delete data_text_internal->movement_threshold_horizontal;
+                        data_text_internal->movement_threshold_horizontal = nullptr;
+                    }
+                    if (data_text_internal->movement_translation_horizontal != nullptr)
+                    {
+                        delete data_text_internal->movement_translation_horizontal;
+                        data_text_internal->movement_translation_horizontal = nullptr;
+                    }
+
+                    if (data_text_internal->movement_type_horizontal_background != nullptr)
+                    {
+                        delete data_text_internal->movement_type_horizontal_background;
+                        data_text_internal->movement_type_horizontal_background = nullptr;
+                    }
+                    if (data_text_internal->movement_speed_horizontal_background != nullptr)
+                    {
+                        delete data_text_internal->movement_speed_horizontal_background;
+                        data_text_internal->movement_speed_horizontal_background = nullptr;
+                    }
+                    if (data_text_internal->movement_threshold_horizontal_background != nullptr)
+                    {
+                        delete data_text_internal->movement_threshold_horizontal_background;
+                        data_text_internal->movement_threshold_horizontal_background = nullptr;
+                    }
+                    if (data_text_internal->movement_translation_horizontal_background != nullptr)
+                    {
+                        delete data_text_internal->movement_translation_horizontal_background;
+                        data_text_internal->movement_translation_horizontal_background = nullptr;
+                    }
+
+                    if (data_text_internal->movement_type_vertical != nullptr)
+                    {
+                        delete data_text_internal->movement_type_vertical;
+                        data_text_internal->movement_type_vertical = nullptr;
+                    }
+                    if (data_text_internal->movement_speed_vertical != nullptr)
+                    {
+                        delete data_text_internal->movement_speed_vertical;
+                        data_text_internal->movement_speed_vertical = nullptr;
+                    }
+                    if (data_text_internal->movement_threshold_vertical != nullptr)
+                    {
+                        delete data_text_internal->movement_threshold_vertical;
+                        data_text_internal->movement_threshold_vertical = nullptr;
+                    }
+                    if (data_text_internal->movement_translation_vertical != nullptr)
+                    {
+                        delete data_text_internal->movement_translation_vertical;
+                        data_text_internal->movement_translation_vertical = nullptr;
+                    }
+
+                    if (data_text_internal->movement_type_vertical_background != nullptr)
+                    {
+                        delete data_text_internal->movement_type_vertical_background;
+                        data_text_internal->movement_type_vertical_background = nullptr;
+                    }
+                    if (data_text_internal->movement_speed_vertical_background != nullptr)
+                    {
+                        delete data_text_internal->movement_speed_vertical_background;
+                        data_text_internal->movement_speed_vertical_background = nullptr;
+                    }
+                    if (data_text_internal->movement_threshold_vertical_background != nullptr)
+                    {
+                        delete data_text_internal->movement_threshold_vertical_background;
+                        data_text_internal->movement_threshold_vertical_background = nullptr;
+                    }
+                    if (data_text_internal->movement_translation_vertical_background != nullptr)
+                    {
+                        delete data_text_internal->movement_translation_vertical_background;
+                        data_text_internal->movement_translation_vertical_background = nullptr;
+                    }
+
+                    delete data_text_internal;
+                    data_text_internal = nullptr;
+                }
+
+                it_text_internal = data_text->map_text_internal.erase(it_text_internal);
+            }
+        }
+
+        delete data_text;
+        data_text = nullptr;
+
+        it_text = _map_text.erase(it_text);
+    }
+}
+
+void create_text(int index_text)
+{
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        {
+            std::unique_lock<std::shared_mutex> lk(*_mutex_map_text_internal);
+
+            pst_text data_text = it_text->second;
+
+            auto it_text_internal = data_text->map_text_internal.find(index_text);
+            if (it_text_internal != data_text->map_text_internal.end())
+            {
+                continue;
+            }
+
+            pst_text_internal data_text_internal = new st_text_internal();
+        
+            data_text_internal->index_text_internal = index_text;
+
+            data_text_internal->text_string = DEFAULT_TEXT_STRING;
+
+            data_text_internal->text_color = new st_color();
+            data_text_internal->text_color->r = DEFAULT_TEXT_COLOR;
+            data_text_internal->text_color->g = DEFAULT_TEXT_COLOR;
+            data_text_internal->text_color->b = DEFAULT_TEXT_COLOR;
+            data_text_internal->text_color->a = DEFAULT_TEXT_COLOR;
+
+            data_text_internal->text_size = new int();
+            *data_text_internal->text_size = DEFAULT_TEXT_SIZE;
+
+            data_text_internal->text_font_family = DEFAULT_TEXT_FONT_FAMILY;
+
+            data_text_internal->text_color_background = new st_color();
+            data_text_internal->text_color_background->r = DEFAULT_TEXT_COLOR_BACKGROUND;
+            data_text_internal->text_color_background->g = DEFAULT_TEXT_COLOR_BACKGROUND;
+            data_text_internal->text_color_background->b = DEFAULT_TEXT_COLOR_BACKGROUND;
+            data_text_internal->text_color_background->a = DEFAULT_TEXT_COLOR_BACKGROUND;
+
+            data_text_internal->text_start_coordinate_left = new float();
+            *data_text_internal->text_start_coordinate_left = DEFAULT_TEXT_BACKGROUND_RECTANGLE;
+            data_text_internal->text_start_coordinate_top = new float();
+            *data_text_internal->text_start_coordinate_top = DEFAULT_TEXT_BACKGROUND_RECTANGLE;
+            data_text_internal->text_background_width = new float();
+            *data_text_internal->text_background_width = DEFAULT_TEXT_BACKGROUND_RECTANGLE;
+            data_text_internal->text_background_height = new float();
+            *data_text_internal->text_background_height = DEFAULT_TEXT_BACKGROUND_RECTANGLE;
+
+            data_text_internal->text_weight = new e_dwrite_font_weight();
+            *data_text_internal->text_weight = DEFAULT_TEXT_WEIGHT;
+            data_text_internal->text_style = new e_dwrite_font_style();
+            *data_text_internal->text_style = DEFAULT_TEXT_STYLE;
+            data_text_internal->text_stretch = new e_dwrite_font_stretch();
+            *data_text_internal->text_stretch = DEFAULT_TEXT_STRETCH;
+
+            data_text_internal->text_matrics = new DWRITE_TEXT_METRICS();
+
+            data_text_internal->movement_type_horizontal = new e_movement_type_horizontal();
+            *data_text_internal->movement_type_horizontal = (e_movement_type_horizontal)DEFAULT_TEXT_MOVEMENT_TYPE;
+            data_text_internal->movement_speed_horizontal = new float();
+            *data_text_internal->movement_speed_horizontal = DEFAULT_TEXT_MOVEMENT_SPEED;
+            data_text_internal->movement_threshold_horizontal = new float();
+            *data_text_internal->movement_threshold_horizontal = DEFAULT_TEXT_MOVEMENT_THRESHOLD;
+            data_text_internal->movement_translation_horizontal = new float();
+            *data_text_internal->movement_translation_horizontal = DEFAULT_TEXT_MOVEMENT_TRANSLATION;
+
+            data_text_internal->movement_type_horizontal_background = new e_movement_type_horizontal();
+            *data_text_internal->movement_type_horizontal_background = (e_movement_type_horizontal)DEFAULT_TEXT_MOVEMENT_TYPE;
+            data_text_internal->movement_speed_horizontal_background = new float();
+            *data_text_internal->movement_speed_horizontal_background = DEFAULT_TEXT_MOVEMENT_SPEED;
+            data_text_internal->movement_threshold_horizontal_background = new float();
+            *data_text_internal->movement_threshold_horizontal_background = DEFAULT_TEXT_MOVEMENT_THRESHOLD;
+            data_text_internal->movement_translation_horizontal_background = new float();
+            *data_text_internal->movement_translation_horizontal_background = DEFAULT_TEXT_MOVEMENT_TRANSLATION;
+
+            data_text_internal->movement_type_vertical = new e_movement_type_vertical();
+            *data_text_internal->movement_type_vertical = (e_movement_type_vertical)DEFAULT_TEXT_MOVEMENT_TYPE;
+            data_text_internal->movement_speed_vertical = new float();
+            *data_text_internal->movement_speed_vertical = DEFAULT_TEXT_MOVEMENT_SPEED;
+            data_text_internal->movement_threshold_vertical = new float();
+            *data_text_internal->movement_threshold_vertical = DEFAULT_TEXT_MOVEMENT_THRESHOLD;
+            data_text_internal->movement_translation_vertical = new float();
+            *data_text_internal->movement_translation_vertical = DEFAULT_TEXT_MOVEMENT_TRANSLATION;
+
+            data_text_internal->movement_type_vertical_background = new e_movement_type_vertical();
+            *data_text_internal->movement_type_vertical_background = (e_movement_type_vertical)DEFAULT_TEXT_MOVEMENT_TYPE;
+            data_text_internal->movement_speed_vertical_background = new float();
+            *data_text_internal->movement_speed_vertical_background = DEFAULT_TEXT_MOVEMENT_SPEED;
+            data_text_internal->movement_threshold_vertical_background = new float();
+            *data_text_internal->movement_threshold_vertical_background = DEFAULT_TEXT_MOVEMENT_THRESHOLD;
+            data_text_internal->movement_translation_vertical_background = new float();
+            *data_text_internal->movement_translation_vertical_background = DEFAULT_TEXT_MOVEMENT_TRANSLATION;
+
+            data_text_internal->flag_created = false;
+            data_text_internal->flag_deleted = false;
+
+            data_text->map_text_internal.insert({ index_text, data_text_internal });
+        }
+    }
+}
+
+void delete_text(int index_text)
+{
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal != data_text->map_text_internal.end())
+        {
+            pst_text_internal data_text_internal = it_text_internal->second;
+
+            data_text_internal->flag_deleted = true;
+        }
+    }
+}
+
+void set_text_string(int index_text, std::wstring text_string)
+{
+    if (text_string == DEFAULT_TEXT_STRING)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        data_text_internal->text_string = text_string;
+    }
+}
+
+void set_text_color(int index_text, int color_r, int color_g, int color_b, int color_a)
+{
+    if ((float)color_r == DEFAULT_TEXT_COLOR 
+        && (float)color_g == DEFAULT_TEXT_COLOR 
+        && (float)color_b == DEFAULT_TEXT_COLOR 
+        && (float)color_a == DEFAULT_TEXT_COLOR)
+    {
+        return;
+    }
+
+    if (color_r < 0)
+    {
+        color_r = 0;
+    }
+    else if (color_r > 255)
+    {
+        color_r = 255;
+    }
+
+    if (color_g < 0)
+    {
+        color_g = 0;
+    }
+    else if (color_g > 255)
+    {
+        color_g = 255;
+    }
+
+    if (color_b < 0)
+    {
+        color_b = 0;
+    }
+    else if (color_b > 255)
+    {
+        color_b = 255;
+    }
+
+    if (color_a < 0)
+    {
+        color_a = 0;
+    }
+    else if (color_a > 255)
+    {
+        color_a = 255;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        data_text_internal->text_color->r = color_r / 255.0f;
+        data_text_internal->text_color->g = color_g / 255.0f;
+        data_text_internal->text_color->b = color_b / 255.0f;
+        data_text_internal->text_color->a = color_a / 255.0f;
+    }
+}
+
+void set_text_size(int index_text, int font_size)
+{
+    if (font_size == DEFAULT_TEXT_SIZE)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        *data_text_internal->text_size = font_size;
+    }
+}
+
+void set_text_font_family(int index_text, std::wstring font_family)
+{
+    if (font_family == DEFAULT_TEXT_FONT_FAMILY)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        data_text_internal->text_font_family = font_family;
+    }
+}
+
+void set_text_color_background(int index_text, int color_r, int color_g, int color_b, int color_a)
+{
+    if ((float)color_r == DEFAULT_TEXT_COLOR_BACKGROUND 
+        && (float)color_g == DEFAULT_TEXT_COLOR_BACKGROUND 
+        && (float)color_b == DEFAULT_TEXT_COLOR_BACKGROUND 
+        && (float)color_a == DEFAULT_TEXT_COLOR_BACKGROUND)
+    {
+        return;
+    }
+
+    if (color_r < 0)
+    {
+        color_r = 0;
+    }
+    else if (color_r > 255)
+    {
+        color_r = 255;
+    }
+
+    if (color_g < 0)
+    {
+        color_g = 0;
+    }
+    else if (color_g > 255)
+    {
+        color_g = 255;
+    }
+
+    if (color_b < 0)
+    {
+        color_b = 0;
+    }
+    else if (color_b > 255)
+    {
+        color_b = 255;
+    }
+
+    if (color_a < 0)
+    {
+        color_a = 0;
+    }
+    else if (color_a > 255)
+    {
+        color_a = 255;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        data_text_internal->text_color_background->r = color_r / 255.0f;
+        data_text_internal->text_color_background->g = color_g / 255.0f;
+        data_text_internal->text_color_background->b = color_b / 255.0f;
+        data_text_internal->text_color_background->a = color_a / 255.0f;
+    }
+}
+
+void set_text_start_coordinate_left(int index_text, int left)
+{
+    if (left == DEFAULT_TEXT_BACKGROUND_RECTANGLE)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        *data_text_internal->text_start_coordinate_left = (float)left;
+    }
+}
+
+void set_text_start_coordinate_top(int index_text, int top)
+{
+    if (top == DEFAULT_TEXT_BACKGROUND_RECTANGLE)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        *data_text_internal->text_start_coordinate_top = (float)top;
+    }
+}
+
+void set_text_background_width(int index_text, int width)
+{
+    if (width == DEFAULT_TEXT_BACKGROUND_RECTANGLE)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        *data_text_internal->text_background_width = (float)width;
+    }
+}
+
+void set_text_background_height(int index_text, int height)
+{
+    if (height == DEFAULT_TEXT_BACKGROUND_RECTANGLE)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        *data_text_internal->text_background_height = (float)height;
+    }
+}
+
+void set_text_weight(int index_text, e_dwrite_font_weight weight)
+{
+    if (weight == DEFAULT_TEXT_WEIGHT)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        *data_text_internal->text_weight = weight;
+    }
+}
+
+void set_text_style(int index_text, e_dwrite_font_style style)
+{
+    if (style == DEFAULT_TEXT_STYLE)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        *data_text_internal->text_style = style;
+    }
+}
+
+void set_text_stretch(int index_text, e_dwrite_font_stretch stretch)
+{
+    if (stretch == DEFAULT_TEXT_STRETCH)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        *data_text_internal->text_stretch = stretch;
+    }
+}
+
+void set_text_movement_type_horizontal(int index_text, e_movement_type_horizontal type)
+{
+    if (type == (e_movement_type_horizontal)DEFAULT_TEXT_MOVEMENT_TYPE)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        *data_text_internal->movement_type_horizontal = type;
+    }
+}
+
+void set_text_movement_speed_horizontal(int index_text, int speed)
+{
+    if (speed == (int)DEFAULT_TEXT_MOVEMENT_SPEED)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        *data_text_internal->movement_speed_horizontal = (float)speed;
+    }
+}
+
+void set_text_movement_threshold_horizontal(int index_text, int threshold)
+{
+    if (threshold == DEFAULT_TEXT_MOVEMENT_THRESHOLD_PACKET)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        *data_text_internal->movement_threshold_horizontal = (float)threshold;
+    }
+}
+
+void set_text_movement_type_horizontal_background(int index_text, e_movement_type_horizontal type)
+{
+    if (type == (e_movement_type_horizontal)DEFAULT_TEXT_MOVEMENT_TYPE)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        *data_text_internal->movement_type_horizontal_background = type;
+    }
+}
+
+void set_text_movement_speed_horizontal_background(int index_text, int speed)
+{
+    if (speed == (int)DEFAULT_TEXT_MOVEMENT_SPEED)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        *data_text_internal->movement_speed_horizontal_background = (float)speed;
+    }
+}
+
+void set_text_movement_threshold_horizontal_background(int index_text, int threshold)
+{
+    if (threshold == DEFAULT_TEXT_MOVEMENT_THRESHOLD_PACKET)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        *data_text_internal->movement_threshold_horizontal_background = (float)threshold;
+    }
+}
+
+void set_text_movement_type_vertical(int index_text, e_movement_type_vertical type)
+{
+    if (type == (e_movement_type_vertical)DEFAULT_TEXT_MOVEMENT_TYPE)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        *data_text_internal->movement_type_vertical = type;
+    }
+}
+
+void set_text_movement_speed_vertical(int index_text, int speed)
+{
+    if (speed == (int)DEFAULT_TEXT_MOVEMENT_SPEED)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        *data_text_internal->movement_speed_vertical = (float)speed;
+    }
+}
+
+void set_text_movement_threshold_vertical(int index_text, int threshold)
+{
+    if (threshold == DEFAULT_TEXT_MOVEMENT_THRESHOLD_PACKET)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        *data_text_internal->movement_threshold_vertical = (float)threshold;
+    }
+}
+
+void set_text_movement_type_vertical_background(int index_text, e_movement_type_vertical type)
+{
+    if (type == (e_movement_type_vertical)DEFAULT_TEXT_MOVEMENT_TYPE)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        *data_text_internal->movement_type_vertical_background = type;
+    }
+}
+
+void set_text_movement_speed_vertical_background(int index_text, int speed)
+{
+    if (speed == (int)DEFAULT_TEXT_MOVEMENT_SPEED)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        *data_text_internal->movement_speed_vertical_background = (float)speed;
+    }
+}
+
+void set_text_movement_threshold_vertical_background(int index_text, int threshold)
+{
+    if (threshold == DEFAULT_TEXT_MOVEMENT_THRESHOLD_PACKET)
+    {
+        return;
+    }
+
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal == data_text->map_text_internal.end())
+        {
+            continue;
+        }
+
+        pst_text_internal data_text_internal = it_text_internal->second;
+        *data_text_internal->movement_threshold_vertical_background = (float)threshold;
+    }
+}
+
+void create_text_instance(int index_text, pst_text data_text)
+{
+    auto it_device = _map_device.find(data_text->index_device);
+    if (it_device == _map_device.end())
+    {
+        return;
+    }
+
+    auto it_text_internal = data_text->map_text_internal.find(index_text);
+    if (it_text_internal == data_text->map_text_internal.end())
+    {
+        return;
+    }
+
+    pst_device data_device = it_device->second;
+
+    pst_text_internal data_text_internal = it_text_internal->second;
+
+    if (data_text_internal->text_brush == nullptr)
+    {
+        float color_r = data_text_internal->text_color->r;
+        float color_g = data_text_internal->text_color->g;
+        float color_b = data_text_internal->text_color->b;
+        float color_a = data_text_internal->text_color->a;
+        data_device->device_context_2d->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF(color_r, color_g, color_b, color_a)), &data_text_internal->text_brush);
+    }
+
+    if (data_text_internal->text_format == nullptr)
+    {
+        _factory_dwrite->CreateTextFormat(
+            data_text_internal->text_font_family.c_str(),
+            nullptr,
+            DWRITE_FONT_WEIGHT(*data_text_internal->text_weight),
+            DWRITE_FONT_STYLE(*data_text_internal->text_style),
+            DWRITE_FONT_STRETCH(*data_text_internal->text_stretch),
+            (float)(*data_text_internal->text_size),
+            L"ko-KR",
+            &data_text_internal->text_format
+        );
+    }
+        
+    bool flag_background_rectangle_setted = false;
+    if (*data_text_internal->text_background_width != DEFAULT_TEXT_BACKGROUND_RECTANGLE 
+        && *data_text_internal->text_background_height != DEFAULT_TEXT_BACKGROUND_RECTANGLE)
+    {
+        flag_background_rectangle_setted = true;
+    }
+
+    if (data_text_internal->text_layout == nullptr)
+    {
+        if (flag_background_rectangle_setted == false)
+        {
+            _factory_dwrite->CreateTextLayout(
+                data_text_internal->text_string.c_str(),
+                data_text_internal->text_string.size(),
+                data_text_internal->text_format,
+                FLT_MAX,
+                FLT_MAX,
+                &data_text_internal->text_layout
+            );
+        }
+        else
+        {
+            _factory_dwrite->CreateTextLayout(
+                data_text_internal->text_string.c_str(),
+                data_text_internal->text_string.size(),
+                data_text_internal->text_format,
+                (*data_text_internal->text_background_width),
+                (*data_text_internal->text_background_height),
+                &data_text_internal->text_layout
+            );
+        }
+    }
+
+    if (data_text_internal->text_matrics != nullptr)
+    {
+        data_text_internal->text_layout->GetMetrics(data_text_internal->text_matrics);
+
+        if (flag_background_rectangle_setted == false)
+        {
+            data_text_internal->text_layout->SetMaxWidth(data_text_internal->text_matrics->width);
+            data_text_internal->text_layout->SetMaxHeight(data_text_internal->text_matrics->height);
+            data_text_internal->text_layout->GetMetrics(data_text_internal->text_matrics);
+        }
+    }
+
+    if (data_text_internal->text_brush_background == nullptr)
+    {
+        float color_background_r = data_text_internal->text_color_background->r;
+        float color_background_g = data_text_internal->text_color_background->g;
+        float color_background_b = data_text_internal->text_color_background->b;
+        float color_background_a = data_text_internal->text_color_background->a;
+        data_device->device_context_2d->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF(color_background_r, color_background_g, color_background_b, color_background_a)), &data_text_internal->text_brush_background);
+    }
+
+    data_text_internal->flag_created = true;
+}
+
+void delete_text_instance(int index_text)
+{
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal != data_text->map_text_internal.end())
+        {
+            pst_text_internal data_text_internal = it_text_internal->second;
+
+            if (data_text_internal->text_string.empty() == false)
+            {
+                data_text_internal->text_string.clear();
+                data_text_internal->text_string.shrink_to_fit();
+            }
+            if (data_text_internal->text_color != nullptr)
+            {
+                delete data_text_internal->text_color;
+                data_text_internal->text_color = nullptr;
+            }
+            if (data_text_internal->text_size != nullptr)
+            {
+                delete data_text_internal->text_size;
+                data_text_internal->text_size = nullptr;
+            }
+            if (data_text_internal->text_font_family.empty() == false)
+            {
+                data_text_internal->text_font_family.clear();
+                data_text_internal->text_font_family.shrink_to_fit();
+            }
+
+            if (data_text_internal->text_color_background != nullptr)
+            {
+                delete data_text_internal->text_color_background;
+                data_text_internal->text_color_background = nullptr;
+            }
+            if (data_text_internal->text_start_coordinate_left != nullptr)
+            {
+                delete data_text_internal->text_start_coordinate_left;
+                data_text_internal->text_start_coordinate_left = nullptr;
+            }
+            if (data_text_internal->text_start_coordinate_top != nullptr)
+            {
+                delete data_text_internal->text_start_coordinate_top;
+                data_text_internal->text_start_coordinate_top = nullptr;
+            }
+            if (data_text_internal->text_background_width != nullptr)
+            {
+                delete data_text_internal->text_background_width;
+                data_text_internal->text_background_width = nullptr;
+            }
+            if (data_text_internal->text_background_height != nullptr)
+            {
+                delete data_text_internal->text_background_height;
+                data_text_internal->text_background_height = nullptr;
+            }
+
+            if (data_text_internal->text_weight != nullptr)
+            {
+                delete data_text_internal->text_weight;
+                data_text_internal->text_weight = nullptr;
+            }
+            if (data_text_internal->text_style != nullptr)
+            {
+                delete data_text_internal->text_style;
+                data_text_internal->text_style = nullptr;
+            }
+            if (data_text_internal->text_stretch != nullptr)
+            {
+                delete data_text_internal->text_stretch;
+                data_text_internal->text_stretch = nullptr;
+            }
+
+            if (data_text_internal->text_format != nullptr)
+            {
+                data_text_internal->text_format->Release();
+                data_text_internal->text_format = nullptr;
+            }
+            if (data_text_internal->text_brush != nullptr)
+            {
+                data_text_internal->text_brush->Release();
+                data_text_internal->text_brush = nullptr;
+            }
+            if (data_text_internal->text_layout != nullptr)
+            {
+                data_text_internal->text_layout->Release();
+                data_text_internal->text_layout = nullptr;
+            }
+            if (data_text_internal->text_matrics != nullptr)
+            {
+                delete data_text_internal->text_matrics;
+                data_text_internal->text_matrics = nullptr;
+            }
+
+            if (data_text_internal->text_brush_background != nullptr)
+            {
+                data_text_internal->text_brush_background->Release();
+                data_text_internal->text_brush_background = nullptr;
+            }
+
+            if (data_text_internal->movement_type_horizontal != nullptr)
+            {
+                delete data_text_internal->movement_type_horizontal;
+                data_text_internal->movement_type_horizontal = nullptr;
+            }
+            if (data_text_internal->movement_speed_horizontal != nullptr)
+            {
+                delete data_text_internal->movement_speed_horizontal;
+                data_text_internal->movement_speed_horizontal = nullptr;
+            }
+            if (data_text_internal->movement_threshold_horizontal != nullptr)
+            {
+                delete data_text_internal->movement_threshold_horizontal;
+                data_text_internal->movement_threshold_horizontal = nullptr;
+            }
+            if (data_text_internal->movement_translation_horizontal != nullptr)
+            {
+                delete data_text_internal->movement_translation_horizontal;
+                data_text_internal->movement_translation_horizontal = nullptr;
+            }
+
+            if (data_text_internal->movement_type_horizontal_background != nullptr)
+            {
+                delete data_text_internal->movement_type_horizontal_background;
+                data_text_internal->movement_type_horizontal_background = nullptr;
+            }
+            if (data_text_internal->movement_speed_horizontal_background != nullptr)
+            {
+                delete data_text_internal->movement_speed_horizontal_background;
+                data_text_internal->movement_speed_horizontal_background = nullptr;
+            }
+            if (data_text_internal->movement_threshold_horizontal_background != nullptr)
+            {
+                delete data_text_internal->movement_threshold_horizontal_background;
+                data_text_internal->movement_threshold_horizontal_background = nullptr;
+            }
+            if (data_text_internal->movement_translation_horizontal_background != nullptr)
+            {
+                delete data_text_internal->movement_translation_horizontal_background;
+                data_text_internal->movement_translation_horizontal_background = nullptr;
+            }
+
+            if (data_text_internal->movement_type_vertical != nullptr)
+            {
+                delete data_text_internal->movement_type_vertical;
+                data_text_internal->movement_type_vertical = nullptr;
+            }
+            if (data_text_internal->movement_speed_vertical != nullptr)
+            {
+                delete data_text_internal->movement_speed_vertical;
+                data_text_internal->movement_speed_vertical = nullptr;
+            }
+            if (data_text_internal->movement_threshold_vertical != nullptr)
+            {
+                delete data_text_internal->movement_threshold_vertical;
+                data_text_internal->movement_threshold_vertical = nullptr;
+            }
+            if (data_text_internal->movement_translation_vertical != nullptr)
+            {
+                delete data_text_internal->movement_translation_vertical;
+                data_text_internal->movement_translation_vertical = nullptr;
+            }
+
+            if (data_text_internal->movement_type_vertical_background != nullptr)
+            {
+                delete data_text_internal->movement_type_vertical_background;
+                data_text_internal->movement_type_vertical_background = nullptr;
+            }
+            if (data_text_internal->movement_speed_vertical_background != nullptr)
+            {
+                delete data_text_internal->movement_speed_vertical_background;
+                data_text_internal->movement_speed_vertical_background = nullptr;
+            }
+            if (data_text_internal->movement_threshold_vertical_background != nullptr)
+            {
+                delete data_text_internal->movement_threshold_vertical_background;
+                data_text_internal->movement_threshold_vertical_background = nullptr;
+            }
+            if (data_text_internal->movement_translation_vertical_background != nullptr)
+            {
+                delete data_text_internal->movement_translation_vertical_background;
+                data_text_internal->movement_translation_vertical_background = nullptr;
+            }
+
+            delete data_text_internal;
+            data_text_internal = nullptr;
+        }
+    }
 }
