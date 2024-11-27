@@ -506,15 +506,21 @@ bool MyClient::send_font_create(cppsocket_struct_client_send_font_create data)
     packet.movement_speed_horizontal = data.movement_speed_horizontal;
     packet.movement_threshold_horizontal = data.movement_threshold_horizontal;
 
+    packet.movement_type_horizontal_background = data.movement_type_horizontal_background;
+    packet.movement_speed_horizontal_background = data.movement_speed_horizontal_background;
+    packet.movement_threshold_horizontal_background = data.movement_threshold_horizontal_background;
+
     packet.movement_type_vertical = data.movement_type_vertical;
     packet.movement_speed_vertical = data.movement_speed_vertical;
     packet.movement_threshold_vertical = data.movement_threshold_vertical;
 
-    packet.font_start_coordinate_x = data.font_start_coordinate_x;
-    packet.font_start_coordinate_y = data.font_start_coordinate_y;
+    packet.movement_type_vertical_background = data.movement_type_vertical_background;
+    packet.movement_speed_vertical_background = data.movement_speed_vertical_background;
+    packet.movement_threshold_vertical_background = data.movement_threshold_vertical_background;
 
-    packet.background_rectangle_left = data.background_rectangle_left;
-    packet.backgound_rectangle_top = data.backgound_rectangle_top;
+    packet.font_start_coordinate_left = data.font_start_coordinate_left;
+    packet.font_start_coordinate_top = data.font_start_coordinate_top;
+
     packet.backgound_rectangle_width = data.backgound_rectangle_width;
     packet.backgound_rectangle_height = data.backgound_rectangle_height;
 

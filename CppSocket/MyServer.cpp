@@ -600,6 +600,50 @@ bool MyServer::send_font_create(TcpConnection* connection, cppsocket_struct_serv
 
     out_packet.index_font = data.index_font;
 
+    out_packet.font_size = data.font_size;
+
+    out_packet.font_color_r = data.font_color_r;
+    out_packet.font_color_g = data.font_color_g;
+    out_packet.font_color_b = data.font_color_b;
+    out_packet.font_color_a = data.font_color_a;
+
+    out_packet.background_color_r = data.background_color_r;
+    out_packet.background_color_g = data.background_color_g;
+    out_packet.background_color_b = data.background_color_b;
+    out_packet.background_color_a = data.background_color_a;
+
+    out_packet.movement_type_horizontal = data.movement_type_horizontal;
+    out_packet.movement_speed_horizontal = data.movement_speed_horizontal;
+    out_packet.movement_threshold_horizontal = data.movement_threshold_horizontal;
+
+    out_packet.movement_type_horizontal_background = data.movement_type_horizontal_background;
+    out_packet.movement_speed_horizontal_background = data.movement_speed_horizontal_background;
+    out_packet.movement_threshold_horizontal_background = data.movement_threshold_horizontal_background;
+
+    out_packet.movement_type_vertical = data.movement_type_vertical;
+    out_packet.movement_speed_vertical = data.movement_speed_vertical;
+    out_packet.movement_threshold_vertical = data.movement_threshold_vertical;
+
+    out_packet.movement_type_vertical_background = data.movement_type_vertical_background;
+    out_packet.movement_speed_vertical_background = data.movement_speed_vertical_background;
+    out_packet.movement_threshold_vertical_background = data.movement_threshold_vertical_background;
+
+    out_packet.font_start_coordinate_left = data.font_start_coordinate_left;
+    out_packet.font_start_coordinate_top = data.font_start_coordinate_top;
+
+    out_packet.backgound_rectangle_width = data.backgound_rectangle_width;
+    out_packet.backgound_rectangle_height = data.backgound_rectangle_height;
+
+    out_packet.font_weight = data.font_weight;
+    out_packet.font_style = data.font_style;
+    out_packet.font_stretch = data.font_stretch;
+
+    out_packet.content_size = data.content_size;
+    memcpy(out_packet.content_string, data.content_string, data.content_size);
+    
+    out_packet.font_family_size = data.font_family_size;
+    memcpy(out_packet.font_family, data.font_family, data.font_family_size);
+
     std::shared_ptr<Packet> font_create_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
     *font_create_packet << (void*)&out_packet;
     connection->m_pmOutgoing.Append(font_create_packet);

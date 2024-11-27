@@ -70,6 +70,7 @@ enum class e_command_type : uint16_t
     invalid = u16_invalid_id
 };
 
+// default: DWRITE_FONT_WEIGHT_NORMAL
 enum class e_dwrite_font_weight : int
 {
     DWRITE_FONT_WEIGHT_THIN = 100,
@@ -91,6 +92,7 @@ enum class e_dwrite_font_weight : int
     DWRITE_FONT_WEIGHT_ULTRA_BLACK = 950
 };
 
+// default: DWRITE_FONT_STYLE_NORMAL
 enum class e_dwrite_font_style : int
 {
     DWRITE_FONT_STYLE_NORMAL = 0,
@@ -98,6 +100,7 @@ enum class e_dwrite_font_style : int
     DWRITE_FONT_STYLE_ITALIC = 2
 };
 
+// default: DWRITE_FONT_STRETCH_NORMAL
 enum class e_dwrite_font_stretch : int
 {
     DWRITE_FONT_STRETCH_UNDEFINED = 0,
@@ -698,15 +701,21 @@ struct packet_font_create_from_client
     int movement_speed_horizontal;
     int movement_threshold_horizontal;
 
+    int movement_type_horizontal_background;
+    int movement_speed_horizontal_background;
+    int movement_threshold_horizontal_background;
+
     int movement_type_vertical;
     int movement_speed_vertical;
     int movement_threshold_vertical;
 
-    int font_start_coordinate_x;
-    int font_start_coordinate_y;
+    int movement_type_vertical_background;
+    int movement_speed_vertical_background;
+    int movement_threshold_vertical_background;
 
-    int background_rectangle_left;
-    int backgound_rectangle_top;
+    int font_start_coordinate_left;
+    int font_start_coordinate_top;
+
     int backgound_rectangle_width;
     int backgound_rectangle_height;
 
@@ -727,6 +736,50 @@ struct packet_font_create_from_server
     e_packet_result   result;     // 명령 수행 결과
 
     uint32_t index_font;
+
+    int font_size;
+
+    int font_color_r;
+    int font_color_g;
+    int font_color_b;
+    int font_color_a;
+
+    int background_color_r;
+    int background_color_g;
+    int background_color_b;
+    int background_color_a;
+
+    int movement_type_horizontal;
+    int movement_speed_horizontal;
+    int movement_threshold_horizontal;
+
+    int movement_type_horizontal_background;
+    int movement_speed_horizontal_background;
+    int movement_threshold_horizontal_background;
+
+    int movement_type_vertical;
+    int movement_speed_vertical;
+    int movement_threshold_vertical;
+
+    int movement_type_vertical_background;
+    int movement_speed_vertical_background;
+    int movement_threshold_vertical_background;
+
+    int font_start_coordinate_left;
+    int font_start_coordinate_top;
+
+    int backgound_rectangle_width;
+    int backgound_rectangle_height;
+
+    int font_weight;
+    int font_style;
+    int font_stretch;
+
+    int content_size;
+    char content_string[260];
+
+    int font_family_size;
+    char font_family[100];
 };
 
 // --------------------------------

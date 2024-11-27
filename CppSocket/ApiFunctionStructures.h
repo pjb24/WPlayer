@@ -166,15 +166,21 @@ struct cppsocket_struct_client_send_font_create
         movement_speed_horizontal = 0;
         movement_threshold_horizontal = INT32_MIN;
 
+        movement_type_horizontal_background = (int)e_movement_type_horizontal::none;
+        movement_speed_horizontal_background = 0;
+        movement_threshold_horizontal_background = INT32_MIN;
+
         movement_type_vertical = (int)e_movement_type_vertical::none;
         movement_speed_vertical = 0;
         movement_threshold_vertical = INT32_MIN;
 
-        font_start_coordinate_x = 0;
-        font_start_coordinate_y = 0;
+        movement_type_vertical_background = (int)e_movement_type_vertical::none;
+        movement_speed_vertical_background = 0;
+        movement_threshold_vertical_background = INT32_MIN;
 
-        background_rectangle_left = 0;
-        backgound_rectangle_top = 0;
+        font_start_coordinate_left = 0;
+        font_start_coordinate_top = 0;
+
         backgound_rectangle_width = 0;
         backgound_rectangle_height = 0;
 
@@ -201,15 +207,21 @@ struct cppsocket_struct_client_send_font_create
     int movement_speed_horizontal;
     int movement_threshold_horizontal;
 
+    int movement_type_horizontal_background;
+    int movement_speed_horizontal_background;
+    int movement_threshold_horizontal_background;
+
     int movement_type_vertical;
     int movement_speed_vertical;
     int movement_threshold_vertical;
 
-    int font_start_coordinate_x;
-    int font_start_coordinate_y;
+    int movement_type_vertical_background;
+    int movement_speed_vertical_background;
+    int movement_threshold_vertical_background;
 
-    int background_rectangle_left;
-    int backgound_rectangle_top;
+    int font_start_coordinate_left;
+    int font_start_coordinate_top;
+
     int backgound_rectangle_width;
     int backgound_rectangle_height;
 
@@ -446,6 +458,50 @@ struct cppsocket_struct_server_send_font_create
     uint16_t result;
 
     uint32_t index_font;
+
+    int font_size;
+
+    int font_color_r;
+    int font_color_g;
+    int font_color_b;
+    int font_color_a;
+
+    int background_color_r;
+    int background_color_g;
+    int background_color_b;
+    int background_color_a;
+
+    int movement_type_horizontal;
+    int movement_speed_horizontal;
+    int movement_threshold_horizontal;
+
+    int movement_type_horizontal_background;
+    int movement_speed_horizontal_background;
+    int movement_threshold_horizontal_background;
+
+    int movement_type_vertical;
+    int movement_speed_vertical;
+    int movement_threshold_vertical;
+
+    int movement_type_vertical_background;
+    int movement_speed_vertical_background;
+    int movement_threshold_vertical_background;
+
+    int font_start_coordinate_left;
+    int font_start_coordinate_top;
+
+    int backgound_rectangle_width;
+    int backgound_rectangle_height;
+
+    int font_weight;
+    int font_style;
+    int font_stretch;
+
+    int content_size;
+    char content_string[260];
+
+    int font_family_size;
+    char font_family[100];
 };
 
 struct cppsocket_struct_server_send_font_delete
