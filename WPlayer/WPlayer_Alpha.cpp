@@ -191,6 +191,8 @@ typedef struct st_device
 
     RECT rect_connected = { INT_MAX, INT_MAX, INT_MIN, INT_MIN };
 
+    std::shared_mutex* mutex_map_text_internal = nullptr;
+
 }*pst_device;
 
 typedef struct st_output
@@ -747,7 +749,6 @@ ID2D1Factory7* _factory_2d = nullptr;
 IDWriteFactory* _factory_dwrite = nullptr;
 
 std::map<UINT, pst_text> _map_text;
-std::shared_mutex* _mutex_map_text_internal = nullptr;
 
 // --------------------------------
 
@@ -910,7 +911,7 @@ void set_text_movement_speed_vertical_background(int index_text, int speed);
 void set_text_movement_threshold_vertical_background(int index_text, int threshold);
 
 void create_text_instance(int index_text, pst_text data_text);
-void delete_text_instance(int index_text);
+void delete_text_instance(int index_text, pst_text data_text);
 
 // --------------------------------
 
@@ -1317,6 +1318,8 @@ void create_devices()
                     data_device->rect_connected.bottom = data_output->output_desc.DesktopCoordinates.bottom;
                 }
             }
+
+            data_device->mutex_map_text_internal = new std::shared_mutex();
         }
     }
 }
@@ -2159,6 +2162,9 @@ void delete_devices()
 
         delete data_device->mutex_upload_to_device;
         data_device->mutex_upload_to_device = nullptr;
+
+        delete data_device->mutex_map_text_internal;
+        data_device->mutex_map_text_internal = nullptr;
 
         delete data_device;
         data_device = nullptr;
@@ -4253,7 +4259,7 @@ void thread_device(pst_device data_device)
         pst_text data_text = it_text->second;
 
         {
-            std::unique_lock<std::shared_mutex> lk(*_mutex_map_text_internal);
+            std::unique_lock<std::shared_mutex> lk(*data_device->mutex_map_text_internal);
             for (auto it_text_internal = data_text->map_text_internal.begin(); it_text_internal != data_text->map_text_internal.end(); )
             {
                 pst_text_internal data_text_internal = it_text_internal->second;
@@ -4261,7 +4267,7 @@ void thread_device(pst_device data_device)
                 if (data_text_internal->flag_deleted == true
                     && data_text_internal->flag_created == true)
                 {
-                    delete_text_instance(data_text_internal->index_text_internal);
+                    delete_text_instance(data_text_internal->index_text_internal, data_text);
                     it_text_internal = data_text->map_text_internal.erase(it_text_internal);
                 }
                 else
@@ -4272,7 +4278,7 @@ void thread_device(pst_device data_device)
         }
 
         {
-            std::unique_lock<std::shared_mutex> lk(*_mutex_map_text_internal);
+            std::unique_lock<std::shared_mutex> lk(*data_device->mutex_map_text_internal);
             for (auto it_text_internal = data_text->map_text_internal.begin(); it_text_internal != data_text->map_text_internal.end(); it_text_internal++)
             {
                 pst_text_internal data_text_internal = it_text_internal->second;
@@ -4290,7 +4296,7 @@ void thread_device(pst_device data_device)
         data_device->device_context_2d->BeginDraw();
 
         {
-            std::shared_lock<std::shared_mutex> lk(*_mutex_map_text_internal);
+            std::shared_lock<std::shared_mutex> lk(*data_device->mutex_map_text_internal);
             for (auto it_text_internal = data_text->map_text_internal.begin(); it_text_internal != data_text->map_text_internal.end(); it_text_internal++)
             {
                 pst_text_internal data_text_internal = it_text_internal->second;
@@ -4447,7 +4453,7 @@ void thread_device(pst_device data_device)
                         }
                     }
                 }
-
+                
                 if (*data_text_internal->movement_type_horizontal_background == e_movement_type_horizontal::left)
                 {
                     *data_text_internal->movement_translation_horizontal_background -= (*data_text_internal->movement_speed_horizontal_background / PRESENT_COUNT_PER_SECOND);
@@ -5297,8 +5303,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _mutex_map_srv_handle_luminance = new std::mutex();
     _mutex_map_srv_handle_chrominance = new std::mutex();
 
-    _mutex_map_text_internal = new std::shared_mutex();
-
     if (_use_nvapi)
     {
         _nvapi_status = NvAPI_Initialize();
@@ -5601,9 +5605,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _mutex_map_srv_handle_luminance = nullptr;
     delete _mutex_map_srv_handle_chrominance;
     _mutex_map_srv_handle_chrominance = nullptr;
-
-    delete _mutex_map_text_internal;
-    _mutex_map_text_internal = nullptr;
 
     if (_frame_default_image != nullptr)
     {
@@ -6080,7 +6081,10 @@ void delete_texts()
         pst_text data_text = it_text->second;
 
         {
-            std::unique_lock<std::shared_mutex> lk(*_mutex_map_text_internal);
+            auto it_device = _map_device.find(data_text->index_device);
+            pst_device data_device = it_device->second;
+
+            std::unique_lock<std::shared_mutex> lk(*data_device->mutex_map_text_internal);
             for (auto it_text_internal = data_text->map_text_internal.begin(); it_text_internal != data_text->map_text_internal.end(); )
             {
                 pst_text_internal data_text_internal = it_text_internal->second;
@@ -6280,9 +6284,12 @@ void create_text(int index_text)
     for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
     {
         {
-            std::unique_lock<std::shared_mutex> lk(*_mutex_map_text_internal);
-
             pst_text data_text = it_text->second;
+
+            auto it_device = _map_device.find(data_text->index_device);
+            pst_device data_device = it_device->second;
+
+            std::unique_lock<std::shared_mutex> lk(*data_device->mutex_map_text_internal);
 
             auto it_text_internal = data_text->map_text_internal.find(index_text);
             if (it_text_internal != data_text->map_text_internal.end())
@@ -7115,193 +7122,188 @@ void create_text_instance(int index_text, pst_text data_text)
     data_text_internal->flag_created = true;
 }
 
-void delete_text_instance(int index_text)
+void delete_text_instance(int index_text, pst_text data_text)
 {
-    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    auto it_text_internal = data_text->map_text_internal.find(index_text);
+    if (it_text_internal != data_text->map_text_internal.end())
     {
-        pst_text data_text = it_text->second;
+        pst_text_internal data_text_internal = it_text_internal->second;
 
-        auto it_text_internal = data_text->map_text_internal.find(index_text);
-        if (it_text_internal != data_text->map_text_internal.end())
+        if (data_text_internal->text_string.empty() == false)
         {
-            pst_text_internal data_text_internal = it_text_internal->second;
-
-            if (data_text_internal->text_string.empty() == false)
-            {
-                data_text_internal->text_string.clear();
-                data_text_internal->text_string.shrink_to_fit();
-            }
-            if (data_text_internal->text_color != nullptr)
-            {
-                delete data_text_internal->text_color;
-                data_text_internal->text_color = nullptr;
-            }
-            if (data_text_internal->text_size != nullptr)
-            {
-                delete data_text_internal->text_size;
-                data_text_internal->text_size = nullptr;
-            }
-            if (data_text_internal->text_font_family.empty() == false)
-            {
-                data_text_internal->text_font_family.clear();
-                data_text_internal->text_font_family.shrink_to_fit();
-            }
-
-            if (data_text_internal->text_color_background != nullptr)
-            {
-                delete data_text_internal->text_color_background;
-                data_text_internal->text_color_background = nullptr;
-            }
-            if (data_text_internal->text_start_coordinate_left != nullptr)
-            {
-                delete data_text_internal->text_start_coordinate_left;
-                data_text_internal->text_start_coordinate_left = nullptr;
-            }
-            if (data_text_internal->text_start_coordinate_top != nullptr)
-            {
-                delete data_text_internal->text_start_coordinate_top;
-                data_text_internal->text_start_coordinate_top = nullptr;
-            }
-            if (data_text_internal->text_background_width != nullptr)
-            {
-                delete data_text_internal->text_background_width;
-                data_text_internal->text_background_width = nullptr;
-            }
-            if (data_text_internal->text_background_height != nullptr)
-            {
-                delete data_text_internal->text_background_height;
-                data_text_internal->text_background_height = nullptr;
-            }
-
-            if (data_text_internal->text_weight != nullptr)
-            {
-                delete data_text_internal->text_weight;
-                data_text_internal->text_weight = nullptr;
-            }
-            if (data_text_internal->text_style != nullptr)
-            {
-                delete data_text_internal->text_style;
-                data_text_internal->text_style = nullptr;
-            }
-            if (data_text_internal->text_stretch != nullptr)
-            {
-                delete data_text_internal->text_stretch;
-                data_text_internal->text_stretch = nullptr;
-            }
-
-            if (data_text_internal->text_format != nullptr)
-            {
-                data_text_internal->text_format->Release();
-                data_text_internal->text_format = nullptr;
-            }
-            if (data_text_internal->text_brush != nullptr)
-            {
-                data_text_internal->text_brush->Release();
-                data_text_internal->text_brush = nullptr;
-            }
-            if (data_text_internal->text_layout != nullptr)
-            {
-                data_text_internal->text_layout->Release();
-                data_text_internal->text_layout = nullptr;
-            }
-            if (data_text_internal->text_matrics != nullptr)
-            {
-                delete data_text_internal->text_matrics;
-                data_text_internal->text_matrics = nullptr;
-            }
-
-            if (data_text_internal->text_brush_background != nullptr)
-            {
-                data_text_internal->text_brush_background->Release();
-                data_text_internal->text_brush_background = nullptr;
-            }
-
-            if (data_text_internal->movement_type_horizontal != nullptr)
-            {
-                delete data_text_internal->movement_type_horizontal;
-                data_text_internal->movement_type_horizontal = nullptr;
-            }
-            if (data_text_internal->movement_speed_horizontal != nullptr)
-            {
-                delete data_text_internal->movement_speed_horizontal;
-                data_text_internal->movement_speed_horizontal = nullptr;
-            }
-            if (data_text_internal->movement_threshold_horizontal != nullptr)
-            {
-                delete data_text_internal->movement_threshold_horizontal;
-                data_text_internal->movement_threshold_horizontal = nullptr;
-            }
-            if (data_text_internal->movement_translation_horizontal != nullptr)
-            {
-                delete data_text_internal->movement_translation_horizontal;
-                data_text_internal->movement_translation_horizontal = nullptr;
-            }
-
-            if (data_text_internal->movement_type_horizontal_background != nullptr)
-            {
-                delete data_text_internal->movement_type_horizontal_background;
-                data_text_internal->movement_type_horizontal_background = nullptr;
-            }
-            if (data_text_internal->movement_speed_horizontal_background != nullptr)
-            {
-                delete data_text_internal->movement_speed_horizontal_background;
-                data_text_internal->movement_speed_horizontal_background = nullptr;
-            }
-            if (data_text_internal->movement_threshold_horizontal_background != nullptr)
-            {
-                delete data_text_internal->movement_threshold_horizontal_background;
-                data_text_internal->movement_threshold_horizontal_background = nullptr;
-            }
-            if (data_text_internal->movement_translation_horizontal_background != nullptr)
-            {
-                delete data_text_internal->movement_translation_horizontal_background;
-                data_text_internal->movement_translation_horizontal_background = nullptr;
-            }
-
-            if (data_text_internal->movement_type_vertical != nullptr)
-            {
-                delete data_text_internal->movement_type_vertical;
-                data_text_internal->movement_type_vertical = nullptr;
-            }
-            if (data_text_internal->movement_speed_vertical != nullptr)
-            {
-                delete data_text_internal->movement_speed_vertical;
-                data_text_internal->movement_speed_vertical = nullptr;
-            }
-            if (data_text_internal->movement_threshold_vertical != nullptr)
-            {
-                delete data_text_internal->movement_threshold_vertical;
-                data_text_internal->movement_threshold_vertical = nullptr;
-            }
-            if (data_text_internal->movement_translation_vertical != nullptr)
-            {
-                delete data_text_internal->movement_translation_vertical;
-                data_text_internal->movement_translation_vertical = nullptr;
-            }
-
-            if (data_text_internal->movement_type_vertical_background != nullptr)
-            {
-                delete data_text_internal->movement_type_vertical_background;
-                data_text_internal->movement_type_vertical_background = nullptr;
-            }
-            if (data_text_internal->movement_speed_vertical_background != nullptr)
-            {
-                delete data_text_internal->movement_speed_vertical_background;
-                data_text_internal->movement_speed_vertical_background = nullptr;
-            }
-            if (data_text_internal->movement_threshold_vertical_background != nullptr)
-            {
-                delete data_text_internal->movement_threshold_vertical_background;
-                data_text_internal->movement_threshold_vertical_background = nullptr;
-            }
-            if (data_text_internal->movement_translation_vertical_background != nullptr)
-            {
-                delete data_text_internal->movement_translation_vertical_background;
-                data_text_internal->movement_translation_vertical_background = nullptr;
-            }
-
-            delete data_text_internal;
-            data_text_internal = nullptr;
+            data_text_internal->text_string.clear();
+            data_text_internal->text_string.shrink_to_fit();
         }
+        if (data_text_internal->text_color != nullptr)
+        {
+            delete data_text_internal->text_color;
+            data_text_internal->text_color = nullptr;
+        }
+        if (data_text_internal->text_size != nullptr)
+        {
+            delete data_text_internal->text_size;
+            data_text_internal->text_size = nullptr;
+        }
+        if (data_text_internal->text_font_family.empty() == false)
+        {
+            data_text_internal->text_font_family.clear();
+            data_text_internal->text_font_family.shrink_to_fit();
+        }
+
+        if (data_text_internal->text_color_background != nullptr)
+        {
+            delete data_text_internal->text_color_background;
+            data_text_internal->text_color_background = nullptr;
+        }
+        if (data_text_internal->text_start_coordinate_left != nullptr)
+        {
+            delete data_text_internal->text_start_coordinate_left;
+            data_text_internal->text_start_coordinate_left = nullptr;
+        }
+        if (data_text_internal->text_start_coordinate_top != nullptr)
+        {
+            delete data_text_internal->text_start_coordinate_top;
+            data_text_internal->text_start_coordinate_top = nullptr;
+        }
+        if (data_text_internal->text_background_width != nullptr)
+        {
+            delete data_text_internal->text_background_width;
+            data_text_internal->text_background_width = nullptr;
+        }
+        if (data_text_internal->text_background_height != nullptr)
+        {
+            delete data_text_internal->text_background_height;
+            data_text_internal->text_background_height = nullptr;
+        }
+
+        if (data_text_internal->text_weight != nullptr)
+        {
+            delete data_text_internal->text_weight;
+            data_text_internal->text_weight = nullptr;
+        }
+        if (data_text_internal->text_style != nullptr)
+        {
+            delete data_text_internal->text_style;
+            data_text_internal->text_style = nullptr;
+        }
+        if (data_text_internal->text_stretch != nullptr)
+        {
+            delete data_text_internal->text_stretch;
+            data_text_internal->text_stretch = nullptr;
+        }
+
+        if (data_text_internal->text_format != nullptr)
+        {
+            data_text_internal->text_format->Release();
+            data_text_internal->text_format = nullptr;
+        }
+        if (data_text_internal->text_brush != nullptr)
+        {
+            data_text_internal->text_brush->Release();
+            data_text_internal->text_brush = nullptr;
+        }
+        if (data_text_internal->text_layout != nullptr)
+        {
+            data_text_internal->text_layout->Release();
+            data_text_internal->text_layout = nullptr;
+        }
+        if (data_text_internal->text_matrics != nullptr)
+        {
+            delete data_text_internal->text_matrics;
+            data_text_internal->text_matrics = nullptr;
+        }
+
+        if (data_text_internal->text_brush_background != nullptr)
+        {
+            data_text_internal->text_brush_background->Release();
+            data_text_internal->text_brush_background = nullptr;
+        }
+
+        if (data_text_internal->movement_type_horizontal != nullptr)
+        {
+            delete data_text_internal->movement_type_horizontal;
+            data_text_internal->movement_type_horizontal = nullptr;
+        }
+        if (data_text_internal->movement_speed_horizontal != nullptr)
+        {
+            delete data_text_internal->movement_speed_horizontal;
+            data_text_internal->movement_speed_horizontal = nullptr;
+        }
+        if (data_text_internal->movement_threshold_horizontal != nullptr)
+        {
+            delete data_text_internal->movement_threshold_horizontal;
+            data_text_internal->movement_threshold_horizontal = nullptr;
+        }
+        if (data_text_internal->movement_translation_horizontal != nullptr)
+        {
+            delete data_text_internal->movement_translation_horizontal;
+            data_text_internal->movement_translation_horizontal = nullptr;
+        }
+
+        if (data_text_internal->movement_type_horizontal_background != nullptr)
+        {
+            delete data_text_internal->movement_type_horizontal_background;
+            data_text_internal->movement_type_horizontal_background = nullptr;
+        }
+        if (data_text_internal->movement_speed_horizontal_background != nullptr)
+        {
+            delete data_text_internal->movement_speed_horizontal_background;
+            data_text_internal->movement_speed_horizontal_background = nullptr;
+        }
+        if (data_text_internal->movement_threshold_horizontal_background != nullptr)
+        {
+            delete data_text_internal->movement_threshold_horizontal_background;
+            data_text_internal->movement_threshold_horizontal_background = nullptr;
+        }
+        if (data_text_internal->movement_translation_horizontal_background != nullptr)
+        {
+            delete data_text_internal->movement_translation_horizontal_background;
+            data_text_internal->movement_translation_horizontal_background = nullptr;
+        }
+
+        if (data_text_internal->movement_type_vertical != nullptr)
+        {
+            delete data_text_internal->movement_type_vertical;
+            data_text_internal->movement_type_vertical = nullptr;
+        }
+        if (data_text_internal->movement_speed_vertical != nullptr)
+        {
+            delete data_text_internal->movement_speed_vertical;
+            data_text_internal->movement_speed_vertical = nullptr;
+        }
+        if (data_text_internal->movement_threshold_vertical != nullptr)
+        {
+            delete data_text_internal->movement_threshold_vertical;
+            data_text_internal->movement_threshold_vertical = nullptr;
+        }
+        if (data_text_internal->movement_translation_vertical != nullptr)
+        {
+            delete data_text_internal->movement_translation_vertical;
+            data_text_internal->movement_translation_vertical = nullptr;
+        }
+
+        if (data_text_internal->movement_type_vertical_background != nullptr)
+        {
+            delete data_text_internal->movement_type_vertical_background;
+            data_text_internal->movement_type_vertical_background = nullptr;
+        }
+        if (data_text_internal->movement_speed_vertical_background != nullptr)
+        {
+            delete data_text_internal->movement_speed_vertical_background;
+            data_text_internal->movement_speed_vertical_background = nullptr;
+        }
+        if (data_text_internal->movement_threshold_vertical_background != nullptr)
+        {
+            delete data_text_internal->movement_threshold_vertical_background;
+            data_text_internal->movement_threshold_vertical_background = nullptr;
+        }
+        if (data_text_internal->movement_translation_vertical_background != nullptr)
+        {
+            delete data_text_internal->movement_translation_vertical_background;
+            data_text_internal->movement_translation_vertical_background = nullptr;
+        }
+
+        delete data_text_internal;
+        data_text_internal = nullptr;
     }
 }
