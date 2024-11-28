@@ -201,6 +201,8 @@ typedef struct st_device
     ID2D1Device2* device_2d = nullptr;
     ID2D1DeviceContext2* device_context_2d = nullptr;
 
+    RECT rect_connected = { INT_MAX, INT_MAX, INT_MIN, INT_MIN };
+
 }*pst_device;
 
 typedef struct st_output
@@ -1321,6 +1323,34 @@ void create_devices()
             vector_input(condition_variable_scene_to_upload);
             vector_input(mutex_scene_to_upload);
             vector_input(flag_scene_to_upload);
+
+            for (auto it_output = _map_output.begin(); it_output != _map_output.end(); it_output++)
+            {
+                pst_output data_output = it_output->second;
+
+                if (data_output->device_index != data_device->device_index)
+                {
+                    continue;
+                }
+
+                if (data_output->output_desc.DesktopCoordinates.left < data_device->rect_connected.left)
+                {
+                    data_device->rect_connected.left = data_output->output_desc.DesktopCoordinates.left;
+                }
+                if (data_output->output_desc.DesktopCoordinates.top < data_device->rect_connected.top)
+                {
+                    data_device->rect_connected.top = data_output->output_desc.DesktopCoordinates.top;
+                }
+
+                if (data_output->output_desc.DesktopCoordinates.right > data_device->rect_connected.right)
+                {
+                    data_device->rect_connected.right = data_output->output_desc.DesktopCoordinates.right;
+                }
+                if (data_output->output_desc.DesktopCoordinates.bottom > data_device->rect_connected.bottom)
+                {
+                    data_device->rect_connected.bottom = data_output->output_desc.DesktopCoordinates.bottom;
+                }
+            }
         }
     }
 }
@@ -4337,29 +4367,39 @@ void thread_device(pst_device data_device)
                     continue;
                 }
 
-                D2D1_RECT_F rect_background = D2D1::RectF(*data_text_internal->text_start_coordinate_left + *data_text_internal->movement_translation_horizontal_background,
-                    *data_text_internal->text_start_coordinate_top + *data_text_internal->movement_translation_vertical_background,
-                    data_text_internal->text_matrics->layoutWidth + *data_text_internal->text_start_coordinate_left + *data_text_internal->movement_translation_horizontal_background,
-                    data_text_internal->text_matrics->layoutHeight + *data_text_internal->text_start_coordinate_top + *data_text_internal->movement_translation_vertical_background);
+                bool flag_draw_text = false;
 
-                if (data_text_internal->text_color_background->r != 0 
-                    || data_text_internal->text_color_background->g != 0
-                    || data_text_internal->text_color_background->b != 0
-                    || data_text_internal->text_color_background->a != 0)
+                if (*data_text_internal->text_start_coordinate_left + *data_text_internal->movement_translation_horizontal_background < data_device->rect_connected.right
+                    && *data_text_internal->text_start_coordinate_top + *data_text_internal->movement_translation_vertical_background < data_device->rect_connected.bottom
+                    && data_text_internal->text_matrics->layoutWidth + *data_text_internal->text_start_coordinate_left + *data_text_internal->movement_translation_horizontal_background > data_device->rect_connected.left
+                    && data_text_internal->text_matrics->layoutHeight + *data_text_internal->text_start_coordinate_top + *data_text_internal->movement_translation_vertical_background > data_device->rect_connected.top
+                    )
                 {
-                    data_device->device_context_2d->FillRectangle(rect_background, data_text_internal->text_brush_background);
+                    flag_draw_text = true;
                 }
 
-                data_device->device_context_2d->PushAxisAlignedClip(rect_background, D2D1_ANTIALIAS_MODE_ALIASED);
+                if (flag_draw_text == true)
+                {
+                    D2D1_RECT_F rect_background = D2D1::RectF(*data_text_internal->text_start_coordinate_left + *data_text_internal->movement_translation_horizontal_background - data_device->rect_connected.left,
+                        *data_text_internal->text_start_coordinate_top + *data_text_internal->movement_translation_vertical_background - data_device->rect_connected.top,
+                        data_text_internal->text_matrics->layoutWidth + *data_text_internal->text_start_coordinate_left + *data_text_internal->movement_translation_horizontal_background - data_device->rect_connected.left,
+                        data_text_internal->text_matrics->layoutHeight + *data_text_internal->text_start_coordinate_top + *data_text_internal->movement_translation_vertical_background - data_device->rect_connected.top);
 
-                data_device->device_context_2d->SetTransform(D2D1::Matrix3x2F::Translation(*data_text_internal->text_start_coordinate_left + *data_text_internal->movement_translation_horizontal_background, 
-                    *data_text_internal->text_start_coordinate_top + *data_text_internal->movement_translation_vertical_background));
+                    if (data_text_internal->text_color_background->r != 0 
+                        || data_text_internal->text_color_background->g != 0
+                        || data_text_internal->text_color_background->b != 0
+                        || data_text_internal->text_color_background->a != 0)
+                    {
+                        data_device->device_context_2d->FillRectangle(rect_background, data_text_internal->text_brush_background);
+                    }
 
-                data_device->device_context_2d->DrawTextLayout(
-                    D2D1::Point2F(*data_text_internal->movement_translation_horizontal, *data_text_internal->movement_translation_vertical),
-                    data_text_internal->text_layout,
-                    data_text_internal->text_brush
-                );
+                    data_device->device_context_2d->DrawTextLayout(
+                        D2D1::Point2F(*data_text_internal->movement_translation_horizontal + *data_text_internal->text_start_coordinate_left + *data_text_internal->movement_translation_horizontal_background - data_device->rect_connected.left,
+                            *data_text_internal->movement_translation_vertical + *data_text_internal->text_start_coordinate_top + *data_text_internal->movement_translation_vertical_background - data_device->rect_connected.top),
+                        data_text_internal->text_layout,
+                        data_text_internal->text_brush
+                    );
+                }
 
                 if (*data_text_internal->movement_type_horizontal == e_movement_type_horizontal::left)
                 {
@@ -4502,9 +4542,6 @@ void thread_device(pst_device data_device)
                         *data_text_internal->movement_translation_vertical_background = DEFAULT_TEXT_MOVEMENT_TRANSLATION;
                     }
                 }
-
-                data_device->device_context_2d->SetTransform(D2D1::Matrix3x2F::Identity());
-                data_device->device_context_2d->PopAxisAlignedClip();
             }
         }
 
@@ -7188,7 +7225,7 @@ void create_text_instance(int index_text, pst_text data_text)
 
         if (hr != S_OK)
         {
-            HRESULT hr = _factory_dwrite->CreateTextFormat(
+            _factory_dwrite->CreateTextFormat(
                 L"Arial",
                 nullptr,
                 DWRITE_FONT_WEIGHT(*data_text_internal->text_weight),
