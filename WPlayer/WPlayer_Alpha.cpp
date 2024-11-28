@@ -4218,6 +4218,7 @@ void thread_device(pst_device data_device)
         command_queue->ExecuteCommandLists(_countof(command_lists), command_lists);
 
         // ----------------------------------------------------------------
+        // DWrite »ç¿ë
         auto it_text = _map_text.find(data_device->device_index);
         pst_text data_text = it_text->second;
 
@@ -6994,7 +6995,7 @@ void create_text_instance(int index_text, pst_text data_text)
 
     if (data_text_internal->text_format == nullptr)
     {
-        _factory_dwrite->CreateTextFormat(
+        HRESULT hr = _factory_dwrite->CreateTextFormat(
             data_text_internal->text_font_family.c_str(),
             nullptr,
             DWRITE_FONT_WEIGHT(*data_text_internal->text_weight),
@@ -7004,6 +7005,20 @@ void create_text_instance(int index_text, pst_text data_text)
             L"ko-KR",
             &data_text_internal->text_format
         );
+
+        if (hr != S_OK)
+        {
+            HRESULT hr = _factory_dwrite->CreateTextFormat(
+                L"Arial",
+                nullptr,
+                DWRITE_FONT_WEIGHT(*data_text_internal->text_weight),
+                DWRITE_FONT_STYLE(*data_text_internal->text_style),
+                DWRITE_FONT_STRETCH(*data_text_internal->text_stretch),
+                (float)(*data_text_internal->text_size),
+                L"ko-KR",
+                &data_text_internal->text_format
+            );
+        }
     }
         
     bool flag_background_rectangle_setted = false;
