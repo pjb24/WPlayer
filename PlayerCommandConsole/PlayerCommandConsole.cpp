@@ -964,6 +964,115 @@ void thread_packet_processing()
             }
         }
         break;
+        case e_command_type::font_blink_turn_on_off:
+        {
+            bool err = false;
+
+            packet_font_blink_turn_on_off_from_client* packet = (packet_font_blink_turn_on_off_from_client*)data_pair.first;
+
+            for (auto it_dplayer = _map_dplayer.begin(); it_dplayer != _map_dplayer.end(); it_dplayer++)
+            {
+                pst_dplayer data_dplayer = it_dplayer->second;
+
+                auto it_player_connection = _map_player_connection.find(data_dplayer->player_sync_group_index);
+                if (it_player_connection == _map_player_connection.end())
+                {
+                    continue;
+                }
+
+                void* player_connection = it_player_connection->second;
+
+                pst_font font = nullptr;
+
+                auto it_font = data_dplayer->map_font.find(packet->index_font);
+                if (it_font != data_dplayer->map_font.end())
+                {
+                    font = it_font->second;
+                }
+                else
+                {
+                    err = true;
+                }
+
+                if (err)
+                {
+                    cppsocket_struct_server_send_font_blink_turn_on_off data{};
+                    data.result = (uint16_t)e_packet_result::fail;
+                    data.index_font = packet->index_font;
+                    data.flag_blink_turn_on_off = packet->flag_blink_turn_on_off;
+
+                    // to console
+                    cppsocket_server_send_font_blink_turn_on_off(_server, data_pair.second, data);
+                }
+                else
+                {
+                    cppsocket_struct_server_send_font_blink_turn_on_off data{};
+                    data.result = (uint16_t)e_packet_result::ok;
+                    data.index_font = packet->index_font;
+                    data.flag_blink_turn_on_off = packet->flag_blink_turn_on_off;
+
+                    // to dplayer
+                    cppsocket_server_send_font_blink_turn_on_off(_server, player_connection, data);
+                    // to console
+                    cppsocket_server_send_font_blink_turn_on_off(_server, data_pair.second, data);
+                }
+            }
+        }
+        break;
+        case e_command_type::font_blink_interval:
+        {
+            packet_font_blink_interval_from_client* packet = (packet_font_blink_interval_from_client*)data_pair.first;
+
+            for (auto it_dplayer = _map_dplayer.begin(); it_dplayer != _map_dplayer.end(); it_dplayer++)
+            {
+                pst_dplayer data_dplayer = it_dplayer->second;
+
+                auto it_player_connection = _map_player_connection.find(data_dplayer->player_sync_group_index);
+                if (it_player_connection == _map_player_connection.end())
+                {
+                    continue;
+                }
+
+                void* player_connection = it_player_connection->second;
+
+                cppsocket_struct_server_send_font_blink_interval data{};
+                data.result = (uint16_t)e_packet_result::ok;
+                data.interval_blink_in_miliseconds = packet->interval_blink_in_miliseconds;
+
+                // to dplayer
+                cppsocket_server_send_font_blink_interval(_server, player_connection, data);
+                // to console
+                cppsocket_server_send_font_blink_interval(_server, data_pair.second, data);
+            }
+        }
+        break;
+        case e_command_type::font_blink_duration:
+        {
+            packet_font_blink_duration_from_client* packet = (packet_font_blink_duration_from_client*)data_pair.first;
+
+            for (auto it_dplayer = _map_dplayer.begin(); it_dplayer != _map_dplayer.end(); it_dplayer++)
+            {
+                pst_dplayer data_dplayer = it_dplayer->second;
+
+                auto it_player_connection = _map_player_connection.find(data_dplayer->player_sync_group_index);
+                if (it_player_connection == _map_player_connection.end())
+                {
+                    continue;
+                }
+
+                void* player_connection = it_player_connection->second;
+
+                cppsocket_struct_server_send_font_blink_duration data{};
+                data.result = (uint16_t)e_packet_result::ok;
+                data.duration_blink_in_miliseconds = packet->duration_blink_in_miliseconds;
+
+                // to dplayer
+                cppsocket_server_send_font_blink_duration(_server, player_connection, data);
+                // to console
+                cppsocket_server_send_font_blink_duration(_server, data_pair.second, data);
+            }
+        }
+        break;
 
         case e_command_type::program_quit:
         {

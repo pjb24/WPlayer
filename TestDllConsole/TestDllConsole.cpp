@@ -540,6 +540,49 @@ void callback_ptr_client(void* data)
         delete packet;
     }
     break;
+    case e_command_type::font_blink_turn_on_off:
+    {
+        packet_font_blink_turn_on_off_from_server* packet = new packet_font_blink_turn_on_off_from_server();
+        memcpy(packet, data, header->size);
+
+        std::cout << "font_blink_turn_on_off" << ", ";
+        std::cout << "command_type: " << (uint16_t)packet->header.cmd << ", ";
+        std::cout << "packet size: " << packet->header.size << ", ";
+        std::cout << "index_font: " << packet->index_font << ", ";
+        std::cout << "flag_blink_turn_on_off: " << packet->flag_blink_turn_on_off << ", ";
+        std::cout << "result: " << (uint16_t)packet->result << std::endl;
+
+        delete packet;
+    }
+    break;
+    case e_command_type::font_blink_interval:
+    {
+        packet_font_blink_interval_from_server* packet = new packet_font_blink_interval_from_server();
+        memcpy(packet, data, header->size);
+
+        std::cout << "font_blink_interval" << ", ";
+        std::cout << "command_type: " << (uint16_t)packet->header.cmd << ", ";
+        std::cout << "packet size: " << packet->header.size << ", ";
+        std::cout << "interval_blink_in_miliseconds: " << packet->interval_blink_in_miliseconds << ", ";
+        std::cout << "result: " << (uint16_t)packet->result << std::endl;
+
+        delete packet;
+    }
+    break;
+    case e_command_type::font_blink_duration:
+    {
+        packet_font_blink_duration_from_server* packet = new packet_font_blink_duration_from_server();
+        memcpy(packet, data, header->size);
+
+        std::cout << "font_blink_duration" << ", ";
+        std::cout << "command_type: " << (uint16_t)packet->header.cmd << ", ";
+        std::cout << "packet size: " << packet->header.size << ", ";
+        std::cout << "duration_blink_in_miliseconds: " << packet->duration_blink_in_miliseconds << ", ";
+        std::cout << "result: " << (uint16_t)packet->result << std::endl;
+
+        delete packet;
+    }
+    break;
 
     default:
         break;
@@ -595,6 +638,9 @@ void client_output_messages_step_1()
     std::cout << std::endl;
     std::cout << "28(font_create)" << std::endl;
     std::cout << "29(font_delete)" << std::endl;
+    std::cout << "30(font_blink_turn_on_off)" << std::endl;
+    std::cout << "31(font_blink_interval)" << std::endl;
+    std::cout << "32(font_blink_duration)" << std::endl;
 
     std::cout << std::endl;
     std::cout << "input 99 to stop program" << std::endl;
@@ -1385,6 +1431,61 @@ int main()
                     data.index_font = index_font;
 
                     cppsocket_client_send_font_delete(_client, data);
+                }
+                break;
+                case e_command_type::font_blink_turn_on_off:
+                {
+                    std::cout << "font_blink_turn_on_off, Input index_font flag_blink_turn_on_off_int" << std::endl;
+
+                    uint32_t index_font;
+                    bool flag_blink_turn_on_off;
+                    int flag_blink_turn_on_off_int;
+
+                    std::cin >> index_font;
+                    std::cin >> flag_blink_turn_on_off_int;
+
+                    if (flag_blink_turn_on_off_int == 0)
+                    {
+                        flag_blink_turn_on_off = false;
+                    }
+                    else
+                    {
+                        flag_blink_turn_on_off = true;
+                    }
+
+                    cppsocket_struct_client_send_font_blink_turn_on_off data{};
+                    data.index_font = index_font;
+                    data.flag_blink_turn_on_off = flag_blink_turn_on_off;
+
+                    cppsocket_client_send_font_blink_turn_on_off(_client, data);
+                }
+                break;
+                case e_command_type::font_blink_interval:
+                {
+                    std::cout << "font_blink_interval, Input interval_blink_in_miliseconds" << std::endl;
+
+                    int interval_blink_in_miliseconds;
+
+                    std::cin >> interval_blink_in_miliseconds;
+
+                    cppsocket_struct_client_send_font_blink_interval data{};
+                    data.interval_blink_in_miliseconds = interval_blink_in_miliseconds;
+
+                    cppsocket_client_send_font_blink_interval(_client, data);
+                }
+                break;
+                case e_command_type::font_blink_duration:
+                {
+                    std::cout << "font_blink_duration, Input duration_blink_in_miliseconds" << std::endl;
+
+                    int duration_blink_in_miliseconds;
+
+                    std::cin >> duration_blink_in_miliseconds;
+
+                    cppsocket_struct_client_send_font_blink_duration data{};
+                    data.duration_blink_in_miliseconds = duration_blink_in_miliseconds;
+
+                    cppsocket_client_send_font_blink_duration(_client, data);
                 }
                 break;
 
