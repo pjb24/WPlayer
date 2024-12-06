@@ -47,6 +47,10 @@ public:
     bool send_font_create(TcpConnection* connection, cppsocket_struct_server_send_font_create data);
     bool send_font_delete(TcpConnection* connection, cppsocket_struct_server_send_font_delete data);
 
+    bool send_font_blink_turn_on_off(TcpConnection* connection, cppsocket_struct_server_send_font_blink_turn_on_off data);
+    bool send_font_blink_interval(TcpConnection* connection, cppsocket_struct_server_send_font_blink_interval data);
+    bool send_font_blink_duration(TcpConnection* connection, cppsocket_struct_server_send_font_blink_duration data);
+
 private:
 	void OnConnect(TcpConnection* newConnection) override;
 	void OnDisconnect(TcpConnection* lostConnection, std::string reason) override;

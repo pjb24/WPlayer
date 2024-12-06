@@ -62,6 +62,10 @@ EXPORT void cppsocket_server_send_dplayer_connect_data_rect(void* server_instanc
 EXPORT void cppsocket_server_send_font_create(void* server_instance, void* connection, cppsocket_struct_server_send_font_create data);
 EXPORT void cppsocket_server_send_font_delete(void* server_instance, void* connection, cppsocket_struct_server_send_font_delete data);
 
+EXPORT void cppsocket_server_send_font_blink_turn_on_off(void* server_instance, void* connection, cppsocket_struct_server_send_font_blink_turn_on_off data);
+EXPORT void cppsocket_server_send_font_blink_interval(void* server_instance, void* connection, cppsocket_struct_server_send_font_blink_interval data);
+EXPORT void cppsocket_server_send_font_blink_duration(void* server_instance, void* connection, cppsocket_struct_server_send_font_blink_duration data);
+
 // --------------------------------
 
 EXPORT void* cppsocket_client_create();
@@ -105,5 +109,9 @@ EXPORT void cppsocket_client_send_dplayer_stop(void* client_instance, cppsocket_
 
 EXPORT void cppsocket_client_send_font_create(void* client_instance, cppsocket_struct_client_send_font_create data);
 EXPORT void cppsocket_client_send_font_delete(void* client_instance, cppsocket_struct_client_send_font_delete data);
+
+EXPORT void cppsocket_client_send_font_blink_turn_on_off(void* client_instance, cppsocket_struct_client_send_font_blink_turn_on_off data);
+EXPORT void cppsocket_client_send_font_blink_interval(void* client_instance, cppsocket_struct_client_send_font_blink_interval data);
+EXPORT void cppsocket_client_send_font_blink_duration(void* client_instance, cppsocket_struct_client_send_font_blink_duration data);
 
 // --------------------------------

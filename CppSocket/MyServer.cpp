@@ -670,3 +670,65 @@ bool MyServer::send_font_delete(TcpConnection* connection, cppsocket_struct_serv
 
     return true;
 }
+
+bool MyServer::send_font_blink_turn_on_off(TcpConnection* connection, cppsocket_struct_server_send_font_blink_turn_on_off data)
+{
+    packet_header header{};
+    header.cmd = e_command_type::font_blink_turn_on_off;
+    header.size = sizeof(packet_font_blink_turn_on_off_from_server);
+
+    packet_font_blink_turn_on_off_from_server out_packet{};
+    out_packet.header = header;
+
+    out_packet.result = (e_packet_result)data.result;
+
+    out_packet.index_font = data.index_font;
+
+    out_packet.flag_blink_turn_on_off = data.flag_blink_turn_on_off;
+
+    std::shared_ptr<Packet> font_blink_turn_on_off_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
+    *font_blink_turn_on_off_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(font_blink_turn_on_off_packet);
+
+    return true;
+}
+
+bool MyServer::send_font_blink_interval(TcpConnection* connection, cppsocket_struct_server_send_font_blink_interval data)
+{
+    packet_header header{};
+    header.cmd = e_command_type::font_blink_interval;
+    header.size = sizeof(packet_font_blink_interval_from_server);
+
+    packet_font_blink_interval_from_server out_packet{};
+    out_packet.header = header;
+
+    out_packet.result = (e_packet_result)data.result;
+
+    out_packet.interval_blink_in_miliseconds = data.interval_blink_in_miliseconds;
+
+    std::shared_ptr<Packet> font_blink_interval_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
+    *font_blink_interval_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(font_blink_interval_packet);
+
+    return true;
+}
+
+bool MyServer::send_font_blink_duration(TcpConnection* connection, cppsocket_struct_server_send_font_blink_duration data)
+{
+    packet_header header{};
+    header.cmd = e_command_type::font_blink_duration;
+    header.size = sizeof(packet_font_blink_duration_from_server);
+
+    packet_font_blink_duration_from_server out_packet{};
+    out_packet.header = header;
+
+    out_packet.result = (e_packet_result)data.result;
+
+    out_packet.duration_blink_in_miliseconds = data.duration_blink_in_miliseconds;
+
+    std::shared_ptr<Packet> font_blink_duration_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
+    *font_blink_duration_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(font_blink_duration_packet);
+
+    return true;
+}

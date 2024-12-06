@@ -44,6 +44,10 @@ public:
     bool send_font_create(cppsocket_struct_client_send_font_create data);
     bool send_font_delete(cppsocket_struct_client_send_font_delete data);
 
+    bool send_font_blink_turn_on_off(cppsocket_struct_client_send_font_blink_turn_on_off data);
+    bool send_font_blink_interval(cppsocket_struct_client_send_font_blink_interval data);
+    bool send_font_blink_duration(cppsocket_struct_client_send_font_blink_duration data);
+
 private:
 	bool ProcessPacket(std::shared_ptr<Packet> packet) override;
 	void OnConnect() override;

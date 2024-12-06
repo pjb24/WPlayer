@@ -241,6 +241,23 @@ struct cppsocket_struct_client_send_font_delete
     uint32_t index_font;
 };
 
+struct cppsocket_struct_client_send_font_blink_turn_on_off
+{
+    uint32_t index_font;
+
+    bool flag_blink_turn_on_off;
+};
+
+struct cppsocket_struct_client_send_font_blink_interval
+{
+    int interval_blink_in_miliseconds;
+};
+
+struct cppsocket_struct_client_send_font_blink_duration
+{
+    int duration_blink_in_miliseconds;
+};
+
 // --------------------------------
 
 // server ////////////////////////////////
@@ -509,6 +526,29 @@ struct cppsocket_struct_server_send_font_delete
     uint16_t result;
 
     uint32_t index_font;
+};
+
+struct cppsocket_struct_server_send_font_blink_turn_on_off
+{
+    uint16_t result;
+
+    uint32_t index_font;
+
+    bool flag_blink_turn_on_off;
+};
+
+struct cppsocket_struct_server_send_font_blink_interval
+{
+    uint16_t result;
+
+    int interval_blink_in_miliseconds;
+};
+
+struct cppsocket_struct_server_send_font_blink_duration
+{
+    uint16_t result;
+
+    int duration_blink_in_miliseconds;
 };
 
 // --------------------------------

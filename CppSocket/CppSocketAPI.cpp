@@ -186,6 +186,24 @@ void cppsocket_server_send_font_delete(void* server_instance, void* connection, 
     server->send_font_delete((TcpConnection*)connection, data);
 }
 
+void cppsocket_server_send_font_blink_turn_on_off(void* server_instance, void* connection, cppsocket_struct_server_send_font_blink_turn_on_off data)
+{
+    MyServer* server = (MyServer*)server_instance;
+    server->send_font_blink_turn_on_off((TcpConnection*)connection, data);
+}
+
+void cppsocket_server_send_font_blink_interval(void* server_instance, void* connection, cppsocket_struct_server_send_font_blink_interval data)
+{
+    MyServer* server = (MyServer*)server_instance;
+    server->send_font_blink_interval((TcpConnection*)connection, data);
+}
+
+void cppsocket_server_send_font_blink_duration(void* server_instance, void* connection, cppsocket_struct_server_send_font_blink_duration data)
+{
+    MyServer* server = (MyServer*)server_instance;
+    server->send_font_blink_duration((TcpConnection*)connection, data);
+}
+
 // --------------------------------
 
 void * cppsocket_client_create()
@@ -354,6 +372,24 @@ void cppsocket_client_send_font_delete(void* client_instance, cppsocket_struct_c
 {
     MyClient* client = (MyClient*)client_instance;
     client->send_font_delete(data);
+}
+
+void cppsocket_client_send_font_blink_turn_on_off(void* client_instance, cppsocket_struct_client_send_font_blink_turn_on_off data)
+{
+    MyClient* client = (MyClient*)client_instance;
+    client->send_font_blink_turn_on_off(data);
+}
+
+void cppsocket_client_send_font_blink_interval(void* client_instance, cppsocket_struct_client_send_font_blink_interval data)
+{
+    MyClient* client = (MyClient*)client_instance;
+    client->send_font_blink_interval(data);
+}
+
+void cppsocket_client_send_font_blink_duration(void* client_instance, cppsocket_struct_client_send_font_blink_duration data)
+{
+    MyClient* client = (MyClient*)client_instance;
+    client->send_font_blink_duration(data);
 }
 
 // --------------------------------

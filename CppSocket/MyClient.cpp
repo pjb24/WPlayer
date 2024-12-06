@@ -558,3 +558,59 @@ bool MyClient::send_font_delete(cppsocket_struct_client_send_font_delete data)
 
     return true;
 }
+
+bool MyClient::send_font_blink_turn_on_off(cppsocket_struct_client_send_font_blink_turn_on_off data)
+{
+    packet_header header{};
+    header.cmd = e_command_type::font_blink_turn_on_off;
+    header.size = sizeof(packet_font_blink_turn_on_off_from_client);
+
+    packet_font_blink_turn_on_off_from_client packet{};
+    packet.header = header;
+
+    packet.index_font = data.index_font;
+
+    packet.flag_blink_turn_on_off = data.flag_blink_turn_on_off;
+
+    std::shared_ptr<Packet> font_blink_turn_on_off_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_client);
+    *font_blink_turn_on_off_packet << (void*)&packet;
+    m_connection.m_pmOutgoing.Append(font_blink_turn_on_off_packet);
+
+    return true;
+}
+
+bool MyClient::send_font_blink_interval(cppsocket_struct_client_send_font_blink_interval data)
+{
+    packet_header header{};
+    header.cmd = e_command_type::font_blink_interval;
+    header.size = sizeof(packet_font_blink_interval_from_client);
+
+    packet_font_blink_interval_from_client packet{};
+    packet.header = header;
+
+    packet.interval_blink_in_miliseconds = data.interval_blink_in_miliseconds;
+
+    std::shared_ptr<Packet> font_blink_interval_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_client);
+    *font_blink_interval_packet << (void*)&packet;
+    m_connection.m_pmOutgoing.Append(font_blink_interval_packet);
+
+    return true;
+}
+
+bool MyClient::send_font_blink_duration(cppsocket_struct_client_send_font_blink_duration data)
+{
+    packet_header header{};
+    header.cmd = e_command_type::font_blink_duration;
+    header.size = sizeof(packet_font_blink_duration_from_client);
+
+    packet_font_blink_duration_from_client packet{};
+    packet.header = header;
+
+    packet.duration_blink_in_miliseconds = data.duration_blink_in_miliseconds;
+
+    std::shared_ptr<Packet> font_blink_duration_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_client);
+    *font_blink_duration_packet << (void*)&packet;
+    m_connection.m_pmOutgoing.Append(font_blink_duration_packet);
+
+    return true;
+}

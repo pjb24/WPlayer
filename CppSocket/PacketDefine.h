@@ -67,6 +67,10 @@ enum class e_command_type : uint16_t
     font_create,    // 28
     font_delete,    // 29
 
+    font_blink_turn_on_off, // 30
+    font_blink_interval,    // 31
+    font_blink_duration,    // 32
+
     invalid = u16_invalid_id
 };
 
@@ -798,6 +802,64 @@ struct packet_font_delete_from_server
     e_packet_result   result;     // 명령 수행 결과
 
     uint32_t index_font;
+};
+
+// --------------------------------
+
+// font_blink_turn_on_off ////////////////////////////////
+struct packet_font_blink_turn_on_off_from_client
+{
+    packet_header   header;
+
+    uint32_t index_font;
+
+    bool flag_blink_turn_on_off;
+};
+
+struct packet_font_blink_turn_on_off_from_server
+{
+    packet_header   header;
+    e_packet_result   result;     // 명령 수행 결과
+
+    uint32_t index_font;
+
+    bool flag_blink_turn_on_off;
+};
+
+// --------------------------------
+
+// font_blink_interval ////////////////////////////////
+struct packet_font_blink_interval_from_client
+{
+    packet_header   header;
+
+    int interval_blink_in_miliseconds;
+};
+
+struct packet_font_blink_interval_from_server
+{
+    packet_header   header;
+    e_packet_result   result;     // 명령 수행 결과
+
+    int interval_blink_in_miliseconds;
+};
+
+// --------------------------------
+
+// font_blink_duration ////////////////////////////////
+struct packet_font_blink_duration_from_client
+{
+    packet_header   header;
+
+    int duration_blink_in_miliseconds;
+};
+
+struct packet_font_blink_duration_from_server
+{
+    packet_header   header;
+    e_packet_result   result;     // 명령 수행 결과
+    
+    int duration_blink_in_miliseconds;
 };
 
 // --------------------------------
