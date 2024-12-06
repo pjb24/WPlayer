@@ -515,6 +515,8 @@ typedef struct st_text_internal
     bool flag_created;
     bool flag_deleted;
 
+    bool flag_blink;
+
 }*pst_text_internal;
 
 typedef struct st_text
@@ -522,6 +524,14 @@ typedef struct st_text
     UINT index_device = UINT_MAX;
 
     std::map<UINT, pst_text_internal> map_text_internal;
+
+    int interval_blink_in_miliseconds;
+    int counter_interval_blink;
+
+    int duration_blink_in_miliseconds;
+    int counter_duration_blink;
+
+    bool flag_blink_status;
 
 }*pst_text;
 
@@ -929,6 +939,10 @@ void set_text_movement_threshold_vertical_background(int index_text, int thresho
 
 void create_text_instance(int index_text, pst_text data_text);
 void delete_text_instance(int index_text, pst_text data_text);
+
+void set_text_blink_turn_on_off(int index_text, bool flag_blink_turn_on_off);
+void set_text_blink_interval(int interval_blink_in_miliseconds);
+void set_text_blink_duration(int duration_blink_in_miliseconds);
 
 // --------------------------------
 
@@ -3580,6 +3594,30 @@ void thread_packet_processing()
             delete packet;
         }
         break;
+        case e_command_type::font_blink_turn_on_off:
+        {
+            packet_font_blink_turn_on_off_from_client* packet = new packet_font_blink_turn_on_off_from_client();
+            memcpy(packet, data, header->size);
+
+            set_text_blink_turn_on_off(packet->index_font, packet->flag_blink_turn_on_off);
+        }
+        break;
+        case e_command_type::font_blink_interval:
+        {
+            packet_font_blink_interval_from_client* packet = new packet_font_blink_interval_from_client();
+            memcpy(packet, data, header->size);
+
+            set_text_blink_interval(packet->interval_blink_in_miliseconds);
+        }
+        break;
+        case e_command_type::font_blink_duration:
+        {
+            packet_font_blink_duration_from_client* packet = new packet_font_blink_duration_from_client();
+            memcpy(packet, data, header->size);
+
+            set_text_blink_duration(packet->duration_blink_in_miliseconds);
+        }
+        break;
 
         default:
             break;
@@ -4320,6 +4358,25 @@ void thread_device(pst_device data_device)
         auto it_text = _map_text.find(data_device->device_index);
         pst_text data_text = it_text->second;
 
+        if (data_text->flag_blink_status == true)
+        {
+            data_text->counter_duration_blink += 1;
+            if (data_text->counter_duration_blink > data_text->duration_blink_in_miliseconds / 1'000.0 * 60.0)
+            {
+                data_text->counter_duration_blink = 0;
+                data_text->flag_blink_status = false;
+            }
+        }
+        else
+        {
+            data_text->counter_interval_blink += 1;
+            if (data_text->counter_interval_blink > data_text->interval_blink_in_miliseconds / 1'000.0 * 60.0)
+            {
+                data_text->counter_interval_blink = 0;
+                data_text->flag_blink_status = true;
+            }
+        }
+
         {
             std::unique_lock<std::shared_mutex> lk(*data_device->mutex_map_text_internal);
             for (auto it_text_internal = data_text->map_text_internal.begin(); it_text_internal != data_text->map_text_internal.end(); )
@@ -4399,12 +4456,16 @@ void thread_device(pst_device data_device)
                         data_device->device_context_2d->FillRectangle(rect_background, data_text_internal->text_brush_background);
                     }
 
-                    data_device->device_context_2d->DrawTextLayout(
-                        D2D1::Point2F(*data_text_internal->movement_translation_horizontal + *data_text_internal->text_start_coordinate_left + *data_text_internal->movement_translation_horizontal_background - data_device->rect_connected.left,
-                            *data_text_internal->movement_translation_vertical + *data_text_internal->text_start_coordinate_top + *data_text_internal->movement_translation_vertical_background - data_device->rect_connected.top),
-                        data_text_internal->text_layout,
-                        data_text_internal->text_brush
-                    );
+                    if (!(data_text_internal->flag_blink == true
+                        && data_text->flag_blink_status == true))
+                    {
+                        data_device->device_context_2d->DrawTextLayout(
+                            D2D1::Point2F(*data_text_internal->movement_translation_horizontal + *data_text_internal->text_start_coordinate_left + *data_text_internal->movement_translation_horizontal_background - data_device->rect_connected.left,
+                                *data_text_internal->movement_translation_vertical + *data_text_internal->text_start_coordinate_top + *data_text_internal->movement_translation_vertical_background - data_device->rect_connected.top),
+                            data_text_internal->text_layout,
+                            data_text_internal->text_brush
+                        );
+                    }
                 }
 
                 if (*data_text_internal->movement_type_horizontal == e_movement_type_horizontal::left)
@@ -6250,6 +6311,14 @@ void create_texts()
         pst_text data_text = new st_text();
         data_text->index_device = data_device->device_index;
 
+        data_text->interval_blink_in_miliseconds = 5'000;
+        data_text->counter_interval_blink = 0;
+
+        data_text->duration_blink_in_miliseconds = 500;
+        data_text->counter_duration_blink = 0;
+
+        data_text->flag_blink_status = false;
+
         _map_text.insert({ data_text->index_device, data_text });
     }
 }
@@ -6556,6 +6625,8 @@ void create_text(int index_text)
 
             data_text_internal->flag_created = false;
             data_text_internal->flag_deleted = false;
+
+            data_text_internal->flag_blink = false;
 
             data_text->map_text_internal.insert({ index_text, data_text_internal });
         }
@@ -7485,5 +7556,41 @@ void delete_text_instance(int index_text, pst_text data_text)
 
         delete data_text_internal;
         data_text_internal = nullptr;
+    }
+}
+
+void set_text_blink_turn_on_off(int index_text, bool flag_blink_turn_on_off)
+{
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal != data_text->map_text_internal.end())
+        {
+            pst_text_internal data_text_internal = it_text_internal->second;
+
+            data_text_internal->flag_blink = flag_blink_turn_on_off;
+        }
+    }
+}
+
+void set_text_blink_interval(int interval_blink_in_miliseconds)
+{
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        data_text->interval_blink_in_miliseconds = interval_blink_in_miliseconds;
+    }
+}
+
+void set_text_blink_duration(int duration_blink_in_miliseconds)
+{
+    for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
+    {
+        pst_text data_text = it_text->second;
+
+        data_text->duration_blink_in_miliseconds = duration_blink_in_miliseconds;
     }
 }
