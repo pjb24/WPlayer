@@ -221,5 +221,25 @@ namespace TestCSharpConsoleCppSocket
         public UInt32 index_font;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    struct cppsocket_struct_client_send_font_blink_turn_on_off
+    {
+        public UInt32 index_font;
+
+        public bool flag_blink_turn_on_off;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct cppsocket_struct_client_send_font_blink_interval
+    {
+        public int interval_blink_in_miliseconds;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct cppsocket_struct_client_send_font_blink_duration
+    {
+        public int duration_blink_in_miliseconds;
+    }
+
     // --------------------------------
 }

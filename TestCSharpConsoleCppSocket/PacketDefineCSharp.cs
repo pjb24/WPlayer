@@ -60,6 +60,10 @@ namespace TestCSharpConsoleCppSocket
         font_create,    // 28
         font_delete,    // 29
 
+        font_blink_turn_on_off, // 30
+        font_blink_interval,    // 31
+        font_blink_duration,    // 32
+
         invalid = UInt16.MaxValue
     };
 
@@ -386,4 +390,32 @@ namespace TestCSharpConsoleCppSocket
         public UInt32 index_font;       // font 번호
     };
 
+    [StructLayout(LayoutKind.Sequential)]
+    struct packet_font_blink_turn_on_off_from_server
+    {
+        public packet_header header;
+        public e_packet_result result;     // 명령 수행 결과
+
+        public UInt32 index_font;       // font 번호
+
+        public bool flag_blink_turn_on_off;
+    };
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct packet_font_blink_interval_from_server
+    {
+        public packet_header header;
+        public e_packet_result result;     // 명령 수행 결과
+
+        public int interval_blink_in_miliseconds;
+    };
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct packet_font_blink_duration_from_server
+    {
+        public packet_header header;
+        public e_packet_result result;     // 명령 수행 결과
+
+        public int duration_blink_in_miliseconds;
+    };
 }

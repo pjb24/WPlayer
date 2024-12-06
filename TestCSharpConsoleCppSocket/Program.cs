@@ -91,6 +91,15 @@ namespace TestCSharpConsoleCppSocket
 
         [DllImport("CppSocket.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void cppsocket_client_send_font_delete(IntPtr client_instance, cppsocket_struct_client_send_font_delete data);
+
+        [DllImport("CppSocket.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void cppsocket_client_send_font_blink_turn_on_off(IntPtr client_instance, cppsocket_struct_client_send_font_blink_turn_on_off data);
+
+        [DllImport("CppSocket.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void cppsocket_client_send_font_blink_interval(IntPtr client_instance, cppsocket_struct_client_send_font_blink_interval data);
+
+        [DllImport("CppSocket.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void cppsocket_client_send_font_blink_duration(IntPtr client_instance, cppsocket_struct_client_send_font_blink_duration data);
     }
 
     class CppSocket
@@ -132,6 +141,9 @@ namespace TestCSharpConsoleCppSocket
             Console.WriteLine("");
             Console.WriteLine("28(font_create)");
             Console.WriteLine("29(font_delete)");
+            Console.WriteLine("30(font_blink_turn_on_off)");
+            Console.WriteLine("31(font_blink_interval)");
+            Console.WriteLine("32(font_blink_duration)");
 
             Console.WriteLine("");
             Console.WriteLine("input 99 to stop program");
@@ -410,6 +422,40 @@ namespace TestCSharpConsoleCppSocket
                         Console.Write($"command_type: {(UInt16)packet.header.cmd}, ");
                         Console.Write($"packet size: {packet.header.size}, ");
                         Console.Write($"index_font: {packet.index_font}, ");
+                        Console.WriteLine($"result: {(UInt16)packet.result}");
+                    }
+                    break;
+                case e_command_type.font_blink_turn_on_off:
+                    {
+                        packet_font_blink_turn_on_off_from_server packet = Marshal.PtrToStructure<packet_font_blink_turn_on_off_from_server>(data);
+
+                        Console.Write($"font_blink_turn_on_off, ");
+                        Console.Write($"command_type: {(UInt16)packet.header.cmd}, ");
+                        Console.Write($"packet size: {packet.header.size}, ");
+                        Console.Write($"index_font: {packet.index_font}, ");
+                        Console.Write($"flag_blink_turn_on_off: {packet.flag_blink_turn_on_off}, ");
+                        Console.WriteLine($"result: {(UInt16)packet.result}");
+                    }
+                    break;
+                case e_command_type.font_blink_interval:
+                    {
+                        packet_font_blink_interval_from_server packet = Marshal.PtrToStructure<packet_font_blink_interval_from_server>(data);
+
+                        Console.Write($"font_blink_interval, ");
+                        Console.Write($"command_type: {(UInt16)packet.header.cmd}, ");
+                        Console.Write($"packet size: {packet.header.size}, ");
+                        Console.Write($"interval_blink_in_miliseconds: {packet.interval_blink_in_miliseconds}, ");
+                        Console.WriteLine($"result: {(UInt16)packet.result}");
+                    }
+                    break;
+                case e_command_type.font_blink_duration:
+                    {
+                        packet_font_blink_duration_from_server packet = Marshal.PtrToStructure<packet_font_blink_duration_from_server>(data);
+
+                        Console.Write($"font_blink_duration, ");
+                        Console.Write($"command_type: {(UInt16)packet.header.cmd}, ");
+                        Console.Write($"packet size: {packet.header.size}, ");
+                        Console.Write($"duration_blink_in_miliseconds: {packet.duration_blink_in_miliseconds}, ");
                         Console.WriteLine($"result: {(UInt16)packet.result}");
                     }
                     break;
@@ -804,6 +850,52 @@ namespace TestCSharpConsoleCppSocket
                                 data.index_font = uint.Parse(cmd_line);
 
                                 CppSocketAPI.cppsocket_client_send_font_delete(socket._client, data);
+                            }
+                            break;
+                        case e_command_type.font_blink_turn_on_off:
+                            {
+                                Console.WriteLine("font_blink_turn_on_off, Input index_font flag_blink_turn_on_off_int");
+
+                                string cmd_line = Console.ReadLine();
+                                string[] cmd_words = cmd_line.Split(' ');
+
+                                cppsocket_struct_client_send_font_blink_turn_on_off data;
+                                data.index_font = uint.Parse(cmd_words[0]);
+                                int flag_blink_turn_on_off_int = int.Parse(cmd_words[1]);
+                                if (flag_blink_turn_on_off_int == 0)
+                                {
+                                    data.flag_blink_turn_on_off = false;
+                                }
+                                else
+                                {
+                                    data.flag_blink_turn_on_off = true;
+                                }
+
+                                CppSocketAPI.cppsocket_client_send_font_blink_turn_on_off(socket._client, data);
+                            }
+                            break;
+                        case e_command_type.font_blink_interval:
+                            {
+                                Console.WriteLine("font_blink_interval, Input interval_blink_in_miliseconds");
+
+                                string cmd_line = Console.ReadLine();
+
+                                cppsocket_struct_client_send_font_blink_interval data;
+                                data.interval_blink_in_miliseconds = int.Parse(cmd_line);
+
+                                CppSocketAPI.cppsocket_client_send_font_blink_interval(socket._client, data);
+                            }
+                            break;
+                        case e_command_type.font_blink_duration:
+                            {
+                                Console.WriteLine("font_blink_duration, Input duration_blink_in_miliseconds");
+
+                                string cmd_line = Console.ReadLine();
+
+                                cppsocket_struct_client_send_font_blink_duration data;
+                                data.duration_blink_in_miliseconds = int.Parse(cmd_line);
+
+                                CppSocketAPI.cppsocket_client_send_font_blink_duration(socket._client, data);
                             }
                             break;
 
