@@ -85,6 +85,12 @@ namespace TestCSharpConsoleCppSocket
 
         [DllImport("CppSocket.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern void cppsocket_client_send_dplayer_stop(IntPtr client_instance, cppsocket_struct_client_send_dplayer_stop data);
+
+        [DllImport("CppSocket.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void cppsocket_client_send_font_create(IntPtr client_instance, cppsocket_struct_client_send_font_create data);
+
+        [DllImport("CppSocket.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void cppsocket_client_send_font_delete(IntPtr client_instance, cppsocket_struct_client_send_font_delete data);
     }
 
     class CppSocket
@@ -123,6 +129,9 @@ namespace TestCSharpConsoleCppSocket
             Console.WriteLine("22(dplayer_play_stop)");
             Console.WriteLine("");
             Console.WriteLine("26(gplayer_play_url_different_videos)");
+            Console.WriteLine("");
+            Console.WriteLine("28(font_create)");
+            Console.WriteLine("29(font_delete)");
 
             Console.WriteLine("");
             Console.WriteLine("input 99 to stop program");
@@ -346,6 +355,61 @@ namespace TestCSharpConsoleCppSocket
                         Console.Write($"command_type: {(UInt16)packet.header.cmd}, ");
                         Console.Write($"packet size: {packet.header.size}, ");
                         Console.Write($"player_sync_group_index: {packet.player_sync_group_index}, ");
+                        Console.WriteLine($"result: {(UInt16)packet.result}");
+                    }
+                    break;
+
+                case e_command_type.font_create:
+                    {
+                        packet_font_create_from_server packet = Marshal.PtrToStructure<packet_font_create_from_server>(data);
+
+                        Console.Write($"font_create, ");
+                        Console.Write($"command_type: {(UInt16)packet.header.cmd}, ");
+                        Console.Write($"packet size: {packet.header.size}, ");
+                        Console.Write($"index_font: {packet.index_font}, ");
+                        Console.Write($"font_size: {packet.font_size}, ");
+                        Console.Write($"font_color_r: {packet.font_color_r}, ");
+                        Console.Write($"font_color_g: {packet.font_color_g}, ");
+                        Console.Write($"font_color_b: {packet.font_color_b}, ");
+                        Console.Write($"font_color_a: {packet.font_color_a}, ");
+                        Console.Write($"background_color_r: {packet.background_color_r}, ");
+                        Console.Write($"background_color_g: {packet.background_color_g}, ");
+                        Console.Write($"background_color_b: {packet.background_color_b}, ");
+                        Console.Write($"background_color_a: {packet.background_color_a}, ");
+                        Console.Write($"movement_type_horizontal: {packet.movement_type_horizontal}, ");
+                        Console.Write($"movement_speed_horizontal: {packet.movement_speed_horizontal}, ");
+                        Console.Write($"movement_threshold_horizontal: {packet.movement_threshold_horizontal}, ");
+                        Console.Write($"movement_type_horizontal_background: {packet.movement_type_horizontal_background}, ");
+                        Console.Write($"movement_speed_horizontal_background: {packet.movement_speed_horizontal_background}, ");
+                        Console.Write($"movement_threshold_horizontal_background: {packet.movement_threshold_horizontal_background}, ");
+                        Console.Write($"movement_type_vertical: {packet.movement_type_vertical}, ");
+                        Console.Write($"movement_speed_vertical: {packet.movement_speed_vertical}, ");
+                        Console.Write($"movement_threshold_vertical: {packet.movement_threshold_vertical}, ");
+                        Console.Write($"movement_type_vertical_background: {packet.movement_type_vertical_background}, ");
+                        Console.Write($"movement_speed_vertical_background: {packet.movement_speed_vertical_background}, ");
+                        Console.Write($"movement_threshold_vertical_background: {packet.movement_threshold_vertical_background}, ");
+                        Console.Write($"font_start_coordinate_left: {packet.font_start_coordinate_left}, ");
+                        Console.Write($"font_start_coordinate_top: {packet.font_start_coordinate_top}, ");
+                        Console.Write($"backgound_rectangle_width: {packet.backgound_rectangle_width}, ");
+                        Console.Write($"backgound_rectangle_height: {packet.backgound_rectangle_height}, ");
+                        Console.Write($"font_weight: {packet.font_weight}, ");
+                        Console.Write($"font_style: {packet.font_style}, ");
+                        Console.Write($"font_stretch: {packet.font_stretch}, ");
+                        Console.Write($"content_size: {packet.content_size}, ");
+                        Console.Write($"content_string: {packet.content_string}, ");
+                        Console.Write($"font_family_size: {packet.font_family_size}, ");
+                        Console.Write($"font_family: {packet.font_family}, ");
+                        Console.WriteLine($"result: {(UInt16)packet.result}");
+                    }
+                    break;
+                case e_command_type.font_delete:
+                    {
+                        packet_font_delete_from_server packet = Marshal.PtrToStructure<packet_font_delete_from_server>(data);
+
+                        Console.Write($"font_delete, ");
+                        Console.Write($"command_type: {(UInt16)packet.header.cmd}, ");
+                        Console.Write($"packet size: {packet.header.size}, ");
+                        Console.Write($"index_font: {packet.index_font}, ");
                         Console.WriteLine($"result: {(UInt16)packet.result}");
                     }
                     break;
@@ -663,6 +727,83 @@ namespace TestCSharpConsoleCppSocket
                                 data.player_sync_group_index = uint.Parse(cmd_line);
 
                                 CppSocketAPI.cppsocket_client_send_dplayer_stop(socket._client, data);
+                            }
+                            break;
+
+                        case e_command_type.font_create:
+                            {
+                                Console.WriteLine("font_create, Input index_font content_string font_family font_size " +
+                                "font_color_r font_color_g font_color_b font_color_a " +
+                                "background_color_r background_color_g background_color_b background_color_a" +
+                                "movement_type_horizontal movement_speed_horizontal movement_threshold_horizontal" +
+                                "movement_type_horizontal_background movement_speed_horizontal_background movement_threshold_horizontal_background" +
+                                "movement_type_vertical movement_speed_vertical movement_threshold_vertical" +
+                                "movement_type_vertical_background movement_speed_vertical_background movement_threshold_vertical_background" +
+                                "font_start_coordinate_left font_start_coordinate_top" +
+                                "backgound_rectangle_width backgound_rectangle_height");
+
+                                string cmd_line = Console.ReadLine();
+                                string[] cmd_words = cmd_line.Split(' ');
+
+                                cppsocket_struct_client_send_font_create data;
+                                data.index_font = uint.Parse(cmd_words[0]);
+
+                                data.content_string = cmd_words[1];
+                                data.content_size = data.content_string.Length;
+                                data.font_family = cmd_words[2];
+                                data.font_family_size = data.font_family.Length;
+
+                                data.font_size = int.Parse(cmd_words[3]);
+
+                                data.font_color_r = int.Parse(cmd_words[4]);
+                                data.font_color_g = int.Parse(cmd_words[5]);
+                                data.font_color_b = int.Parse(cmd_words[6]);
+                                data.font_color_a = int.Parse(cmd_words[7]);
+
+                                data.background_color_r = int.Parse(cmd_words[8]);
+                                data.background_color_g = int.Parse(cmd_words[9]);
+                                data.background_color_b = int.Parse(cmd_words[10]);
+                                data.background_color_a = int.Parse(cmd_words[11]);
+
+                                data.movement_type_horizontal = int.Parse(cmd_words[12]);
+                                data.movement_speed_horizontal = int.Parse(cmd_words[13]);
+                                data.movement_threshold_horizontal = int.Parse(cmd_words[14]);
+
+                                data.movement_type_horizontal_background = int.Parse(cmd_words[15]);
+                                data.movement_speed_horizontal_background = int.Parse(cmd_words[16]);
+                                data.movement_threshold_horizontal_background = int.Parse(cmd_words[17]);
+
+                                data.movement_type_vertical = int.Parse(cmd_words[18]);
+                                data.movement_speed_vertical = int.Parse(cmd_words[19]);
+                                data.movement_threshold_vertical = int.Parse(cmd_words[20]);
+
+                                data.movement_type_vertical_background = int.Parse(cmd_words[21]);
+                                data.movement_speed_vertical_background = int.Parse(cmd_words[22]);
+                                data.movement_threshold_vertical_background = int.Parse(cmd_words[23]);
+
+                                data.font_start_coordinate_left = int.Parse(cmd_words[24]);
+                                data.font_start_coordinate_top = int.Parse(cmd_words[25]);
+
+                                data.backgound_rectangle_width = int.Parse(cmd_words[26]);
+                                data.backgound_rectangle_height = int.Parse(cmd_words[27]);
+
+                                data.font_weight = (int)e_dwrite_font_weight.DWRITE_FONT_WEIGHT_NORMAL;
+                                data.font_style = (int)e_dwrite_font_style.DWRITE_FONT_STYLE_NORMAL;
+                                data.font_stretch = (int)e_dwrite_font_stretch.DWRITE_FONT_STRETCH_NORMAL;
+
+                                CppSocketAPI.cppsocket_client_send_font_create(socket._client, data);
+                            }
+                            break;
+                        case e_command_type.font_delete:
+                            {
+                                Console.WriteLine("font_delete, Input index_font");
+
+                                string cmd_line = Console.ReadLine();
+
+                                cppsocket_struct_client_send_font_delete data;
+                                data.index_font = uint.Parse(cmd_line);
+
+                                CppSocketAPI.cppsocket_client_send_font_delete(socket._client, data);
                             }
                             break;
 
