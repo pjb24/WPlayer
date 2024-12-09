@@ -3523,6 +3523,57 @@ void thread_packet_processing()
             set_text_movement_type_vertical_background(packet->index_font, (e_movement_type_vertical)packet->movement_type_vertical_background);
             set_text_movement_speed_vertical_background(packet->index_font, packet->movement_speed_vertical_background);
             set_text_movement_threshold_vertical_background(packet->index_font, packet->movement_threshold_vertical_background);
+
+            cppsocket_struct_server_send_font_create* data = new cppsocket_struct_server_send_font_create();
+            data->result = (uint16_t)e_packet_result::ok;
+            data->index_font = packet->index_font;
+            data->font_size = packet->font_size;
+            
+            data->font_color_r = packet->font_color_r;
+            data->font_color_g = packet->font_color_g;
+            data->font_color_b = packet->font_color_b;
+            data->font_color_a = packet->font_color_a;
+
+            data->background_color_r = packet->background_color_r;
+            data->background_color_g = packet->background_color_g;
+            data->background_color_b = packet->background_color_b;
+            data->background_color_a = packet->background_color_a;
+
+            data->movement_type_horizontal = packet->movement_type_horizontal;
+            data->movement_speed_horizontal = packet->movement_speed_horizontal;
+            data->movement_threshold_horizontal = packet->movement_threshold_horizontal;
+
+            data->movement_type_horizontal_background = packet->movement_type_horizontal_background;
+            data->movement_speed_horizontal_background = packet->movement_speed_horizontal_background;
+            data->movement_threshold_horizontal_background = packet->movement_threshold_horizontal_background;
+
+            data->movement_type_vertical = packet->movement_type_vertical;
+            data->movement_speed_vertical = packet->movement_speed_vertical;
+            data->movement_threshold_vertical = packet->movement_threshold_vertical;
+
+            data->movement_type_vertical_background = packet->movement_type_vertical_background;
+            data->movement_speed_vertical_background = packet->movement_speed_vertical_background;
+            data->movement_threshold_vertical_background = packet->movement_threshold_vertical_background;
+
+            data->font_start_coordinate_left = packet->font_start_coordinate_left;
+            data->font_start_coordinate_top = packet->font_start_coordinate_top;
+
+            data->backgound_rectangle_width = packet->backgound_rectangle_width;
+            data->backgound_rectangle_height = packet->backgound_rectangle_height;
+
+            data->font_weight = packet->font_weight;
+            data->font_style = packet->font_style;
+            data->font_stretch = packet->font_stretch;
+
+            data->content_size = packet->content_size;
+            memcpy(data->content_string, packet->content_string, packet->content_size);
+
+            data->font_family_size = packet->font_family_size;
+            memcpy(data->font_family, packet->font_family, packet->font_family_size);
+
+            cppsocket_server_send_font_create(_tcp_server, data_pair.second, *data);
+
+            delete data;
         }
         break;
         case e_command_type::font_delete:
@@ -3530,6 +3581,14 @@ void thread_packet_processing()
             packet_font_delete_from_client* packet = (packet_font_delete_from_client*)data_pair.first;
 
             delete_text(packet->index_font);
+
+            cppsocket_struct_server_send_font_delete* data = new cppsocket_struct_server_send_font_delete();
+            data->result = (uint16_t)e_packet_result::ok;
+            data->index_font = packet->index_font;
+
+            cppsocket_server_send_font_delete(_tcp_server, data_pair.second, *data);
+
+            delete data;
         }
         break;
         case e_command_type::font_blink_turn_on_off:
@@ -3537,6 +3596,15 @@ void thread_packet_processing()
             packet_font_blink_turn_on_off_from_client* packet = (packet_font_blink_turn_on_off_from_client*)data_pair.first;
 
             set_text_blink_turn_on_off(packet->index_font, packet->flag_blink_turn_on_off);
+
+            cppsocket_struct_server_send_font_blink_turn_on_off* data = new cppsocket_struct_server_send_font_blink_turn_on_off();
+            data->result = (uint16_t)e_packet_result::ok;
+            data->index_font = packet->index_font;
+            data->flag_blink_turn_on_off = packet->flag_blink_turn_on_off;
+
+            cppsocket_server_send_font_blink_turn_on_off(_tcp_server, data_pair.second, *data);
+
+            delete data;
         }
         break;
         case e_command_type::font_blink_interval:
@@ -3544,6 +3612,14 @@ void thread_packet_processing()
             packet_font_blink_interval_from_client* packet = (packet_font_blink_interval_from_client*)data_pair.first;
 
             set_text_blink_interval(packet->interval_blink_in_miliseconds);
+
+            cppsocket_struct_server_send_font_blink_interval* data = new cppsocket_struct_server_send_font_blink_interval();
+            data->result = (uint16_t)e_packet_result::ok;
+            data->interval_blink_in_miliseconds = packet->interval_blink_in_miliseconds;
+
+            cppsocket_server_send_font_blink_interval(_tcp_server, data_pair.second, *data);
+
+            delete data;
         }
         break;
         case e_command_type::font_blink_duration:
@@ -3551,6 +3627,14 @@ void thread_packet_processing()
             packet_font_blink_duration_from_client* packet = (packet_font_blink_duration_from_client*)data_pair.first;
 
             set_text_blink_duration(packet->duration_blink_in_miliseconds);
+
+            cppsocket_struct_server_send_font_blink_duration* data = new cppsocket_struct_server_send_font_blink_duration();
+            data->result = (uint16_t)e_packet_result::ok;
+            data->duration_blink_in_miliseconds = packet->duration_blink_in_miliseconds;
+
+            cppsocket_server_send_font_blink_duration(_tcp_server, data_pair.second, *data);
+
+            delete data;
         }
         break;
 
