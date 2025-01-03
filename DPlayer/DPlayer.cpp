@@ -606,9 +606,6 @@ bool _use_nvapi = false;
 // nvapi를 사용한 present에서 대기
 bool _block_swap_group_present = false;
 
-// data_window에 flag를 설정하여 WaitForVBlank 사용
-bool _use_wait_for_vblank_first_entry = false;
-
 // texture 저장 크기
 int _count_texture_store = 0;
 
@@ -3324,10 +3321,6 @@ void config_setting()
     result_i = _ttoi(result_w);
     _block_swap_group_present = result_i == 0 ? false : true;
 
-    GetPrivateProfileString(L"DPlayer", L"use_wait_for_vblank_first_entry", L"0", result_w, 255, str_ini_path_w.c_str());
-    result_i = _ttoi(result_w);
-    _use_wait_for_vblank_first_entry = result_i == 0 ? false : true;
-
     GetPrivateProfileString(L"DPlayer", L"count_texture_store", L"30", result_w, 255, str_ini_path_w.c_str());
     _count_texture_store = _ttoi(result_w);
 
@@ -4860,15 +4853,6 @@ void thread_window(pst_window data_window)
         if (data_window->flag_thread_window == false)
         {
             break;
-        }
-
-        if (_use_wait_for_vblank_first_entry)
-        {
-            if (data_window->flag_first_entry)
-            {
-                data_output->output->WaitForVBlank();
-                data_window->flag_first_entry = false;
-            }
         }
 
         if (_nvapi_initialized && _flag_use_default_image == false)
