@@ -586,9 +586,6 @@ bool _use_nvapi = false;
 // nvapi를 사용한 present에서 대기
 bool _block_swap_group_present = false;
 
-// SetMaximumFrameLatency. 0: unset, 1 ~16
-UINT _set_maximum_frame_latency = 0;
-
 // data_window에 flag를 설정하여 WaitForVBlank 사용
 bool _use_wait_for_vblank_first_entry = false;
 
@@ -1659,14 +1656,7 @@ void create_swap_chains()
         swap_chain_desc.Scaling = DXGI_SCALING_STRETCH;
         swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
         swap_chain_desc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-        if (_set_maximum_frame_latency != 0)
-        {
-            swap_chain_desc.Flags = DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT;
-        }
-        else
-        {
-            swap_chain_desc.Flags = 0;
-        }
+        swap_chain_desc.Flags = 0;
 
         hr = _factory->CreateSwapChainForHwnd(
             data_command_queue->command_queue,
@@ -1682,17 +1672,6 @@ void create_swap_chains()
             data_swap_chain->swap_chain = swap_chain;
             data_swap_chain->window_index = data_window->window_index;
             data_swap_chain->device_index = data_window->device_index;
-
-            if (_set_maximum_frame_latency != 0)
-            {
-                IDXGISwapChain2* swap_chain_2 = nullptr;
-                swap_chain->QueryInterface(IID_PPV_ARGS(&swap_chain_2));
-
-                swap_chain_2->SetMaximumFrameLatency(_set_maximum_frame_latency);
-
-                swap_chain_2->Release();
-                swap_chain_2 = nullptr;
-            }
 
             _map_swap_chain.insert({ data_swap_chain->window_index, data_swap_chain });
         }
@@ -3322,9 +3301,6 @@ void config_setting()
     GetPrivateProfileString(L"WPlayer", L"block_swap_group_present", L"0", result_w, 255, str_ini_path_w.c_str());
     result_i = _ttoi(result_w);
     _block_swap_group_present = result_i == 0 ? false : true;
-
-    GetPrivateProfileString(L"WPlayer", L"set_maximum_frame_latency", L"0", result_w, 255, str_ini_path_w.c_str());
-    _set_maximum_frame_latency = _ttoi(result_w);
 
     GetPrivateProfileString(L"WPlayer", L"use_wait_for_vblank_first_entry", L"0", result_w, 255, str_ini_path_w.c_str());
     result_i = _ttoi(result_w);
