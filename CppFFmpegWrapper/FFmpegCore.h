@@ -2,7 +2,16 @@
 
 #include "MediaHeaders.h"
 
+/// <summary>
+/// 하드웨어 디코딩에 사용할 pixel format을 선택하는 콜백 함수 구현
+/// </summary>
+/// <param name="ctx"></param>
+/// <param name=""></param>
+/// <returns></returns>
 static enum AVPixelFormat get_hw_format(AVCodecContext* ctx, const enum AVPixelFormat* pix_fmts);
+/// <summary>
+/// 하드웨어 디코딩에 사용할 pixel format 변수
+/// </summary>
 static AVPixelFormat _hw_pix_fmt;
 
 class FFmpegCore
@@ -13,6 +22,10 @@ public:
     bool initialize(CALLBACK_PTR cb);
     void shutdown();
 
+    /// <summary>
+    /// _file_path 변수에 설정된 url로 스트림 연결 시도
+    /// </summary>
+    /// <returns> 0: 정상, 0 이외: 비정상 </returns>
     int open_file();
 
     void play_start(void* connection);

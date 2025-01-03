@@ -85,6 +85,9 @@ extern "C"
 
 #pragma region Enumerations
 
+/// <summary>
+/// 스레드들의 수행 순서를 지정하기 위한 개체들의 타입 정의
+/// </summary>
 enum class e_object_type
 {
     none = 0,
@@ -95,6 +98,10 @@ enum class e_object_type
 
 };
 
+/// <summary>
+/// 스레드들의 수행 진행 방향을 지정하는 enum
+/// from - to 형식으로 선언함
+/// </summary>
 enum class e_wait_type
 {
     none = 0,
@@ -111,6 +118,9 @@ enum class e_wait_type
 
 #pragma region Structures
 
+/// <summary>
+/// int 형의 Rect를 float 형으로 정규화하여 저장할 때 사용할 구조체
+/// </summary>
 struct NormalizedRect
 {
     float left;
@@ -119,6 +129,9 @@ struct NormalizedRect
     float bottom;
 };
 
+/// <summary>
+/// Vertex Shader에 건네줄 데이터 형식 저장 구조체
+/// </summary>
 struct Vertex
 {
     DirectX::XMFLOAT3 position;
@@ -126,6 +139,9 @@ struct Vertex
 
 };
 
+/// <summary>
+/// 스레드 수행 순서를 지정하는 개체의 구조체
+/// </summary>
 struct st_input_object
 {
     void* object = nullptr;
@@ -135,6 +151,9 @@ struct st_input_object
 
 };
 
+/// <summary>
+/// int 형의 color를 float 형으로 정규화하여 저장할 때 사용할 구조체
+/// </summary>
 typedef struct st_color
 {
     float r;
@@ -144,6 +163,9 @@ typedef struct st_color
 
 }*pst_color;
 
+/// <summary>
+/// 그래픽 카드 추상화 객체
+/// </summary>
 typedef struct st_adapter
 {
     IDXGIAdapter1* adapter = nullptr;
@@ -153,6 +175,9 @@ typedef struct st_adapter
 
 }*pst_adapter;
 
+/// <summary>
+/// 그래픽 카드의 명령 수행 장치 추상화 객체
+/// </summary>
 typedef struct st_device
 {
     ID3D12Device* device = nullptr;
@@ -183,10 +208,25 @@ typedef struct st_device
     ID3D12Resource* upload_heap_texture_default_luminance = nullptr;
     ID3D12Resource* upload_heap_texture_default_chrominance = nullptr;
 
+    /// <summary>
+    /// 자막 렌더링을 위해 필요한 개체
+    /// </summary>
     ID3D11Device* device_11 = nullptr;
+    /// <summary>
+    /// 자막 렌더링을 위해 필요한 개체
+    /// </summary>
     ID3D11DeviceContext* device_context_11 = nullptr;
+    /// <summary>
+    /// 자막 렌더링을 위해 필요한 개체
+    /// </summary>
     ID3D11On12Device* device_11_on_12 = nullptr;
+    /// <summary>
+    /// 자막 렌더링을 위해 필요한 개체
+    /// </summary>
     ID2D1Device2* device_2d = nullptr;
+    /// <summary>
+    /// 자막 렌더링을 위해 필요한 개체
+    /// </summary>
     ID2D1DeviceContext2* device_context_2d = nullptr;
 
     RECT rect_connected = { INT_MAX, INT_MAX, INT_MIN, INT_MIN };
@@ -195,6 +235,9 @@ typedef struct st_device
 
 }*pst_device;
 
+/// <summary>
+/// 그래픽 출력장치(모니터) 추상화 객체
+/// </summary>
 typedef struct st_output
 {
     IDXGIOutput* output = nullptr;
@@ -205,6 +248,9 @@ typedef struct st_output
 
 }*pst_output;
 
+/// <summary>
+/// window 추상화 객체
+/// </summary>
 typedef struct st_window
 {
     HWND handle = nullptr;
@@ -226,6 +272,10 @@ typedef struct st_window
 
 }*pst_window;
 
+/// <summary>
+/// Device 당 1개의 command queue를 가짐
+/// 그래픽 카드와 가장 가까운 명령 전달자 추상화 객체
+/// </summary>
 typedef struct st_command_queue
 {
     ID3D12CommandQueue* command_queue = nullptr;
@@ -234,6 +284,9 @@ typedef struct st_command_queue
 
 }*pst_command_queue;
 
+/// <summary>
+/// window 당 1개의 swap chain을 가짐
+/// </summary>
 typedef struct st_swap_chain
 {
     IDXGISwapChain1* swap_chain = nullptr;
@@ -243,15 +296,27 @@ typedef struct st_swap_chain
 
 }*pst_swap_chain;
 
+/// <summary>
+/// rtv: render target view
+/// 그래픽 카드의 메모리에서 rtv를 할당할 메모리 공간 추상화 객체
+/// </summary>
 typedef struct st_rtv_heap
 {
     ID3D12DescriptorHeap* rtv_heap = nullptr;
+
+    /// <summary>
+    /// rtv 1개의 크기
+    /// </summary>
     UINT rtv_descriptor_size = UINT_MAX;
 
     UINT device_index = UINT_MAX;
 
 }*pst_rtv_heap;
 
+/// <summary>
+/// rtv: render target view
+/// swap chain의 backbuffer를 가리킴
+/// </summary>
 typedef struct st_rtv
 {
     std::vector<ID3D12Resource*> vector_rtv;
@@ -260,21 +325,41 @@ typedef struct st_rtv
     UINT window_index = UINT_MAX;
     UINT device_index = UINT_MAX;
 
+    /// <summary>
+    /// 자막 렌더링을 위해 필요한 개체
+    /// </summary>
     std::vector<ID3D11Resource*> vector_wrapped_back_buffer;
+    /// <summary>
+    /// 자막 렌더링을 위해 필요한 개체
+    /// </summary>
     std::vector<IDXGISurface*> vector_surface;
+    /// <summary>
+    /// 자막 렌더링을 위해 필요한 개체
+    /// </summary>
     std::vector<ID2D1Bitmap1*> vector_rtv_2d;
 
 }*pst_rtv;
 
+/// <summary>
+/// srv: shader resource view
+/// 그래픽 카드의 메모리에서 srv를 할당할 메모리 공간 추상화 객체
+/// </summary>
 typedef struct st_srv_heap
 {
     ID3D12DescriptorHeap* srv_heap = nullptr;
+
+    /// <summary>
+    /// srv 1개의 크기
+    /// </summary>
     UINT srv_descriptor_size = UINT_MAX;
 
     UINT device_index = UINT_MAX;
 
 }*pst_srv_heap;
 
+/// <summary>
+/// command queue와 command list 사이에 위치하는 그래픽 명령 할당자 추상화 객체
+/// </summary>
 typedef struct st_command_allocator
 {
     std::vector<ID3D12CommandAllocator*> vector_command_allocator;
@@ -283,6 +368,9 @@ typedef struct st_command_allocator
 
 }*pst_command_allocator;
 
+/// <summary>
+/// 작성자의 지식이 부족하여 명확하게 설명할 수 없음
+/// </summary>
 typedef struct st_root_signature
 {
     ID3D12RootSignature* root_sig = nullptr;
@@ -291,6 +379,9 @@ typedef struct st_root_signature
 
 }*pst_root_signature;
 
+/// <summary>
+/// 작성자의 지식이 부족하여 명확하게 설명할 수 없음
+/// </summary>
 typedef struct st_pipeline_state_object
 {
     ID3D12PipelineState* pso = nullptr;
@@ -299,6 +390,9 @@ typedef struct st_pipeline_state_object
 
 }*pst_pipeline_state_object, st_pso, * pst_pso;
 
+/// <summary>
+/// command allocator에 그래픽 명령을 주입하는 추상화 객체
+/// </summary>
 typedef struct st_command_list
 {
     std::vector<ID3D12GraphicsCommandList*> vector_command_list;
@@ -307,6 +401,9 @@ typedef struct st_command_list
 
 }*pst_command_list;
 
+/// <summary>
+/// 그래픽 카드의 처리를 대기시키는 추상화 객체
+/// </summary>
 typedef struct st_fence
 {
     ID3D12Fence* fence_device = nullptr;
@@ -321,6 +418,9 @@ typedef struct st_fence
 
 }*pst_fence;
 
+/// <summary>
+/// 작성자의 지식이 부족하여 명확하게 설명할 수 없음
+/// </summary>
 typedef struct st_viewport
 {
     D3D12_VIEWPORT viewport{};
@@ -331,6 +431,13 @@ typedef struct st_viewport
 
 }*pst_viewport;
 
+/// <summary>
+/// vertex: 그래픽 좌표 공간에서의 한개의 점을 의미함
+/// TopologyType을 어떤것을 사용하느냐에 따라서 그려지는 결과물이 달라짐
+/// Triangle을 사용할 경우에는 3개의 vertex가 1개의 삼각형을 그리게 됨
+/// 
+/// 그래픽 카드의 메모리에서 vertex shader에 입력할 vertex 데이터를 할당하며 CPU에서 접근할 수 없는 메모리 공간의 추상화 객체
+/// </summary>
 typedef struct st_vertex_buffer
 {
     std::vector<ID3D12Resource*> vector_vertex_buffer;
@@ -339,6 +446,9 @@ typedef struct st_vertex_buffer
 
 }*pst_vertex_buffer;
 
+/// <summary>
+/// 그래픽 카드의 메모리에 존재하지만 CPU에서 Access하여 vertex의 값을 변경할 수 있는 메모리 공간의 추상화 객체
+/// </summary>
 typedef struct st_vertex_upload_buffer
 {
     std::vector<ID3D12Resource*> vector_vertex_upload_buffer;
@@ -347,6 +457,9 @@ typedef struct st_vertex_upload_buffer
 
 }*pst_vertex_upload_buffer;
 
+/// <summary>
+/// 그래픽 카드의 메모리에서 vertex를 저장한 공간에 접근할 때 사용하는 추상화 객체
+/// </summary>
 typedef struct st_vertex_buffer_view
 {
     std::vector<D3D12_VERTEX_BUFFER_VIEW> vector_vertex_buffer_view{};
@@ -355,6 +468,11 @@ typedef struct st_vertex_buffer_view
 
 }*pst_vertex_buffer_view;
 
+/// <summary>
+/// index: vertex shader에서 vertex를 사용할 순서를 지정하는 값
+/// 
+/// 그래픽 카드의 메모리에서 vertex shader에 입력할 index 데이터를 할당하며 CPU에서 접근할 수 없는 메모리 공간의 추상화 객체
+/// </summary>
 typedef struct st_index_buffer
 {
     ID3D12Resource* index_buffer = nullptr;
@@ -363,6 +481,9 @@ typedef struct st_index_buffer
 
 }*pst_index_buffer;
 
+/// <summary>
+/// 그래픽 카드의 메모리에 존재하지만 CPU에서 Access하여 index의 값을 변경할 수 있는 메모리 공간의 추상화 객체
+/// </summary>
 typedef struct st_index_upload_buffer
 {
     ID3D12Resource* index_upload_buffer = nullptr;
@@ -371,6 +492,9 @@ typedef struct st_index_upload_buffer
 
 }*pst_index_upload_buffer;
 
+/// <summary>
+/// 그래픽 카드의 메모리에서 index를 저장한 공간에 접근할 때 사용하는 추상화 객체
+/// </summary>
 typedef struct st_index_buffer_view
 {
     D3D12_INDEX_BUFFER_VIEW index_buffer_view{};
@@ -379,6 +503,9 @@ typedef struct st_index_buffer_view
 
 }*pst_index_buffer_view;
 
+/// <summary>
+/// 사용하지 않음
+/// </summary>
 typedef struct st_upload_texture
 {
     std::vector<ID3D12Resource*> vector_texture;
@@ -392,6 +519,9 @@ typedef struct st_upload_texture
 
 }*pst_upload_texture;
 
+/// <summary>
+/// srv로 설정한 메모리에 접근할 수 있는 핸들
+/// </summary>
 typedef struct st_srv_handle
 {
     std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> vector_handle_cpu;
@@ -401,6 +531,9 @@ typedef struct st_srv_handle
 
 }*pst_srv_handle;
 
+/// <summary>
+/// 1개의 미디어 스트림을 추상화하는 객체
+/// </summary>
 typedef struct st_scene
 {
     std::map<int, void*> map_ffmpeg_instance;
@@ -456,6 +589,9 @@ typedef struct st_scene
 
 }*pst_scene;
 
+/// <summary>
+/// 1개의 글자를 추상화하는 객체
+/// </summary>
 typedef struct st_text_internal
 {
     UINT index_text_internal;
@@ -507,6 +643,9 @@ typedef struct st_text_internal
 
 }*pst_text_internal;
 
+/// <summary>
+/// 1개의 그래픽 카드가 1개씩 가지는 글자 추상화 객체
+/// </summary>
 typedef struct st_text
 {
     UINT index_device = UINT_MAX;
@@ -532,226 +671,643 @@ HINSTANCE hInst;                                // 현재 인스턴스입니다.
 WCHAR szTitle[MAX_LOADSTRING];                  // 제목 표시줄 텍스트입니다.
 WCHAR szWindowClass[MAX_LOADSTRING];            // 기본 창 클래스 이름입니다.
 
+/// <summary>
+/// 프로그램 실행중 플래그
+/// </summary>
 bool _is_running = true;
+/// <summary>
+/// 실행 프로그램의 경로
+/// </summary>
 std::wstring _asset_path;
 
+/// <summary>
+/// 스레드들의 루프 중에 발생할 짧은 대기시간
+/// </summary>
 constexpr int _sleep_time_main_loop = 1;
+/// <summary>
+/// 스레드들의 루프 중에 발생할 긴 대기시간
+/// </summary>
 constexpr int _sleep_time_processing = 10;
+/// <summary>
+/// backbuffer 개수 설정
+/// </summary>
 constexpr UINT _frame_buffer_count = 3;
+/// <summary>
+/// rtv를 저장할 그래픽 카드 메모리의 최대 크기 설정
+/// </summary>
 constexpr UINT _rtv_descriptor_count = 4096;
+/// <summary>
+/// srv를 저장할 그래픽 카드 메모리의 최대 크기 설정
+/// </summary>
 constexpr UINT _srv_descriptor_count = 4096;
+/// <summary>
+/// NV12 포맷을 사용할 때 1개의 프레임에 사용할 텍스처 개수
+/// </summary>
 constexpr int _texture_resource_count_nv12 = 2;
+/// <summary>
+/// command allocator 개수
+/// </summary>
 constexpr int _count_command_allocator = 3;
+/// <summary>
+/// command list 개수
+/// </summary>
 constexpr int _count_command_list = 3;
 
 #pragma region Config Values
 
-// Server IP
+/// <summary>
+/// Server IP
+/// </summary>
 std::string _ip;
-// Server PORT
+/// <summary>
+/// Server PORT
+/// </summary>
 uint16_t _port = UINT16_MAX;
 
+/// <summary>
+/// 로그를 작성할지 정하는 플래그
+/// </summary>
 bool _flag_set_logger = false;
 
-// 로그 레벨.trace: 0, debug : 1, info : 2, warn : 3, err : 4, critical : 5, off : 6
+/// <summary>
+/// 로그 레벨. trace: 0, debug : 1, info : 2, warn : 3, err : 4, critical : 5, off : 6
+/// </summary>
 int _log_level = 6;
 
-// 1개 로그 파일 크기. MB 단위
+/// <summary>
+/// 1개 로그 파일 크기. MB 단위
+/// </summary>
 int _log_file_size = 1;
 
-// 로그 파일 순환 개수.
+/// <summary>
+/// 로그 파일 순환 개수.
+/// </summary>
 int _log_file_rotation_count = 3;
 
-// WaitForMultipleObjects 에 사용할 대기시간
+/// <summary>
+/// WaitForMultipleObjects 에 사용할 대기시간
+/// </summary>
 DWORD _wait_for_multiple_objects_wait_time = 1000;
 
-// repeat할 때 이전 프레임을 사용하는 시행 횟수
+/// <summary>
+/// repeat 할 때 이전 프레임을 사용하는 시행 횟수
+/// </summary>
 int _count_use_last_frame_at_repeat = 30;
 
-// background color, 0~255
+/// <summary>
+/// background color red, 0 - 255
+/// </summary>
 int _background_color_r = 0;
+/// <summary>
+/// background color green, 0 - 255
+/// </summary>
 int _background_color_g = 0;
+/// <summary>
+/// background color blue, 0 - 255
+/// </summary>
 int _background_color_b = 0;
 
+/// <summary>
+/// background color red in float
+/// </summary>
 float _background_color_r_float = 0.0f;
+/// <summary>
+/// background color green in float
+/// </summary>
 float _background_color_g_float = 0.0f;
+/// <summary>
+/// background color blue in float
+/// </summary>
 float _background_color_b_float = 0.0f;
 
-// 기본 이미지 url
+/// <summary>
+/// 기본 이미지 url
+/// </summary>
 std::string _default_texture_url;
 
-// nvapi 사용
+/// <summary>
+/// nvapi 사용
+/// </summary>
 bool _use_nvapi = false;
 
-// nvapi를 사용한 present에서 대기
+/// <summary>
+/// nvapi를 사용한 present에서 대기
+/// </summary>
 bool _block_swap_group_present = false;
 
-// texture 저장 크기
+/// <summary>
+/// texture 저장 크기
+/// </summary>
 int _count_texture_store = 0;
 
-// 하드웨어 디코딩 타입. 2: CUDA, 4: DXVA2, 7: D3D11VA, 12: D3D12VA
+/// <summary>
+/// 하드웨어 디코딩 타입. 2: CUDA, 4: DXVA2, 7: D3D11VA, 12: D3D12VA
+/// </summary>
 int _hw_device_type = 12;
 
-// 컨트롤 모니터 사용
+/// <summary>
+/// 컨트롤 모니터 사용 플래그
+/// </summary>
 bool _use_control_output = false;
+/// <summary>
+/// 컨트롤 모니터 left
+/// </summary>
 int _control_output_left = 0;
+/// <summary>
+/// 컨트롤 모니터 top
+/// </summary>
 int _control_output_top = 0;
+/// <summary>
+/// 컨트롤 모니터 width
+/// </summary>
 int _control_output_width = 0;
+/// <summary>
+/// 컨트롤 모니터 height
+/// </summary>
 int _control_output_height = 0;
 
-// 윈도우 좌표 지정 생성
+/// <summary>
+/// 윈도우 좌표 지정 생성 플래그
+/// </summary>
 bool _use_manual_window_create = false;
-// 윈도우 좌표를 지정하여 생성할 윈도우 개수
+/// <summary>
+/// 윈도우 좌표를 지정하여 생성할 윈도우 개수
+/// </summary>
 int _count_manual_window = 0;
-// 윈도우 좌표 설정. 맨 뒤의 숫자를 윈도우 개수 -1 까지 설정해야함
+
+/// <summary>
+/// 윈도우 좌표 설정. 맨 뒤의 숫자를 윈도우 개수 -1 까지 설정해야함
+/// </summary>
 std::map<UINT, int> _map_manual_window_rect_left;
+/// <summary>
+/// 윈도우 좌표 설정. 맨 뒤의 숫자를 윈도우 개수 -1 까지 설정해야함
+/// </summary>
 std::map<UINT, int> _map_manual_window_rect_top;
+/// <summary>
+/// 윈도우 좌표 설정. 맨 뒤의 숫자를 윈도우 개수 -1 까지 설정해야함
+/// </summary>
 std::map<UINT, int> _map_manual_window_rect_width;
+/// <summary>
+/// 윈도우 좌표 설정. 맨 뒤의 숫자를 윈도우 개수 -1 까지 설정해야함
+/// </summary>
 std::map<UINT, int> _map_manual_window_rect_height;
 
-// scene 생성 개수
+/// <summary>
+/// scene 생성 개수
+/// </summary>
 int _count_scene = 0;
-// scene url
+/// <summary>
+/// scene url
+/// </summary>
 std::map<int, std::string> _map_scene_url;
-// scene 표출 좌표
+/// <summary>
+/// scene 표출 좌표
+/// </summary>
 std::map<int, int> _map_scene_rect_left;
+/// <summary>
+/// scene 표출 좌표
+/// </summary>
 std::map<int, int> _map_scene_rect_top;
+/// <summary>
+/// scene 표출 좌표
+/// </summary>
 std::map<int, int> _map_scene_rect_width;
+/// <summary>
+/// scene 표출 좌표
+/// </summary>
 std::map<int, int> _map_scene_rect_height;
 
 #pragma endregion
 
+/// <summary>
+/// nvapi를 사용할 준비 완료 플래그
+/// </summary>
 bool _nvapi_initialized = false;
+/// <summary>
+/// nvapi 반환값 저장 개체
+/// </summary>
 NvAPI_Status _nvapi_status = NVAPI_OK;
+/// <summary>
+/// 1 그래픽 카드 당 1개의 swap group 설정함
+/// </summary>
 NvU32 _swap_group = 1;
+/// <summary>
+/// 1 그래픽 카드 당 1개의 swap barrier 설정함
+/// </summary>
 NvU32 _swap_barrier = 1;
 
+/// <summary>
+/// 통신 패킷 처리 스레드
+/// </summary>
 std::thread _thread_packet_processing;
+/// <summary>
+/// 통신 패킷 처리 스레드 실행중 플래그
+/// </summary>
 bool _flag_packet_processing = true;
+/// <summary>
+/// 통신 패킷 큐 뮤텍스
+/// </summary>
 std::mutex _mutex_packet_processing;
+/// <summary>
+/// 통신 패킷 큐
+/// </summary>
 std::deque<std::pair<void*, void*>> _queue_packet_processing;
 
+/// <summary>
+/// 통신 서버 스레드
+/// </summary>
 std::thread _thread_tcp_server;
+/// <summary>
+/// 통신 서버 스레드 실행중 플래그
+/// </summary>
 bool _flag_tcp_server = true;
+/// <summary>
+/// 통신 서버 개체
+/// </summary>
 void* _tcp_server = nullptr;
 
+/// <summary>
+/// 스레드 수행 순서를 지정하는 개체 저장 스레드
+/// </summary>
 std::thread _thread_vector_input;
+/// <summary>
+/// 스레드 수행 순서를 지정하는 개체 저장 스레드 실행중 플래그
+/// </summary>
 bool _flag_vector_input = true;
+/// <summary>
+/// 스레드 수행 순서를 지정하는 개체를 임시로 저장하는 벡터
+/// </summary>
 std::vector<st_input_object> _vector_input_object;
+/// <summary>
+/// 스레드 수행 순서를 지정하는 개체를 임시로 저장하는 벡터의 뮤텍스
+/// </summary>
 std::mutex _mutex_input_object;
 
 
+/// <summary>
+/// 이벤트 객체 벡터 scene - upload
+/// </summary>
 std::vector<HANDLE> _vector_event_scene_to_upload;
+/// <summary>
+/// 이벤트 객체 벡터 뮤텍스 scene - upload
+/// </summary>
 std::mutex _mutex_vector_event_scene_to_upload;
+/// <summary>
+/// 컨디션 배리어블 객체 벡터 scene - upload
+/// </summary>
 std::vector<std::condition_variable*> _vector_condition_variable_scene_to_upload;
+/// <summary>
+/// 컨디션 배리어블 객체 벡터 뮤텍스 scene - upload
+/// </summary>
 std::mutex _mutex_vector_condition_variable_scene_to_upload;
+/// <summary>
+/// 컨디션 배리어블 뮤텍스 객체 벡터 scene - upload
+/// </summary>
 std::vector<std::mutex*> _vector_mutex_scene_to_upload;
+/// <summary>
+/// 컨디션 배리어블 뮤텍스 객체 벡터 뮤텍스 scene - upload
+/// </summary>
 std::mutex _mutex_vector_mutex_scene_to_upload;
+/// <summary>
+/// 스레드 실행중 플래그 객체 벡터 scene - upload
+/// </summary>
 std::vector<bool*> _vector_flag_scene_to_upload;
+/// <summary>
+/// 스레드 실행중 플래그 객체 벡터 뮤텍스 scene - upload
+/// </summary>
 std::mutex _mutex_vector_flag_scene_to_upload;
 
+/// <summary>
+/// 이벤트 객체 벡터 upload - device
+/// </summary>
 std::vector<HANDLE> _vector_event_upload_to_device;
+/// <summary>
+/// 이벤트 객체 벡터 뮤텍스 upload - device
+/// </summary>
 std::mutex _mutex_vector_event_upload_to_device;
+/// <summary>
+/// 컨디션 배리어블 객체 벡터 upload - device
+/// </summary>
 std::vector<std::condition_variable*> _vector_condition_variable_upload_to_device;
+/// <summary>
+/// 컨디션 배리어블 객체 벡터 뮤텍스 upload - device
+/// </summary>
 std::mutex _mutex_vector_condition_variable_upload_to_device;
+/// <summary>
+/// 컨디션 배리어블 뮤텍스 객체 벡터 upload - device
+/// </summary>
 std::vector<std::mutex*> _vector_mutex_upload_to_device;
+/// <summary>
+/// 컨디션 배리어블 뮤텍스 객체 벡터 뮤텍스 upload - device
+/// </summary>
 std::mutex _mutex_vector_mutex_upload_to_device;
+/// <summary>
+/// 스레드 실행중 플래그 객체 벡터 upload - device
+/// </summary>
 std::vector<bool*> _vector_flag_upload_to_device;
+/// <summary>
+/// 스레드 실행중 플래그 객체 벡터 뮤텍스 upload - device
+/// </summary>
 std::mutex _mutex_vector_flag_upload_to_device;
 
+/// <summary>
+/// 이벤트 객체 벡터 device - window
+/// </summary>
 std::vector<HANDLE> _vector_event_device_to_window;
+/// <summary>
+/// 이벤트 객체 벡터 뮤텍스 device - window
+/// </summary>
 std::mutex _mutex_vector_event_device_to_window;
+/// <summary>
+/// 컨디션 배리어블 객체 벡터 device - window
+/// </summary>
 std::vector<std::condition_variable*> _vector_condition_variable_device_to_window;
+/// <summary>
+/// 컨디션 배리어블 객체 벡터 뮤텍스 device - window
+/// </summary>
 std::mutex _mutex_vector_condition_variable_device_to_window;
+/// <summary>
+/// 컨디션 배리어블 뮤텍스 객체 벡터 device - window
+/// </summary>
 std::vector<std::mutex*> _vector_mutex_device_to_window;
+/// <summary>
+/// 컨디션 배리어블 뮤텍스 객체 벡터 뮤텍스 device - window
+/// </summary>
 std::mutex _mutex_vector_mutex_device_to_window;
+/// <summary>
+/// 스레드 실행중 플래그 객체 벡터 device - window
+/// </summary>
 std::vector<bool*> _vector_flag_device_to_window;
+/// <summary>
+/// 스레드 실행중 플래그 객체 벡터 뮤텍스 device - window
+/// </summary>
 std::mutex _mutex_vector_flag_device_to_window;
 
+/// <summary>
+/// 이벤트 객체 벡터 window - scene
+/// </summary>
 std::vector<HANDLE> _vector_event_window_to_scene;
+/// <summary>
+/// 이벤트 객체 벡터 뮤텍스 window - scene
+/// </summary>
 std::mutex _mutex_vector_event_window_to_scene;
+/// <summary>
+/// 컨디션 배리어블 객체 벡터 window - scene
+/// </summary>
 std::vector<std::condition_variable*> _vector_condition_variable_window_to_scene;
+/// <summary>
+/// 컨디션 배리어블 객체 벡터 뮤텍스 window - scene
+/// </summary>
 std::mutex _mutex_vector_condition_variable_window_to_scene;
+/// <summary>
+/// 컨디션 배리어블 뮤텍스 객체 벡터 window - scene
+/// </summary>
 std::vector<std::mutex*> _vector_mutex_window_to_scene;
+/// <summary>
+/// 컨디션 배리어블 뮤텍스 객체 벡터 window - scene
+/// </summary>
 std::mutex _mutex_vector_mutex_window_to_scene;
+/// <summary>
+/// 스레드 실행중 플래그 객체 벡터 window - scene
+/// </summary>
 std::vector<bool*> _vector_flag_window_to_scene;
+/// <summary>
+/// 스레드 실행중 플래그 객체 벡터 뮤텍스 window - scene
+/// </summary>
 std::mutex _mutex_vector_flag_window_to_scene;
 
-
+/// <summary>
+/// wait for multiple objects 스레드 scene - upload
+/// </summary>
 std::thread _thread_wait_for_multiple_objects_scene_to_upload;
+/// <summary>
+/// wait for multiple objects 스레드 실행중 플래그 scene - upload
+/// </summary>
 bool _flag_wait_for_multiple_objects_scene_to_upload = true;
 
+/// <summary>
+/// wait for multiple objects 스레드 upload - device
+/// </summary>
 std::thread _thread_wait_for_multiple_objects_upload_to_device;
+/// <summary>
+/// wait for multiple objects 스레드 실행중 플래그 upload - device
+/// </summary>
 bool _flag_wait_for_multiple_objects_upload_to_device = true;
 
+/// <summary>
+/// wait for multiple objects 스레드 device - window
+/// </summary>
 std::thread _thread_wait_for_multiple_objects_device_to_window;
+/// <summary>
+/// wait for multiple objects 스레드 실행중 플래그 device - window
+/// </summary>
 bool _flag_wait_for_multiple_objects_device_to_window = true;
 
+/// <summary>
+/// wait for multiple objects 스레드 window - scene
+/// </summary>
 std::thread _thread_wait_for_multiple_objects_window_to_scene;
+/// <summary>
+/// wait for multiple objects 스레드 실행중 플래그 window - scene
+/// </summary>
 bool _flag_wait_for_multiple_objects_window_to_scene = true;
 
-
+/// <summary>
+/// scene 스레드 맵
+/// </summary>
 std::map<UINT, std::thread*> _map_thread_scene;
+/// <summary>
+/// scene 의 프레임을 unref하는 스레드 맵
+/// </summary>
 std::map<UINT, std::thread*> _map_thread_scene_unref;
+/// <summary>
+/// upload 스레드 맵
+/// </summary>
 std::map<UINT, std::thread*> _map_thread_upload;
+/// <summary>
+/// device 스레드 맵
+/// </summary>
 std::map<UINT, std::thread*> _map_thread_device;
+/// <summary>
+/// window 스레드 맵
+/// </summary>
 std::map<UINT, std::thread*> _map_thread_window;
 
+/// <summary>
+/// scene 맵
+/// </summary>
 std::map<UINT, pst_scene> _map_scene;
 
+/// <summary>
+/// 다음 scene의 index
+/// </summary>
 UINT _next_scene_index = 0;
 
 // --------------------------------
 
+/// <summary>
+/// DirectX의 팩토리
+/// </summary>
 IDXGIFactory2* _factory = nullptr;
 
+/// <summary>
+/// adapter 맵
+/// </summary>
 std::map<UINT, pst_adapter> _map_adapter;
+/// <summary>
+/// device 맵
+/// </summary>
 std::map<UINT, pst_device> _map_device;
+/// <summary>
+/// output 맵
+/// </summary>
 std::map<UINT, pst_output> _map_output;
 
+/// <summary>
+/// command queue 맵
+/// </summary>
 std::map<UINT, pst_command_queue> _map_command_queue;
+/// <summary>
+/// command allocator 맵
+/// </summary>
 std::map<UINT, pst_command_allocator> _map_command_allocator;
+/// <summary>
+/// command list 맵
+/// </summary>
 std::map<UINT, pst_command_list> _map_command_list;
+/// <summary>
+/// root signature 맵
+/// </summary>
 std::map<UINT, pst_root_signature> _map_root_sig;
+/// <summary>
+/// pipeline state object 맵
+/// </summary>
 std::map<UINT, pst_pso> _map_pso;
+/// <summary>
+/// fence 맵
+/// </summary>
 std::map<UINT, pst_fence> _map_fence;
 
+/// <summary>
+/// render target view heap 맵
+/// </summary>
 std::map<UINT, pst_rtv_heap> _map_rtv_heap;
+/// <summary>
+/// render target view 맵
+/// </summary>
 std::map<UINT, pst_rtv> _map_rtv;
 
+/// <summary>
+/// shader resource view heap 맵
+/// </summary>
 std::map<UINT, pst_srv_heap> _map_srv_heap;
 
+/// <summary>
+/// vertex buffer 맵
+/// </summary>
 std::map<UINT, pst_vertex_buffer> _map_vertex_buffer;
+/// <summary>
+/// vertex buffer 맵 뮤텍스
+/// </summary>
 std::mutex* _mutex_map_vertex_buffer = nullptr;
+/// <summary>
+/// vertex upload buffer 맵
+/// </summary>
 std::map<UINT, pst_vertex_upload_buffer> _map_vertex_upload_buffer;
+/// <summary>
+/// vertex upload buffer 맵 뮤텍스
+/// </summary>
 std::mutex* _mutex_map_vertex_upload_buffer = nullptr;
+/// <summary>
+/// vertex buffer view 맵
+/// </summary>
 std::map<UINT, pst_vertex_buffer_view> _map_vertex_buffer_view;
+/// <summary>
+/// vertex buffer view 맵 뮤텍스
+/// </summary>
 std::mutex* _mutex_map_vertex_buffer_view = nullptr;
 
+/// <summary>
+/// index buffer 맵
+/// </summary>
 std::map<UINT, pst_index_buffer> _map_index_buffer;
+/// <summary>
+/// index buffer 맵 뮤텍스
+/// </summary>
 std::mutex* _mutex_map_index_buffer = nullptr;
+/// <summary>
+/// index upload buffer 맵
+/// </summary>
 std::map<UINT, pst_index_upload_buffer> _map_index_upload_buffer;
+/// <summary>
+/// index upload buffer 맵 뮤텍스
+/// </summary>
 std::mutex* _mutex_map_index_upload_buffer = nullptr;
+/// <summary>
+/// index buffer view 맵
+/// </summary>
 std::map<UINT, pst_index_buffer_view> _map_index_buffer_view;
+/// <summary>
+/// index buffer view 맵 뮤텍스
+/// </summary>
 std::mutex* _mutex_map_index_buffer_view = nullptr;
 
+/// <summary>
+/// shader resource view handle Y 채널 맵
+/// </summary>
 std::map<UINT, pst_srv_handle> _map_srv_handle_luminance;
+/// <summary>
+/// shader resource view handle Y 채널 맵 뮤텍스
+/// </summary>
 std::mutex* _mutex_map_srv_handle_luminance = nullptr;
+/// <summary>
+/// shader resource view handle UV 채널 맵
+/// </summary>
 std::map<UINT, pst_srv_handle> _map_srv_handle_chrominance;
+/// <summary>
+/// shader resource view handle UV 채널 맵 뮤텍스
+/// </summary>
 std::mutex* _mutex_map_srv_handle_chrominance = nullptr;
 
+/// <summary>
+/// window 맵
+/// </summary>
 std::map<UINT, pst_window> _map_window;
+/// <summary>
+/// swap chain 맵
+/// </summary>
 std::map<UINT, pst_swap_chain> _map_swap_chain;
+/// <summary>
+/// viewport 맵
+/// </summary>
 std::map<UINT, pst_viewport> _map_viewport;
 
+/// <summary>
+/// 기본 이미지를 디코딩할 ffmpeg 인스턴스
+/// </summary>
 void* _ffmpeg_instance_default_image = nullptr;
+/// <summary>
+/// 기본 이미지 프레임
+/// </summary>
 AVFrame* _frame_default_image = nullptr;
 
+/// <summary>
+/// 기본 이미지 사용 플래그
+/// </summary>
 bool _flag_use_default_image = false;
 
+/// <summary>
+/// 글자를 사용하기 위한 D2D1 팩토리
+/// </summary>
 ID2D1Factory7* _factory_2d = nullptr;
+/// <summary>
+/// 글자를 사용하기 위한 Direct Write 팩토리
+/// </summary>
 IDWriteFactory* _factory_dwrite = nullptr;
 
+/// <summary>
+/// 글자 맵
+/// </summary>
 std::map<UINT, pst_text> _map_text;
 
 // --------------------------------
@@ -760,169 +1316,694 @@ std::map<UINT, pst_text> _map_text;
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 
+/// <summary>
+/// 팩토리 생성
+/// </summary>
 void create_factory();
+/// <summary>
+/// 어댑터 열거
+/// </summary>
 void enum_adapters();
+/// <summary>
+/// 출력장치 열거
+/// </summary>
 void enum_outputs();
+/// <summary>
+/// window 생성
+/// </summary>
+/// <param name="window_class"></param>
+/// <param name="title"></param>
+/// <param name="instance"></param>
+/// <param name="rect"></param>
+/// <param name="data"></param>
+/// <param name="handle"> 생성된 window의 핸들 </param>
 void create_window(WCHAR* window_class, WCHAR* title, HINSTANCE instance, RECT rect, void* data, HWND& handle);
+/// <summary>
+/// window 들 생성,
+/// 사용하지 않음
+/// </summary>
 void create_windows();
+/// <summary>
+/// window들을 ini에 지정된 rect로 생성
+/// </summary>
 void create_windows_manual();
+/// <summary>
+/// window가 생성되지 않은 어댑터를 맵에서 제거
+/// </summary>
 void delete_adapter_has_none_window();
+/// <summary>
+/// 디바이스 생성
+/// </summary>
 void create_devices();
+/// <summary>
+/// 커맨드 큐 생성
+/// </summary>
 void create_command_queues();
+/// <summary>
+/// 커맨드 할당자 생성
+/// </summary>
 void create_command_allocators();
+/// <summary>
+/// 커맨드 리스트 생성
+/// </summary>
 void create_command_lists();
+/// <summary>
+/// 렌더 타겟 뷰 힙 생성
+/// </summary>
 void create_rtv_heaps();
+/// <summary>
+/// 셰이더 리소스 뷰 힙 생성
+/// </summary>
 void create_srv_heaps();
+/// <summary>
+/// 루트 시그니처 생성.
+/// 루트 시그니처가 무엇인지는 작성자도 모름,
+/// 공부 필요함. 또는 그냥 사용하면 됨.
+/// </summary>
 void create_root_sigs();
+/// <summary>
+/// 파이프라인 스테이트 오브젝트 생성.
+/// pso가 무엇인지 작성자도 자세히 알지 못함.
+/// 공부 필요함. 또는 그냥 사용하면 됨.
+/// </summary>
 void create_pipeline_state_objects();
+/// <summary>
+/// 펜스 생성
+/// </summary>
 void create_fences();
+/// <summary>
+/// 스왑 체인 생성
+/// </summary>
 void create_swap_chains();
+/// <summary>
+/// 렌더 타겟 뷰 생성
+/// </summary>
 void create_rtvs();
+/// <summary>
+/// 뷰포트 생성
+/// </summary>
 void create_viewports();
+/// <summary>
+/// 11 on 12 디바이스 생성
+/// </summary>
 void create_device_11_on_12();
 
 
+/// <summary>
+/// 11 on 12 디바이스 릴리즈
+/// </summary>
 void delete_device_11_on_12();
+/// <summary>
+/// 뷰포트 제거
+/// </summary>
 void delete_viewports();
+/// <summary>
+/// 렌더 타겟 뷰 릴리즈
+/// </summary>
 void delete_rtvs();
+/// <summary>
+/// 스왑 체인 릴리즈
+/// </summary>
 void delete_swap_chains();
+/// <summary>
+/// 셰이더 리소스 뷰 힙 릴리즈
+/// </summary>
 void delete_srv_heaps();
+/// <summary>
+/// 렌더 타겟 뷰 힙 릴리즈
+/// </summary>
 void delete_rtv_heaps();
+/// <summary>
+/// 펜스 릴리즈
+/// </summary>
 void delete_fences();
+/// <summary>
+/// 커맨드 리스트 릴리즈
+/// </summary>
 void delete_command_lists();
+/// <summary>
+/// 파이프라인 스테이트 오브젝트 릴리즈
+/// </summary>
 void delete_pipeline_state_objects();
+/// <summary>
+/// 루트 시그니처 릴리즈
+/// </summary>
 void delete_root_sigs();
+/// <summary>
+/// 커맨드 할당자 릴리즈
+/// </summary>
 void delete_command_allocators();
+/// <summary>
+/// 커맨드 큐 릴리즈
+/// </summary>
 void delete_command_queues();
+/// <summary>
+/// 디바이스 릴리즈
+/// </summary>
 void delete_devices();
+/// <summary>
+/// window 제거
+/// </summary>
 void delete_windows();
+/// <summary>
+/// 출력장치 릴리즈
+/// </summary>
 void delete_outputs();
+/// <summary>
+/// 어댑터 릴리즈
+/// </summary>
 void delete_adapters();
+/// <summary>
+/// 팩토리 릴리즈
+/// </summary>
 void delete_factory();
 
+/// <summary>
+/// 버텍스 버퍼 생성
+/// </summary>
+/// <param name="data_device"> 버텍스 버퍼를 생성할 디바이스 </param>
+/// <param name="index_command_list"> 대상 디바이스에서 생성한 커맨드 리스트 인덱스 </param>
 void create_vertex_buffer(pst_device data_device, int index_command_list);
+/// <summary>
+/// 버텍스 버퍼 릴리즈
+/// </summary>
 void delete_vertex_buffers();
+/// <summary>
+/// 인덱스 버퍼 생성
+/// </summary>
+/// <param name="data_device"> 인덱스 버퍼를 생성할 디바이스 </param>
+/// <param name="index_command_list"> 대상 디바이스에서 생성한 커맨드 리스트 인덱스 </param>
 void create_index_buffer(pst_device data_device, int index_command_list);
+/// <summary>
+/// 인덱스 버퍼 릴리즈
+/// </summary>
 void delete_index_buffers();
+/// <summary>
+/// 셰이더 리소스 뷰 핸들(텍스처) 생성
+/// </summary>
+/// <param name="data_device"> srv handle을 생성할 디바이스 </param>
+/// <param name="counter_texture"> srv 핸들의 번호를 계산할 텍스처 카운트 </param>
 void create_srv_handles(pst_device data_device, int counter_texture);
+/// <summary>
+/// 기본 이미지의 셰이더 리소스 뷰 핸들(텍스처) 생성
+/// </summary>
+/// <param name="data_device"> srv handle을 생성할 디바이스 </param>
 void create_srv_handles_texture_default(pst_device data_device);
+/// <summary>
+/// 텍스처 릴리즈
+/// </summary>
 void delete_textures();
 
+/// <summary>
+/// 텍스처를 srv에 설정
+/// </summary>
+/// <param name="data_device"> srv를 생성한 디바이스 </param>
+/// <param name="frame"> 디코딩된 프레임 </param>
+/// <param name="counter_texture"> srv 핸들의 번호를 계산할 텍스처 카운트 </param>
+/// <param name="srv_index"> 텍스처의 번호 </param>
 void upload_texture(pst_device data_device, AVFrame* frame, int counter_texture, int srv_index);
 
 
+/// <summary>
+/// nvapi를 사용한 동기화 객체 생성
+/// </summary>
+/// <param name="device"></param>
+/// <param name="swap_chain"></param>
 void initialize_swap_lock(ID3D12Device* device, IDXGISwapChain1* swap_chain);
+/// <summary>
+/// nvapi를 사용한 동기화 객체 생성
+/// </summary>
 void initialize_swap_locks();
+/// <summary>
+/// nvapi를 사용한 동기화 객체 릴리즈
+/// </summary>
+/// <param name="device"></param>
+/// <param name="swap_chain"></param>
 void delete_swap_lock(ID3D12Device* device, IDXGISwapChain1* swap_chain);
+/// <summary>
+/// nvapi를 사용한 동기화 객체 릴리즈
+/// </summary>
 void delete_swap_locks();
 
 
+/// <summary>
+/// scene 생성
+/// </summary>
+/// <returns> 0: 성공, 1: 스트림 연결 실패 </returns>
 int create_scenes();
+/// <summary>
+/// scene 제거
+/// </summary>
 void delete_scenes();
 
+/// <summary>
+/// ffmpeg 인스턴스의 콜백 함수
+/// </summary>
+/// <param name="param"></param>
 void callback_ffmpeg_wrapper_ptr(void* param);
 
 #if _DEBUG
+/// <summary>
+/// d3d 객체들의 릴리즈 상태 확인
+/// </summary>
 void d3d_memory_check();
 #endif
 
+/// <summary>
+/// 실행 프로그램 경로 가져오기
+/// </summary>
+/// <param name="path"></param>
+/// <param name="path_size"></param>
 void get_asset_path(wchar_t* path, uint32_t path_size);
+/// <summary>
+/// 실행 프로그램 경로에 param을 붙여서 돌려줌
+/// </summary>
+/// <param name="asset_name"> 실행 경로에 추가로 붙일 경로 </param>
+/// <returns></returns>
 std::wstring get_asset_full_path(LPCWSTR asset_name);
+/// <summary>
+/// ini 파일 읽기
+/// </summary>
 void config_setting();
 
 
+/// <summary>
+/// 통신 서버 스레드 함수
+/// </summary>
 void thread_tcp_server();
 
+/// <summary>
+/// 통신 패킷 처리 스레드 함수
+/// </summary>
 void thread_packet_processing();
 
+/// <summary>
+/// 통신 서버 개체의 콜백 함수
+/// </summary>
+/// <param name="data"></param>
+/// <param name="connection"></param>
 void callback_data_connection_server(void* data, void* connection);
 
 
+/// <summary>
+/// 스레드 수행 순서를 지정하는 개체 저장 스레드 함수
+/// </summary>
 void thread_vector_input();
 
+/// <summary>
+/// 스레드 수행 순서를 지정하는 개체를 임시로 저장하는 벡터에 개체 input
+/// </summary>
+/// <param name="data"></param>
 void vector_input(st_input_object data);
 
+/// <summary>
+/// 대기 스레드 함수
+/// </summary>
+/// <param name="wait_type"> 대기 진행 방향 </param>
+/// <param name="flag_thread"> wait for multiple objects 스레드 실행중 플래그 </param>
 void thread_wait_for_multiple_objects(e_wait_type wait_type, bool* flag_thread);
 
+/// <summary>
+/// device 스레드 함수
+/// </summary>
+/// <param name="data_device"></param>
 void thread_device(pst_device data_device);
+/// <summary>
+/// upload 스레드 함수
+/// </summary>
+/// <param name="data_device"></param>
 void thread_upload(pst_device data_device);
+/// <summary>
+/// window 스레드 함수
+/// </summary>
+/// <param name="data_window"></param>
 void thread_window(pst_window data_window);
+/// <summary>
+/// scene 스레드 함수
+/// </summary>
+/// <param name="data_scene"></param>
 void thread_scene(pst_scene data_scene);
 
+/// <summary>
+/// scene 의 프레임 unref 스레드 함수
+/// </summary>
+/// <param name="data_scene"></param>
 void thread_scene_unref(pst_scene data_scene);
 
+/// <summary>
+/// 종료 전 gpu 작업 완료 대기 함수
+/// </summary>
 void wait_gpus_end();
 
+/// <summary>
+/// min, max 사이의 값 target을 normalized_min, normalized_max 사이로 정규화
+/// </summary>
+/// <param name="min"> 기존 min </param>
+/// <param name="max"> 기존 max </param>
+/// <param name="target"> 기존 min, max 사이의 값 </param>
+/// <param name="normalized_min"> 정규화 후 min </param>
+/// <param name="normalized_max"> 정구화 후 max </param>
+/// <returns> 정규화된 target 의 값</returns>
 float normalize_min_max(int min, int max, int target, int normalized_min, int normalized_max);
+/// <summary>
+/// int 형 rect를 float 형 NormalizedRect 로 정규화
+/// </summary>
+/// <param name="base_rect"> min, max 범위가 되는 rect </param>
+/// <param name="target_rect"> base_rect 와 겹치는 부분이 있는 rect </param>
+/// <param name="normalized_rect"> 정규화 결과 </param>
 void normalize_rect(RECT base_rect, RECT target_rect, NormalizedRect& normalized_rect);
 
+/// <summary>
+/// 미디어 스트림 재생 시작 함수
+/// </summary>
+/// <returns></returns>
 int start_playback();
 
+/// <summary>
+/// index로 queue가 가득찼는지 확인하는 함수
+/// </summary>
+/// <param name="index_input"> 인풋 인덱스 </param>
+/// <param name="index_output"> 아웃풋 인덱스 </param>
+/// <param name="queue_size"> 큐의 크기 </param>
+/// <returns> true: 큐가 가득 참, false: 큐가 가득 차지 않음 </returns>
 bool is_queue_full(int index_input, int index_output, int queue_size);
+/// <summary>
+/// index로 queue가 비었는지 확인하는 함수
+/// </summary>
+/// <param name="index_input"> 인풋 인덱스 </param>
+/// <param name="index_output"> 아웃풋 인덱스 </param>
+/// <returns> true: 큐가 비었음, false: 큐가 비어있지 않음 </returns>
 bool is_queue_empty(int index_input, int index_output);
+/// <summary>
+/// index로 queue의 더 넣을 수 있는 크기를 확인하는 함수
+/// </summary>
+/// <param name="index_input"> 인풋 인덱스 </param>
+/// <param name="index_output"> 아웃풋 인덱스 </param>
+/// <param name="queue_size"> 큐의 크기 </param>
+/// <returns> 남은 공간의 크기 </returns>
 int get_queue_size(int index_input, int index_output, int queue_size);
 
+/// <summary>
+/// ffmpeg을 사용하는 instance를 생성하는 함수. create_ffmpeg_instance_play_start()을 먼저 사용후에 받을 수 있는 index_scene을 이 함수의 scene_index에 사용함.
+/// </summary>
+/// <param name="instance"> 생성한 ffmpeg 사용 instance를 받을 포인터 </param>
+/// <param name="device_index"> 하드웨어 디코딩에 사용할 Device의 index </param>
+/// <param name="url"> 연결에 사용할 스트림의 url </param>
+/// <param name="scene_index"> 생성할 pst_scene에 할당할 scene_index 값 </param>
+/// <param name="rect"> instance가 표출되어야할 사각형 위치 </param>
+/// <returns> 0: 성공, 1: 실패 </returns>
 int create_ffmpeg_instance_with_scene_index(void*& instance, UINT device_index, std::string url, UINT scene_index, RECT rect);
 
+/// <summary>
+/// instance의 재생을 처음 시작 위치로 돌리는 함수
+/// </summary>
+/// <param name="data_scene"> 반복 재생 대상 instance를 가진 pst_scene 개체 </param>
+/// <returns> 항상 0 return </returns>
 int check_map_ffmpeg_instance_repeat(pst_scene data_scene);
 
+/// <summary>
+/// ffmpeg을 사용하는 instance에서 스트림 연결 시도 함수
+/// </summary>
+/// <param name="instance"> ffmpeg 사용 instance의 포인터 </param>
+/// <returns> 0: 성공, 1: 실패 </returns>
 int create_ffmpeg_instance_check_open_file(void* instance);
+/// <summary>
+/// ffmpeg을 사용하는 instance에서 playback 시작 함수
+/// </summary>
+/// <param name="instance"> ffmpeg 사용 instance의 포인터 </param>
+/// <param name="index_scene"> 생성할 pst_scene에 할당할 index_scene의 값을 받을 ref </param>
+/// <param name="rect"> instance가 표출되어야할 사각형 위치 </param>
+/// <returns> 항상 0 return </returns>
 int create_ffmpeg_instance_play_start(void* instance, UINT& index_scene, RECT rect);
 
+/// <summary>
+/// default로 사용할 texture 생성 함수
+/// </summary>
+/// <param name="data_device"> texture를 생성하고 관리할 device 개체 </param>
+/// <returns> 항상 0 return </returns>
 int create_texture_default(pst_device data_device);
+/// <summary>
+/// default로 사용하는 texture 제거 함수
+/// </summary>
+/// <param name="data_device"> default texture를 가진 device 개체 </param>
+/// <returns> 항상 0 return </returns>
 int delete_texture_default(pst_device data_device);
+/// <summary>
+/// default로 사용하는 texture에 data를 upload하는 함수
+/// </summary>
+/// <param name="data_device"> default texture를 가진 device 개체 </param>
+/// <param name="index_command_list"> GPU 명령을 작성할 command_list의 index 값 </param>
+/// <returns> 항상 0 return </returns>
 int upload_texture_default(pst_device data_device, int index_command_list);
 
+/// <summary>
+/// default image를 디코딩할 ffmpeg을 사용하는 instance 생성 함수
+/// </summary>
+/// <param name="instance"> default image를 사용할 ffmpeg을 사용하는 instance의 포인터 </param>
+/// <returns> 0: 성공, 1: 실패 </returns>
 int create_ffmpeg_instance_default_image(void*& instance);
 
+/// <summary>
+/// _map_scene이 가진 데이터 제거 함수. create_scenes()가 실패할 때 수행됨.
+/// </summary>
 void delete_scenes_data();
 
+/// <summary>
+/// ffmpeg을 사용하는 instance를 생성하고 데이터들을 설정하는 함수.
+/// </summary>
+/// <param name="instance"> 생성한 ffmpeg 사용 instance를 받을 포인터 </param>
+/// <param name="index_device"> 하드웨어 디코딩에 사용할 Device의 index </param>
+/// <param name="url"> 연결에 사용할 스트림의 url </param>
+/// <returns> 항상 0 return </returns>
 int create_ffmpeg_instance_set_data(void*& instance, UINT index_device, std::string url);
 
+/// <summary>
+/// 연결 스트림이 live stream일 때 스트림 연결 시도 함수
+/// </summary>
+/// <param name="instance"> ffmpeg을 사용하는 instance 포인터 </param>
+/// <returns> 0: 성공, 1: 실패</returns>
 int create_ffmpeg_instance_check_open_file_on_live_stream(void* instance);
+/// <summary>
+/// ffmpeg을 사용하는 instance에 scene_index와 rect를 설정하는 함수
+/// </summary>
+/// <param name="instance"> ffmpeg을 사용하는 instance 포인터 </param>
+/// <param name="index_scene"> 생성할 pst_scene에 할당할 index_scene의 값을 받을 ref </param>
+/// <param name="rect"> instance가 표출되어야할 사각형 위치 </param>
+/// <returns> 항상 0 return </returns>
 int create_ffmpeg_instance_play_start_set_data(void* instance, UINT& index_scene, RECT rect);
+/// <summary>
+/// 연결 대상이 live stream일 때 play를 시작하는 함수
+/// </summary>
+/// <param name="instance"> ffmpeg을 사용하는 instance 포인터 </param>
+/// <returns> 항상 0 return </returns>
 int create_ffmpeg_instance_play_start_on_live_stream(void* instance);
 
+/// <summary>
+/// Device 마다 자막 개체 생성 함수
+/// </summary>
 void create_texts();
+/// <summary>
+/// Device 마다 가지는 자막 개체 제거 함수
+/// </summary>
 void delete_texts();
 
+/// <summary>
+/// internal 자막 개체 생성 함수
+/// </summary>
+/// <param name="index_text"> 생성할 자막의 index </param>
 void create_text(int index_text);
+/// <summary>
+/// internal 자막 개체 제거 함수
+/// </summary>
+/// <param name="index_text"> 제거할 자막의 index </param>
 void delete_text(int index_text);
 
+/// <summary>
+/// 자막의 텍스트를 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="text_string"> 설정할 텍스트 </param>
 void set_text_string(int index_text, std::wstring text_string);
+/// <summary>
+/// 자막의 텍스트의 색을 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="color_r"> 자막색의 R 값 </param>
+/// <param name="color_g"> 자막색의 G 값 </param>
+/// <param name="color_b"> 자막색의 B 값 </param>
+/// <param name="color_a"> 자막색의 A 값 </param>
 void set_text_color(int index_text, int color_r, int color_g, int color_b, int color_a);
+/// <summary>
+/// 자막의 텍스트의 크기를 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="font_size"> 텍스트의 크기 </param>
 void set_text_size(int index_text, int font_size);
+/// <summary>
+/// 자막의 글꼴을 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="font_family"> 텍스트의 글꼴 </param>
 void set_text_font_family(int index_text, std::wstring font_family);
+/// <summary>
+/// 자막의 배경색을 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="color_r"> 자막의 배경색의 R 값 </param>
+/// <param name="color_g"> 자막의 배경색의 G 값 </param>
+/// <param name="color_b"> 자막의 배경색의 B 값 </param>
+/// <param name="color_a"> 자막의 배경색의 A 값 </param>
 void set_text_color_background(int index_text, int color_r, int color_g, int color_b, int color_a);
+/// <summary>
+/// 자막의 시작 위치의 left 값 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="left"> 자막의 시작 위치의 left 값 </param>
 void set_text_start_coordinate_left(int index_text, int left);
+/// <summary>
+/// 자막의 시작 위치의 top 값 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="top"> 자막의 시작 위치의 top 값 </param>
 void set_text_start_coordinate_top(int index_text, int top);
+/// <summary>
+/// 자막의 배경의 너비를 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="width"> 자막의 배경의 너비 값 </param>
 void set_text_background_width(int index_text, int width);
+/// <summary>
+/// 자막의 배경의 높이를 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="height"> 자막의 배경의 높이 값 </param>
 void set_text_background_height(int index_text, int height);
+/// <summary>
+/// 자막의 굵기를 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="weight"> 자막의 굵기 정보 </param>
 void set_text_weight(int index_text, e_dwrite_font_weight weight);
+/// <summary>
+/// 자막의 style 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="style"> 자막의 style 값 </param>
 void set_text_style(int index_text, e_dwrite_font_style style);
+/// <summary>
+/// 자막의 stretch 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="stretch"> 자막의 stretch 값 </param>
 void set_text_stretch(int index_text, e_dwrite_font_stretch stretch);
+/// <summary>
+/// 자막 글자의 배경 내부에서 가로축 이동 type 좌/우 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="type"> 자막의 가로축 이동 type 좌/우 </param>
 void set_text_movement_type_horizontal(int index_text, e_movement_type_horizontal type);
+/// <summary>
+/// 자막 글자의 배경 내부에서 가로축 이동 속도 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="speed"> 자막 이동 속도 </param>
 void set_text_movement_speed_horizontal(int index_text, int speed);
+/// <summary>
+/// 자막 글자의 배경 내부에서 가로축 최대 이동 위치 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="threshold"> 자막 배경 내부에서의 가로축 최대 이동 위치 </param>
 void set_text_movement_threshold_horizontal(int index_text, int threshold);
+/// <summary>
+/// 자막 배경의 가로축 이동 type 좌/우 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="type"> 자막 배경의 가로축 이동 type 좌/우 </param>
 void set_text_movement_type_horizontal_background(int index_text, e_movement_type_horizontal type);
+/// <summary>
+/// 자막 배경의 가로축 이동 속도 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="speed"> 자막 배경의 가로축 이동 속도 </param>
 void set_text_movement_speed_horizontal_background(int index_text, int speed);
+/// <summary>
+/// 자막 배경의 가로축 최대 이동 위치 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="threshold"> 자막 배경의 가로축 최대 이동 위치 </param>
 void set_text_movement_threshold_horizontal_background(int index_text, int threshold);
+/// <summary>
+/// 자막 글자의 배경 내부에서 세로축 이동 type 상/하 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="type"> 자막의 세로축 이동 type 상/하 </param>
 void set_text_movement_type_vertical(int index_text, e_movement_type_vertical type);
+/// <summary>
+/// 자막 글자의 배경 내부에서 세로축 이동 속도 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="speed"> 자막 이동 속도 </param>
 void set_text_movement_speed_vertical(int index_text, int speed);
+/// <summary>
+/// 자막 글자의 배경 내부에서 세로축 최대 이동 위치 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="threshold"> 자막 배경 내부에서의 세로축 최대 이동 위치 </param>
 void set_text_movement_threshold_vertical(int index_text, int threshold);
+/// <summary>
+/// 자막 배경의 세로축 이동 type 상/하 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="type"> 자막 배경의 세로축 이동 type 상/하 </param>
 void set_text_movement_type_vertical_background(int index_text, e_movement_type_vertical type);
+/// <summary>
+/// 자막 배경의 세로축 이동 속도 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="speed"> 자막 배경의 세로축 이동 속도 </param>
 void set_text_movement_speed_vertical_background(int index_text, int speed);
+/// <summary>
+/// 자막 배경의 세로축 최대 이동 위치 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="threshold"> 자막 배경의 세로축 최대 이동 위치 </param>
 void set_text_movement_threshold_vertical_background(int index_text, int threshold);
 
+/// <summary>
+/// internal 자막 정보를 사용해서 Direct Write로 자막 instance를 생성함
+/// </summary>
+/// <param name="index_text"> 생성할 자막의 index </param>
+/// <param name="data_text"> 자막 instance를 생성할 Device 정보를 가지는 pst_text 개체 </param>
 void create_text_instance(int index_text, pst_text data_text);
+/// <summary>
+/// Direct Write로 만든 자막 instance를 제거함
+/// </summary>
+/// <param name="index_text"> 제거할 자막의 index </param>
+/// <param name="data_text"> 자막 instance를 제거할 Device 정보를 가지는 pst_text 개체 </param>
 void delete_text_instance(int index_text, pst_text data_text);
 
+/// <summary>
+/// 자막 글자의 깜빡임 효과 설정
+/// </summary>
+/// <param name="index_text"> 설정할 자막의 index </param>
+/// <param name="flag_blink_turn_on_off"> 자막 글자의 깜빡임 효과, true: 효과 on, false: 효과 off </param>
 void set_text_blink_turn_on_off(int index_text, bool flag_blink_turn_on_off);
+/// <summary>
+/// 자막 글자의 깜빡임 효과가 있을 때, 글자가 보여지는 시간을 milisecond로 설정
+/// </summary>
+/// <param name="interval_blink_in_miliseconds"> 글자가 보여지는 milisecond 시간 값 </param>
 void set_text_blink_interval(int interval_blink_in_miliseconds);
+/// <summary>
+/// 자막 글자의 깜빡임 효과가 있을 때, 글자가 보여지지 않는 시간을 milisecond로 설정
+/// </summary>
+/// <param name="duration_blink_in_miliseconds"> 글자가 보여지지 않는 milisecond 시간 값 </param>
 void set_text_blink_duration(int duration_blink_in_miliseconds);
 
 // --------------------------------
 
+/// <summary>
+/// spdlog를 사용한 로거 생성
+/// </summary>
 void set_logger();
 
 // --------------------------------
@@ -942,6 +2023,8 @@ void create_factory()
         {
             debug_controller->EnableDebugLayer();
 #if 0
+            // GPU 유효성 검사 사용 설정
+            // GPU의 처리속도가 느려짐
             debug_controller->SetEnableGPUBasedValidation(true);
 #endif // 0
 
@@ -984,12 +2067,14 @@ void enum_adapters()
 
         adapter->GetDesc1(&adapter_desc);
 
+        // adapter가 software adapter 임
         if (adapter_desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
         {
             adapter->Release();
             continue;
         }
 
+        // Device가 Direct3D Feature Level 12를 지원하는지 확인함
         hr = D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_12_0, __uuidof(ID3D12Device), nullptr);
         if (hr == S_FALSE)
         {
@@ -1042,6 +2127,7 @@ void enum_outputs()
             output_count++;
         }
 
+        // adapter에 연결된 output이 없으면 _map_adapter에서 adapter를 제거함
         if (output_count == 0)
         {
             data_adapter->adapter->Release();
@@ -1220,6 +2306,7 @@ void create_devices()
         ID3D12Device* device = nullptr;
 
         //hr = D3D12CreateDevice(data_adapter->adapter, D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&device));
+        // Direct Write를 사용하기 위해서 Device를 Direct3D Feature Level 11 로 생성함
         hr = D3D12CreateDevice(data_adapter->adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
 
         if (hr == S_OK)
@@ -1371,6 +2458,7 @@ void create_command_allocators()
 
         pst_command_allocator data_command_allocator = new st_command_allocator();
 
+        // 절반은 thread_device에서, 나머지 절반은 thread_upload에서 사용함
         for (UINT i = 0; i < _count_command_allocator * 2; i++)
         {
             ID3D12CommandAllocator* command_allocator = nullptr;
@@ -1520,6 +2608,7 @@ void create_command_lists()
 
         data_command_list->device_index = data_device->device_index;
 
+        // 절반은 thread_device에서, 나머지 절반은 thread_upload에서 사용함
         for (size_t i = 0; i < _count_command_list * 2; i++)
         {
             ID3D12GraphicsCommandList* command_list = nullptr;
@@ -1687,6 +2776,7 @@ void create_rtvs()
         auto it_rtv_heap = _map_rtv_heap.find(data_swap_chain->device_index);
         pst_rtv_heap data_rtv_heap = it_rtv_heap->second;
 
+        // CPU에서 접근이 가능한 rtv heap의 메모리 시작 위치
         D3D12_CPU_DESCRIPTOR_HANDLE cpu_handle = data_rtv_heap->rtv_heap->GetCPUDescriptorHandleForHeapStart();
 
         pst_rtv data_rtv = new st_rtv();
@@ -1706,13 +2796,13 @@ void create_rtvs()
 
             data_rtv->vector_rtv.push_back(rtv);
 
+            // --------------------------------
+            // 자막 렌더링을 위한 개체들
             ID3D11Resource* wrapped_back_buffer = nullptr;
             D3D11_RESOURCE_FLAGS flag_d3d11 = { D3D11_BIND_RENDER_TARGET };
             data_device->device_11_on_12->CreateWrappedResource(
                 rtv,
                 &flag_d3d11,
-                //D3D12_RESOURCE_STATE_RENDER_TARGET,
-                //D3D12_RESOURCE_STATE_RENDER_TARGET,
                 D3D12_RESOURCE_STATE_PRESENT,
                 D3D12_RESOURCE_STATE_PRESENT,
                 IID_PPV_ARGS(&wrapped_back_buffer)
@@ -1734,6 +2824,7 @@ void create_rtvs()
                 &rtv_2d
             );
             data_rtv->vector_rtv_2d.push_back(rtv_2d);
+            // --------------------------------
         }
 
         data_rtv->device_index = data_swap_chain->device_index;
@@ -2305,10 +3396,11 @@ void create_vertex_buffer(pst_device data_device, int index_command_list)
             { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } }
         };
 
-        vertices[0] = { { data_scene->normal_rect.left, data_scene->normal_rect.top, 0.0f }, { 0.0f, 0.0f } };
-        vertices[1] = { { data_scene->normal_rect.right, data_scene->normal_rect.top, 0.0f }, { 1.0f, 0.0f } };
-        vertices[2] = { { data_scene->normal_rect.left, data_scene->normal_rect.bottom, 0.0f }, { 0.0f, 1.0f } };
-        vertices[3] = { { data_scene->normal_rect.right, data_scene->normal_rect.bottom, 0.0f }, { 1.0f, 1.0f } };
+        // position은 -1.0 - 1.0 사이의 값을 가지고 uv는 0.0 - 1.0 사이의 값을 가짐
+        vertices[0] = { { data_scene->normal_rect.left, data_scene->normal_rect.top, 0.0f }, { 0.0f, 0.0f } };  // 좌상단
+        vertices[1] = { { data_scene->normal_rect.right, data_scene->normal_rect.top, 0.0f }, { 1.0f, 0.0f } }; // 우상단
+        vertices[2] = { { data_scene->normal_rect.left, data_scene->normal_rect.bottom, 0.0f }, { 0.0f, 1.0f } };   // 좌하단
+        vertices[3] = { { data_scene->normal_rect.right, data_scene->normal_rect.bottom, 0.0f }, { 1.0f, 1.0f } };  // 우하단
 
         const uint32_t vertex_buffer_size = sizeof(vertices);
         CD3DX12_HEAP_PROPERTIES vertex_buffer_properties(D3D12_HEAP_TYPE_DEFAULT);
@@ -2572,7 +3664,10 @@ void create_srv_handles_texture_default(pst_device data_device)
 
     auto it_srv_heap = _map_srv_heap.find(data_device->device_index);
     pst_srv_heap data_srv_heap = it_srv_heap->second;
+
+    // CPU에서 접근이 가능한 srv heap의 메모리 시작 위치
     D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu(data_srv_heap->srv_heap->GetCPUDescriptorHandleForHeapStart());
+    // GPU에서 접근이 가능한 srv heap의 메모리 시작 위치
     D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu(data_srv_heap->srv_heap->GetGPUDescriptorHandleForHeapStart());
 
     const UINT srv_descriptor_size = data_device->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -2607,6 +3702,7 @@ void create_srv_handles_texture_default(pst_device data_device)
 
 
     {
+        // CPU, GPU DESCRIPTOR HANDLE의 첫번째 위치에 default texture를 할당함
         D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_luminance = srv_handle_cpu;
         srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
         D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_chrominance = srv_handle_cpu;
@@ -2667,6 +3763,7 @@ void create_srv_handles(pst_device data_device, int counter_texture)
     _mutex_map_srv_handle_chrominance->unlock();
 
 
+    // 첫번째 위치에 default texture를 할당했기 때문에 1칸씩 뒤로 밀고 시작함
     srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
     srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
 
@@ -2730,9 +3827,10 @@ void delete_textures()
 
 void upload_texture(pst_device data_device, AVFrame* frame, int counter_texture, int srv_index)
 {
+    // 첫번째에 default texture를 할당했기 때문에 위치를 1 만큼 추가로 이동함
     int texture_index = (_count_texture_store * counter_texture) + srv_index + 1;
 
-    ID3D12Resource* srcResource = ((AVD3D12VAFrame*)frame->data[0])->texture;
+    ID3D12Resource* srv_resource = ((AVD3D12VAFrame*)frame->data[0])->texture;
 
     D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc{};
     srv_desc.Format = DXGI_FORMAT_R8_UNORM;
@@ -2757,13 +3855,15 @@ void upload_texture(pst_device data_device, AVFrame* frame, int counter_texture,
     pst_srv_handle data_srv_handle_chrominance = it_srv_handle_chrominance->second;
     D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_chrominance = data_srv_handle_chrominance->vector_handle_cpu.at(texture_index);
 
+    // Y 채널 할당
     srv_desc.Format = DXGI_FORMAT_R8_UNORM;
     srv_desc.Texture2D.PlaneSlice = 0;
-    data_device->device->CreateShaderResourceView(srcResource, &srv_desc, srv_handle_cpu_luminance);
+    data_device->device->CreateShaderResourceView(srv_resource, &srv_desc, srv_handle_cpu_luminance);
 
+    // UV 채널 할당
     srv_desc.Format = DXGI_FORMAT_R8G8_UNORM;
     srv_desc.Texture2D.PlaneSlice = 1;
-    data_device->device->CreateShaderResourceView(srcResource, &srv_desc, srv_handle_cpu_chrominance);
+    data_device->device->CreateShaderResourceView(srv_resource, &srv_desc, srv_handle_cpu_chrominance);
 }
 
 void initialize_swap_lock(ID3D12Device* device, IDXGISwapChain1* swap_chain)
@@ -2927,6 +4027,7 @@ int create_scenes()
         {
             pst_output data_output = it_output->second;
 
+            // rect가 data_output->output_desc.DesktopCoordinates 와 겹치는 부분이 있음을 확인함
             if (data_output->output_desc.DesktopCoordinates.left <= rect.left &&
                 data_output->output_desc.DesktopCoordinates.top <= rect.top &&
                 data_output->output_desc.DesktopCoordinates.right > rect.left &&
@@ -3059,6 +4160,7 @@ int create_scenes()
         {
             pst_window data_window = it_window->second;
 
+            // rect가 data_window->rect 와 겹치는 부분이 있음을 확인함
             if (data_window->rect.left <= rect.left &&
                 data_window->rect.top <= rect.top &&
                 data_window->rect.right > rect.left &&
@@ -3178,7 +4280,7 @@ void delete_scenes()
 
 void callback_ffmpeg_wrapper_ptr(void* param)
 {
-
+    // ffmpeg 인스턴스의 콜백을 수행할 필요가 없기 때문에 빈 함수임
 }
 
 
@@ -4321,6 +5423,7 @@ void thread_device(pst_device data_device)
             }
             else
             {
+                // default texture 사용
                 command_list->SetGraphicsRootDescriptorTable(0, data_srv_handle_luminance->vector_handle_gpu.at(0));
                 command_list->SetGraphicsRootDescriptorTable(1, data_srv_handle_chrominance->vector_handle_gpu.at(0));
             }
@@ -4342,6 +5445,7 @@ void thread_device(pst_device data_device)
         command_queue->ExecuteCommandLists(_countof(command_lists), command_lists);
 
         // ----------------------------------------------------------------
+#pragma region DWrite 사용
         // DWrite 사용
         auto it_text = _map_text.find(data_device->device_index);
         pst_text data_text = it_text->second;
@@ -4604,6 +5708,7 @@ void thread_device(pst_device data_device)
 
         data_device->device_11_on_12->ReleaseWrappedResources(&data_rtv->vector_wrapped_back_buffer.at(backbuffer_index), 1);
         data_device->device_context_11->Flush();
+#pragma endregion
         // ----------------------------------------------------------------
 
         data_fence->fence_value_device++;
@@ -4759,6 +5864,7 @@ void thread_upload(pst_device data_device)
         command_allocator->Reset();
         command_list->Reset(command_allocator, pso);
 
+        // Device에 메모리 할당
         if (flag_buffer_created == false)
         {
             create_vertex_buffer(data_device, index_command_list_upload);
@@ -4941,16 +6047,6 @@ void thread_scene(pst_scene data_scene)
 
     while (data_scene->flag_thread_scene)
     {
-        // CppFFmpegWrapper get_frame
-        // vector_frame is not full - is_queue_full() == false
-        //
-        // return == -1 : repeat
-        // return >=  0 : ok
-        // return == -2 : EOS, repeat
-        //
-        // av_frame_unref(data_scene->index_used_frame)
-        // index_output++
-
         if (_flag_use_default_image == false)
         {
             // 사용이 종료된 frame을 unref 예정 queue에 등록
@@ -5026,10 +6122,16 @@ void thread_scene(pst_scene data_scene)
                 cpp_ffmpeg_wrapper_get_flag_play_started(ffmpeg_instance_current, flag_play_started);
             }
 
+            // vector_frame is not full - is_queue_full() == false
             if (is_queue_full(data_scene->index_input, data_scene->index_output, _count_texture_store) == false
                 && flag_succeed_open_input
                 && flag_play_started)
             {
+                // CppFFmpegWrapper get_frame
+                //
+                // return == -1 : continue
+                // return >=  0 : ok
+                // return == -2 : EOS, repeat
                 result = cpp_ffmpeg_wrapper_get_frame(ffmpeg_instance_current, data_scene->vector_frame.at(data_scene->frame_index));
 
                 // queue empty
@@ -5142,6 +6244,8 @@ void thread_scene(pst_scene data_scene)
                 frame = data_scene->vector_frame.at(index_frame_check_delay);
                 if (frame->data[0] != nullptr)
                 {
+                    // 재생 속도 조정 로직
+
                     data_scene->time_now = av_gettime_relative();
                     AVRational timebase{};
                     cpp_ffmpeg_wrapper_get_timebase(ffmpeg_instance_current, timebase);
@@ -5454,6 +6558,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         create_texts();
     }
 
+    // default texture 준비
     {
         int result = 0;
         result = create_ffmpeg_instance_default_image(_ffmpeg_instance_default_image);
@@ -6393,104 +7498,102 @@ void create_text(int index_text)
 {
     for (auto it_text = _map_text.begin(); it_text != _map_text.end(); it_text++)
     {
+        pst_text data_text = it_text->second;
+
+        auto it_device = _map_device.find(data_text->index_device);
+        pst_device data_device = it_device->second;
+
+        std::unique_lock<std::shared_mutex> lk(*data_device->mutex_map_text_internal);
+
+        auto it_text_internal = data_text->map_text_internal.find(index_text);
+        if (it_text_internal != data_text->map_text_internal.end())
         {
-            pst_text data_text = it_text->second;
-
-            auto it_device = _map_device.find(data_text->index_device);
-            pst_device data_device = it_device->second;
-
-            std::unique_lock<std::shared_mutex> lk(*data_device->mutex_map_text_internal);
-
-            auto it_text_internal = data_text->map_text_internal.find(index_text);
-            if (it_text_internal != data_text->map_text_internal.end())
-            {
-                continue;
-            }
-
-            pst_text_internal data_text_internal = new st_text_internal();
-        
-            data_text_internal->index_text_internal = index_text;
-
-            data_text_internal->text_string = DEFAULT_TEXT_STRING;
-
-            data_text_internal->text_color = new st_color();
-            data_text_internal->text_color->r = DEFAULT_TEXT_COLOR;
-            data_text_internal->text_color->g = DEFAULT_TEXT_COLOR;
-            data_text_internal->text_color->b = DEFAULT_TEXT_COLOR;
-            data_text_internal->text_color->a = DEFAULT_TEXT_COLOR;
-
-            data_text_internal->text_size = new int();
-            *data_text_internal->text_size = DEFAULT_TEXT_SIZE;
-
-            data_text_internal->text_font_family = DEFAULT_TEXT_FONT_FAMILY;
-
-            data_text_internal->text_color_background = new st_color();
-            data_text_internal->text_color_background->r = DEFAULT_TEXT_COLOR_BACKGROUND;
-            data_text_internal->text_color_background->g = DEFAULT_TEXT_COLOR_BACKGROUND;
-            data_text_internal->text_color_background->b = DEFAULT_TEXT_COLOR_BACKGROUND;
-            data_text_internal->text_color_background->a = DEFAULT_TEXT_COLOR_BACKGROUND;
-
-            data_text_internal->text_start_coordinate_left = new float();
-            *data_text_internal->text_start_coordinate_left = DEFAULT_TEXT_BACKGROUND_RECTANGLE;
-            data_text_internal->text_start_coordinate_top = new float();
-            *data_text_internal->text_start_coordinate_top = DEFAULT_TEXT_BACKGROUND_RECTANGLE;
-            data_text_internal->text_background_width = new float();
-            *data_text_internal->text_background_width = DEFAULT_TEXT_BACKGROUND_RECTANGLE;
-            data_text_internal->text_background_height = new float();
-            *data_text_internal->text_background_height = DEFAULT_TEXT_BACKGROUND_RECTANGLE;
-
-            data_text_internal->text_weight = new e_dwrite_font_weight();
-            *data_text_internal->text_weight = DEFAULT_TEXT_WEIGHT;
-            data_text_internal->text_style = new e_dwrite_font_style();
-            *data_text_internal->text_style = DEFAULT_TEXT_STYLE;
-            data_text_internal->text_stretch = new e_dwrite_font_stretch();
-            *data_text_internal->text_stretch = DEFAULT_TEXT_STRETCH;
-
-            data_text_internal->text_matrics = new DWRITE_TEXT_METRICS();
-
-            data_text_internal->movement_type_horizontal = new e_movement_type_horizontal();
-            *data_text_internal->movement_type_horizontal = (e_movement_type_horizontal)DEFAULT_TEXT_MOVEMENT_TYPE;
-            data_text_internal->movement_speed_horizontal = new float();
-            *data_text_internal->movement_speed_horizontal = DEFAULT_TEXT_MOVEMENT_SPEED;
-            data_text_internal->movement_threshold_horizontal = new float();
-            *data_text_internal->movement_threshold_horizontal = DEFAULT_TEXT_MOVEMENT_THRESHOLD;
-            data_text_internal->movement_translation_horizontal = new float();
-            *data_text_internal->movement_translation_horizontal = DEFAULT_TEXT_MOVEMENT_TRANSLATION;
-
-            data_text_internal->movement_type_horizontal_background = new e_movement_type_horizontal();
-            *data_text_internal->movement_type_horizontal_background = (e_movement_type_horizontal)DEFAULT_TEXT_MOVEMENT_TYPE;
-            data_text_internal->movement_speed_horizontal_background = new float();
-            *data_text_internal->movement_speed_horizontal_background = DEFAULT_TEXT_MOVEMENT_SPEED;
-            data_text_internal->movement_threshold_horizontal_background = new float();
-            *data_text_internal->movement_threshold_horizontal_background = DEFAULT_TEXT_MOVEMENT_THRESHOLD;
-            data_text_internal->movement_translation_horizontal_background = new float();
-            *data_text_internal->movement_translation_horizontal_background = DEFAULT_TEXT_MOVEMENT_TRANSLATION;
-
-            data_text_internal->movement_type_vertical = new e_movement_type_vertical();
-            *data_text_internal->movement_type_vertical = (e_movement_type_vertical)DEFAULT_TEXT_MOVEMENT_TYPE;
-            data_text_internal->movement_speed_vertical = new float();
-            *data_text_internal->movement_speed_vertical = DEFAULT_TEXT_MOVEMENT_SPEED;
-            data_text_internal->movement_threshold_vertical = new float();
-            *data_text_internal->movement_threshold_vertical = DEFAULT_TEXT_MOVEMENT_THRESHOLD;
-            data_text_internal->movement_translation_vertical = new float();
-            *data_text_internal->movement_translation_vertical = DEFAULT_TEXT_MOVEMENT_TRANSLATION;
-
-            data_text_internal->movement_type_vertical_background = new e_movement_type_vertical();
-            *data_text_internal->movement_type_vertical_background = (e_movement_type_vertical)DEFAULT_TEXT_MOVEMENT_TYPE;
-            data_text_internal->movement_speed_vertical_background = new float();
-            *data_text_internal->movement_speed_vertical_background = DEFAULT_TEXT_MOVEMENT_SPEED;
-            data_text_internal->movement_threshold_vertical_background = new float();
-            *data_text_internal->movement_threshold_vertical_background = DEFAULT_TEXT_MOVEMENT_THRESHOLD;
-            data_text_internal->movement_translation_vertical_background = new float();
-            *data_text_internal->movement_translation_vertical_background = DEFAULT_TEXT_MOVEMENT_TRANSLATION;
-
-            data_text_internal->flag_created = false;
-            data_text_internal->flag_deleted = false;
-
-            data_text_internal->flag_blink = false;
-
-            data_text->map_text_internal.insert({ index_text, data_text_internal });
+            continue;
         }
+
+        pst_text_internal data_text_internal = new st_text_internal();
+        
+        data_text_internal->index_text_internal = index_text;
+
+        data_text_internal->text_string = DEFAULT_TEXT_STRING;
+
+        data_text_internal->text_color = new st_color();
+        data_text_internal->text_color->r = DEFAULT_TEXT_COLOR;
+        data_text_internal->text_color->g = DEFAULT_TEXT_COLOR;
+        data_text_internal->text_color->b = DEFAULT_TEXT_COLOR;
+        data_text_internal->text_color->a = DEFAULT_TEXT_COLOR;
+
+        data_text_internal->text_size = new int();
+        *data_text_internal->text_size = DEFAULT_TEXT_SIZE;
+
+        data_text_internal->text_font_family = DEFAULT_TEXT_FONT_FAMILY;
+
+        data_text_internal->text_color_background = new st_color();
+        data_text_internal->text_color_background->r = DEFAULT_TEXT_COLOR_BACKGROUND;
+        data_text_internal->text_color_background->g = DEFAULT_TEXT_COLOR_BACKGROUND;
+        data_text_internal->text_color_background->b = DEFAULT_TEXT_COLOR_BACKGROUND;
+        data_text_internal->text_color_background->a = DEFAULT_TEXT_COLOR_BACKGROUND;
+
+        data_text_internal->text_start_coordinate_left = new float();
+        *data_text_internal->text_start_coordinate_left = DEFAULT_TEXT_BACKGROUND_RECTANGLE;
+        data_text_internal->text_start_coordinate_top = new float();
+        *data_text_internal->text_start_coordinate_top = DEFAULT_TEXT_BACKGROUND_RECTANGLE;
+        data_text_internal->text_background_width = new float();
+        *data_text_internal->text_background_width = DEFAULT_TEXT_BACKGROUND_RECTANGLE;
+        data_text_internal->text_background_height = new float();
+        *data_text_internal->text_background_height = DEFAULT_TEXT_BACKGROUND_RECTANGLE;
+
+        data_text_internal->text_weight = new e_dwrite_font_weight();
+        *data_text_internal->text_weight = DEFAULT_TEXT_WEIGHT;
+        data_text_internal->text_style = new e_dwrite_font_style();
+        *data_text_internal->text_style = DEFAULT_TEXT_STYLE;
+        data_text_internal->text_stretch = new e_dwrite_font_stretch();
+        *data_text_internal->text_stretch = DEFAULT_TEXT_STRETCH;
+
+        data_text_internal->text_matrics = new DWRITE_TEXT_METRICS();
+
+        data_text_internal->movement_type_horizontal = new e_movement_type_horizontal();
+        *data_text_internal->movement_type_horizontal = (e_movement_type_horizontal)DEFAULT_TEXT_MOVEMENT_TYPE;
+        data_text_internal->movement_speed_horizontal = new float();
+        *data_text_internal->movement_speed_horizontal = DEFAULT_TEXT_MOVEMENT_SPEED;
+        data_text_internal->movement_threshold_horizontal = new float();
+        *data_text_internal->movement_threshold_horizontal = DEFAULT_TEXT_MOVEMENT_THRESHOLD;
+        data_text_internal->movement_translation_horizontal = new float();
+        *data_text_internal->movement_translation_horizontal = DEFAULT_TEXT_MOVEMENT_TRANSLATION;
+
+        data_text_internal->movement_type_horizontal_background = new e_movement_type_horizontal();
+        *data_text_internal->movement_type_horizontal_background = (e_movement_type_horizontal)DEFAULT_TEXT_MOVEMENT_TYPE;
+        data_text_internal->movement_speed_horizontal_background = new float();
+        *data_text_internal->movement_speed_horizontal_background = DEFAULT_TEXT_MOVEMENT_SPEED;
+        data_text_internal->movement_threshold_horizontal_background = new float();
+        *data_text_internal->movement_threshold_horizontal_background = DEFAULT_TEXT_MOVEMENT_THRESHOLD;
+        data_text_internal->movement_translation_horizontal_background = new float();
+        *data_text_internal->movement_translation_horizontal_background = DEFAULT_TEXT_MOVEMENT_TRANSLATION;
+
+        data_text_internal->movement_type_vertical = new e_movement_type_vertical();
+        *data_text_internal->movement_type_vertical = (e_movement_type_vertical)DEFAULT_TEXT_MOVEMENT_TYPE;
+        data_text_internal->movement_speed_vertical = new float();
+        *data_text_internal->movement_speed_vertical = DEFAULT_TEXT_MOVEMENT_SPEED;
+        data_text_internal->movement_threshold_vertical = new float();
+        *data_text_internal->movement_threshold_vertical = DEFAULT_TEXT_MOVEMENT_THRESHOLD;
+        data_text_internal->movement_translation_vertical = new float();
+        *data_text_internal->movement_translation_vertical = DEFAULT_TEXT_MOVEMENT_TRANSLATION;
+
+        data_text_internal->movement_type_vertical_background = new e_movement_type_vertical();
+        *data_text_internal->movement_type_vertical_background = (e_movement_type_vertical)DEFAULT_TEXT_MOVEMENT_TYPE;
+        data_text_internal->movement_speed_vertical_background = new float();
+        *data_text_internal->movement_speed_vertical_background = DEFAULT_TEXT_MOVEMENT_SPEED;
+        data_text_internal->movement_threshold_vertical_background = new float();
+        *data_text_internal->movement_threshold_vertical_background = DEFAULT_TEXT_MOVEMENT_THRESHOLD;
+        data_text_internal->movement_translation_vertical_background = new float();
+        *data_text_internal->movement_translation_vertical_background = DEFAULT_TEXT_MOVEMENT_TRANSLATION;
+
+        data_text_internal->flag_created = false;
+        data_text_internal->flag_deleted = false;
+
+        data_text_internal->flag_blink = false;
+
+        data_text->map_text_internal.insert({ index_text, data_text_internal });
     }
 }
 
