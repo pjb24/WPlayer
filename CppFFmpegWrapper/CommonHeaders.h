@@ -9,6 +9,7 @@
 #include <cstring>
 #include <thread>
 #include <chrono>
+#include <string>
 
 #include "TypesDefine.h"
 
