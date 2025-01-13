@@ -49,6 +49,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestFontDotNetFramework", "
 		{DF270A6A-5AB1-475D-A6CB-E870CA26016F} = {DF270A6A-5AB1-475D-A6CB-E870CA26016F}
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CppCefWrapper", "CppCefWrapper\CppCefWrapper.vcxproj", "{98A65E88-256D-4B42-A438-369411D88B93}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -178,6 +180,16 @@ Global
 		{1C0428DD-090E-4A0E-A003-B17E760FBFD2}.Release|x64.Build.0 = Release|Any CPU
 		{1C0428DD-090E-4A0E-A003-B17E760FBFD2}.Release|x86.ActiveCfg = Release|Any CPU
 		{1C0428DD-090E-4A0E-A003-B17E760FBFD2}.Release|x86.Build.0 = Release|Any CPU
+		{98A65E88-256D-4B42-A438-369411D88B93}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{98A65E88-256D-4B42-A438-369411D88B93}.Debug|Any CPU.Build.0 = Debug|x64
+		{98A65E88-256D-4B42-A438-369411D88B93}.Debug|x64.ActiveCfg = Debug|x64
+		{98A65E88-256D-4B42-A438-369411D88B93}.Debug|x64.Build.0 = Debug|x64
+		{98A65E88-256D-4B42-A438-369411D88B93}.Debug|x86.ActiveCfg = Debug|x64
+		{98A65E88-256D-4B42-A438-369411D88B93}.Release|Any CPU.ActiveCfg = Release|x64
+		{98A65E88-256D-4B42-A438-369411D88B93}.Release|Any CPU.Build.0 = Release|x64
+		{98A65E88-256D-4B42-A438-369411D88B93}.Release|x64.ActiveCfg = Release|x64
+		{98A65E88-256D-4B42-A438-369411D88B93}.Release|x64.Build.0 = Release|x64
+		{98A65E88-256D-4B42-A438-369411D88B93}.Release|x86.ActiveCfg = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
