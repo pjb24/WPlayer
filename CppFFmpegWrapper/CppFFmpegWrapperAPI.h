@@ -121,6 +121,7 @@ EXPORT void cpp_ffmpeg_wrapper_play_start(void* instance, void* connection);
 
 /// <summary>
 /// 재생 일시정지
+/// 사용하지 않음.
 /// </summary>
 /// <param name="instance"> FFmpeg instance 포인터 </param>
 /// <param name="connection"> 명령 패킷을 보낸 connection </param>
