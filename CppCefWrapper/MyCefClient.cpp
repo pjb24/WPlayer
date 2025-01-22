@@ -3,7 +3,7 @@
 #include "include/wrapper/cef_helpers.h"
 #include "include/cef_app.h"
 
-MyCefClient::MyCefClient(MyRenderHandler* render_handler)
+MyCefClient::MyCefClient(CefRefPtr<MyRenderHandler> render_handler)
 {
     _render_handler = render_handler;
 }
@@ -50,10 +50,11 @@ void MyCefClient::OnBeforeClose(CefRefPtr<CefBrowser> browser)
     if (_browser_id == browser->GetIdentifier())
     {
         _browser = nullptr;
+        _render_handler = nullptr;
     }
 
     if (--_browser_count == 0)
     {
-        CefQuitMessageLoop();
+        PostQuitMessage(0);
     }
 }

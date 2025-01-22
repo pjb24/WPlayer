@@ -7,7 +7,7 @@
 class MyCefClient : public CefClient, public CefLifeSpanHandler
 {
 public:
-    MyCefClient(MyRenderHandler* render_handler);
+    MyCefClient(CefRefPtr<MyRenderHandler> render_handler);
 
     virtual CefRefPtr<CefRenderHandler> GetRenderHandler();
 

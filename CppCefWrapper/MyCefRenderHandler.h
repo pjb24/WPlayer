@@ -9,7 +9,7 @@
 class MyRenderHandler : public CefRenderHandler
 {
 public:
-    MyRenderHandler();
+    MyRenderHandler(RECT rect);
     ~MyRenderHandler();
 
     virtual void GetViewRect(CefRefPtr<CefBrowser> browser, CefRect& rect);
@@ -25,8 +25,11 @@ public:
 
     void get_deque_data(void*& buffer, int& width, int& height);
 
+    void delete_buffer(void* buffer);
+
 private:
 
+    RECT _rect;
     std::deque<std::tuple<void*, int, int>*>* _deque_tuple = nullptr;
     std::mutex* _mutex_deque_tuple = nullptr;
 

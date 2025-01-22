@@ -2,9 +2,9 @@
 
 #include <string>
 
-CppCefWrapper::CppCefWrapper(HWND window_handle, std::string url)
+CppCefWrapper::CppCefWrapper(HWND window_handle, std::string url, RECT rect)
 {
-    render_handler = new MyRenderHandler();
+    render_handler = new MyRenderHandler(rect);
 
     window_info.SetAsWindowless(window_handle);
 
@@ -19,9 +19,24 @@ CppCefWrapper::CppCefWrapper(HWND window_handle, std::string url)
 
 CppCefWrapper::~CppCefWrapper()
 {
-    cef_client.get()->GetBrowser()->GetHost()->CloseBrowser(false);
+    int size = 0;
 
-    delete render_handler;
+    do
+    {
+        render_handler->get_deque_size(size);
+        if (size != 0)
+        {
+            void* buffer;
+            int width;
+            int height;
+
+            render_handler->get_deque_data(buffer, width, height);
+            render_handler->delete_buffer(buffer);
+        }
+    } while (size != 0);
+
+    render_handler = nullptr;
+    cef_client = nullptr;
 }
 
 void CppCefWrapper::get_deque_size(int& size)
@@ -32,4 +47,14 @@ void CppCefWrapper::get_deque_size(int& size)
 void CppCefWrapper::get_deque_data(void*& buffer, int& width, int& height)
 {
     render_handler->get_deque_data(buffer, width, height);
+}
+
+void CppCefWrapper::delete_buffer(void* buffer)
+{
+    render_handler->delete_buffer(buffer);
+}
+
+void CppCefWrapper::close_browser()
+{
+    cef_client.get()->GetBrowser()->GetHost()->CloseBrowser(false);
 }

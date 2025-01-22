@@ -1,7 +1,9 @@
 #include "MyCefRenderHandler.h"
 
-MyRenderHandler::MyRenderHandler()
+MyRenderHandler::MyRenderHandler(RECT rect)
 {
+    _rect = rect;
+
     _deque_tuple = new std::deque<std::tuple<void*, int, int>*>();
     _mutex_deque_tuple = new std::mutex();
 }
@@ -13,7 +15,7 @@ MyRenderHandler::~MyRenderHandler()
     {
         std::tuple<void*, int, int>* data = _deque_tuple->front();
         void* buffer = std::get<0>(*data);
-        delete[] buffer;
+        delete_buffer(buffer);
         buffer = nullptr;
         delete data;
         data = nullptr;
@@ -32,7 +34,7 @@ MyRenderHandler::~MyRenderHandler()
 
 void MyRenderHandler::GetViewRect(CefRefPtr<CefBrowser> browser, CefRect& rect)
 {
-    rect = CefRect(0, 0, 1280, 720);
+    rect = CefRect(_rect.left, _rect.top, _rect.right - _rect.left, _rect.bottom - _rect.top);
 }
 
 void MyRenderHandler::OnPaint(CefRefPtr<CefBrowser> browser, PaintElementType type, 
@@ -59,6 +61,10 @@ void MyRenderHandler::get_deque_data(void*& buffer, int& width, int& height)
     int size = _deque_tuple->size();
     if (size == 0)
     {
+        buffer = nullptr;
+        width = 0;
+        height = 0;
+
         return;
     }
 
@@ -70,4 +76,9 @@ void MyRenderHandler::get_deque_data(void*& buffer, int& width, int& height)
     height = std::get<2>(*data);
 
     delete data;
+}
+
+void MyRenderHandler::delete_buffer(void* buffer)
+{
+    delete[] (uint8_t*)buffer;
 }
