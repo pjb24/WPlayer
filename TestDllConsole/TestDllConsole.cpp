@@ -584,6 +584,41 @@ void callback_ptr_client(void* data)
     }
     break;
 
+    case e_command_type::cef_create:
+    {
+        packet_cef_create_from_server* packet = new packet_cef_create_from_server();
+        memcpy(packet, data, header->size);
+
+        std::cout << "cef_create" << ", ";
+        std::cout << "command_type: " << (uint16_t)packet->header.cmd << ", ";
+        std::cout << "packet size: " << packet->header.size << ", ";
+        std::cout << "index_cef: " << packet->index_cef << ", ";
+        std::cout << "left: " << packet->left << ", ";
+        std::cout << "top: " << packet->top << ", ";
+        std::cout << "width: " << packet->width << ", ";
+        std::cout << "height: " << packet->height << ", ";
+        std::cout << "url_size: " << packet->url_size << ", ";
+        std::cout << "url: " << packet->url << ", ";
+        std::cout << "result: " << (uint16_t)packet->result << std::endl;
+
+        delete packet;
+    }
+    break;
+    case e_command_type::cef_delete:
+    {
+        packet_cef_delete_from_server* packet = new packet_cef_delete_from_server();
+        memcpy(packet, data, header->size);
+
+        std::cout << "cef_create" << ", ";
+        std::cout << "command_type: " << (uint16_t)packet->header.cmd << ", ";
+        std::cout << "packet size: " << packet->header.size << ", ";
+        std::cout << "index_cef: " << packet->index_cef << ", ";
+        std::cout << "result: " << (uint16_t)packet->result << std::endl;
+
+        delete packet;
+    }
+    break;
+
     default:
         break;
     }
@@ -641,6 +676,9 @@ void client_output_messages_step_1()
     std::cout << "30(font_blink_turn_on_off)" << std::endl;
     std::cout << "31(font_blink_interval)" << std::endl;
     std::cout << "32(font_blink_duration)" << std::endl;
+    std::cout << std::endl;
+    std::cout << "33(cef_create)" << std::endl;
+    std::cout << "34(cef_delete)" << std::endl;
 
     std::cout << std::endl;
     std::cout << "input 99 to stop program" << std::endl;
@@ -1486,6 +1524,48 @@ int main()
                     data.duration_blink_in_miliseconds = duration_blink_in_miliseconds;
 
                     cppsocket_client_send_font_blink_duration(_client, data);
+                }
+                break;
+
+                case e_command_type::cef_create:
+                {
+                    std::cout << "cef_create, Input index_cef left top width height url" << std::endl;
+
+                    int index_cef;
+                    int left;
+                    int top;
+                    int width;
+                    int height;
+                    std::string url;
+
+                    std::cin >> index_cef;
+                    std::cin >> left >> top >> width >> height;
+                    std::cin >> url;
+
+                    cppsocket_struct_client_send_cef_create data{};
+                    data.index_cef = index_cef;
+                    data.left = left;
+                    data.top = top;
+                    data.width = width;
+                    data.height = height;
+                    data.url_size = url.size();
+                    data.url = url.c_str();
+
+                    cppsocket_client_send_cef_create(_client, data);
+                }
+                break;
+                case e_command_type::cef_delete:
+                {
+                    std::cout << "cef_delete, Input index_cef" << std::endl;
+
+                    int index_cef;
+
+                    std::cin >> index_cef;
+
+                    cppsocket_struct_client_send_cef_delete data{};
+                    data.index_cef = index_cef;
+
+                    cppsocket_client_send_cef_delete(_client, data);
                 }
                 break;
 
