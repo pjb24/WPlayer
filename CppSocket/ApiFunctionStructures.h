@@ -258,6 +258,24 @@ struct cppsocket_struct_client_send_font_blink_duration
     int duration_blink_in_miliseconds;
 };
 
+struct cppsocket_struct_client_send_cef_create
+{
+    int index_cef;
+
+    int left;
+    int top;
+    int width;
+    int height;
+
+    uint16_t url_size;
+    const char* url;
+};
+
+struct cppsocket_struct_client_send_cef_delete
+{
+    int index_cef;
+};
+
 // --------------------------------
 
 // server ////////////////////////////////
@@ -549,6 +567,28 @@ struct cppsocket_struct_server_send_font_blink_duration
     uint16_t result;
 
     int duration_blink_in_miliseconds;
+};
+
+struct cppsocket_struct_server_send_cef_create
+{
+    uint16_t result;
+
+    int index_cef;
+
+    int left;
+    int top;
+    int width;
+    int height;
+
+    uint16_t url_size;
+    char url[260];
+};
+
+struct cppsocket_struct_server_send_cef_delete
+{
+    uint16_t result;
+
+    int index_cef;
 };
 
 // --------------------------------

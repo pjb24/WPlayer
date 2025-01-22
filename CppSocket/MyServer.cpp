@@ -732,3 +732,49 @@ bool MyServer::send_font_blink_duration(TcpConnection* connection, cppsocket_str
 
     return true;
 }
+
+bool MyServer::send_cef_create(TcpConnection* connection, cppsocket_struct_server_send_cef_create data)
+{
+    packet_header header{};
+    header.cmd = e_command_type::cef_create;
+    header.size = sizeof(packet_cef_create_from_server);
+
+    packet_cef_create_from_server out_packet{};
+    out_packet.header = header;
+
+    out_packet.result = (e_packet_result)data.result;
+
+    out_packet.index_cef = data.index_cef;
+    out_packet.left = data.left;
+    out_packet.top = data.top;
+    out_packet.width = data.width;
+    out_packet.height = data.height;
+    out_packet.url_size = data.url_size;
+    memcpy(out_packet.url, data.url, data.url_size);
+
+    std::shared_ptr<Packet> cef_create_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
+    *cef_create_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(cef_create_packet);
+
+    return true;
+}
+
+bool MyServer::send_cef_delete(TcpConnection* connection, cppsocket_struct_server_send_cef_delete data)
+{
+    packet_header header{};
+    header.cmd = e_command_type::cef_delete;
+    header.size = sizeof(packet_cef_delete_from_server);
+
+    packet_cef_delete_from_server out_packet{};
+    out_packet.header = header;
+
+    out_packet.result = (e_packet_result)data.result;
+
+    out_packet.index_cef = data.index_cef;
+
+    std::shared_ptr<Packet> cef_delete_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_server);
+    *cef_delete_packet << (void*)&out_packet;
+    connection->m_pmOutgoing.Append(cef_delete_packet);
+
+    return true;
+}

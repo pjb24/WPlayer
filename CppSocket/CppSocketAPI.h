@@ -257,6 +257,21 @@ EXPORT void cppsocket_server_send_font_blink_interval(void* server_instance, voi
 /// <param name="data"> Client로 보낼 데이터 </param>
 EXPORT void cppsocket_server_send_font_blink_duration(void* server_instance, void* connection, cppsocket_struct_server_send_font_blink_duration data);
 
+/// <summary>
+/// cef_create 명령에 대응하는 Server의 response
+/// </summary>
+/// <param name="server_instance"> MyServer 클래스 인스턴스 </param>
+/// <param name="connection"> 명령을 보낸 Client의 connection </param>
+/// <param name="data"> Client로 보낼 데이터 </param>
+EXPORT void cppsocket_server_send_cef_create(void* server_instance, void* connection, cppsocket_struct_server_send_cef_create data);
+/// <summary>
+/// cef_delete 명령에 대응하는 Server의 response
+/// </summary>
+/// <param name="server_instance"> MyServer 클래스 인스턴스 </param>
+/// <param name="connection"> 명령을 보낸 Client의 connection </param>
+/// <param name="data"> Client로 보낼 데이터 </param>
+EXPORT void cppsocket_server_send_cef_delete(void* server_instance, void* connection, cppsocket_struct_server_send_cef_delete data);
+
 // --------------------------------
 
 /// <summary>
@@ -458,5 +473,18 @@ EXPORT void cppsocket_client_send_font_blink_interval(void* client_instance, cpp
 /// <param name="client_instance"> MyClient 클래스 인스턴스 </param>
 /// <param name="data"> Server로 보낼 데이터 </param>
 EXPORT void cppsocket_client_send_font_blink_duration(void* client_instance, cppsocket_struct_client_send_font_blink_duration data);
+
+/// <summary>
+/// cef_create 명령을 Server로 request 함.
+/// </summary>
+/// <param name="client_instance"> MyClient 클래스 인스턴스 </param>
+/// <param name="data"> Server로 보낼 데이터 </param>
+EXPORT void cppsocket_client_send_cef_create(void* client_instance, cppsocket_struct_client_send_cef_create data);
+/// <summary>
+/// cef_delete 명령을 Server로 request 함.
+/// </summary>
+/// <param name="client_instance"> MyClient 클래스 인스턴스 </param>
+/// <param name="data"> Server로 보낼 데이터 </param>
+EXPORT void cppsocket_client_send_cef_delete(void* client_instance, cppsocket_struct_client_send_cef_delete data);
 
 // --------------------------------

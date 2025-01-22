@@ -48,6 +48,9 @@ public:
     bool send_font_blink_interval(cppsocket_struct_client_send_font_blink_interval data);
     bool send_font_blink_duration(cppsocket_struct_client_send_font_blink_duration data);
 
+    bool send_cef_create(cppsocket_struct_client_send_cef_create data);
+    bool send_cef_delete(cppsocket_struct_client_send_cef_delete data);
+
 private:
 	bool ProcessPacket(std::shared_ptr<Packet> packet) override;
 	void OnConnect() override;

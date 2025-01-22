@@ -614,3 +614,45 @@ bool MyClient::send_font_blink_duration(cppsocket_struct_client_send_font_blink_
 
     return true;
 }
+
+bool MyClient::send_cef_create(cppsocket_struct_client_send_cef_create data)
+{
+    packet_header header{};
+    header.cmd = e_command_type::cef_create;
+    header.size = sizeof(packet_cef_create_from_client);
+
+    packet_cef_create_from_client packet{};
+    packet.header = header;
+
+    packet.index_cef = data.index_cef;
+    packet.left = data.left;
+    packet.top = data.top;
+    packet.width = data.width;
+    packet.height = data.height;
+    packet.url_size = data.url_size;
+    memcpy(packet.url, data.url, data.url_size);
+
+    std::shared_ptr<Packet> cef_create_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_client);
+    *cef_create_packet << (void*)&packet;
+    m_connection.m_pmOutgoing.Append(cef_create_packet);
+
+    return true;
+}
+
+bool MyClient::send_cef_delete(cppsocket_struct_client_send_cef_delete data)
+{
+    packet_header header{};
+    header.cmd = e_command_type::cef_delete;
+    header.size = sizeof(packet_cef_delete_from_client);
+
+    packet_cef_delete_from_client packet{};
+    packet.header = header;
+
+    packet.index_cef = data.index_cef;
+
+    std::shared_ptr<Packet> cef_delete_packet = std::make_shared<Packet>(e_packet_type::structured_data_from_client);
+    *cef_delete_packet << (void*)&packet;
+    m_connection.m_pmOutgoing.Append(cef_delete_packet);
+
+    return true;
+}

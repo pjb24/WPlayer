@@ -71,6 +71,9 @@ enum class e_command_type : uint16_t
     font_blink_interval,    // 31
     font_blink_duration,    // 32
 
+    cef_create,     // 33
+    cef_delete,     // 34
+
     invalid = u16_invalid_id
 };
 
@@ -860,6 +863,58 @@ struct packet_font_blink_duration_from_server
     e_packet_result   result;     // 명령 수행 결과
     
     int duration_blink_in_miliseconds;
+};
+
+// --------------------------------
+
+// cef_create ////////////////////////////////
+struct packet_cef_create_from_client
+{
+    packet_header   header;
+
+    int index_cef;
+
+    int left;
+    int top;
+    int width;
+    int height;
+
+    uint16_t        url_size;
+    char            url[260];   // URL
+};
+
+struct packet_cef_create_from_server
+{
+    packet_header   header;
+    e_packet_result   result;     // 명령 수행 결과
+
+    int index_cef;
+
+    int left;
+    int top;
+    int width;
+    int height;
+
+    uint16_t        url_size;
+    char            url[260];   // URL
+};
+
+// --------------------------------
+
+// cef_delete ////////////////////////////////
+struct packet_cef_delete_from_client
+{
+    packet_header   header;
+
+    int index_cef;
+};
+
+struct packet_cef_delete_from_server
+{
+    packet_header   header;
+    e_packet_result   result;     // 명령 수행 결과
+
+    int index_cef;
 };
 
 // --------------------------------
