@@ -46,11 +46,16 @@
 extern "C"
 {
 #include "libavutil/time.h"
+#include "libswscale/swscale.h"
 }
 
 #pragma comment(lib, "avutil.lib")
+#pragma comment(lib, "swscale.lib")
 
 #include "StringConverter.h"
+
+#include "CppCefWrapperAPI.h"
+#pragma comment(lib, "CppCefWrapper.lib")
 
 // --------------------------------
 
@@ -163,6 +168,21 @@ typedef struct st_color
 
 }*pst_color;
 
+typedef struct st_cef_data_paint
+{
+    void* buffer;
+    int width;
+    int height;
+    void* nv12_buffer;
+}*pst_cef_data_paint;
+
+typedef struct st_texture_cef
+{
+    std::map<UINT, ID3D12Resource*> map_texture;
+    std::map<UINT, ID3D12Resource*> map_upload_heap_luminance;
+    std::map<UINT, ID3D12Resource*> map_upload_heap_chrominance;
+}*pst_texture_cef;
+
 /// <summary>
 /// 그래픽 카드 추상화 객체
 /// </summary>
@@ -233,6 +253,8 @@ typedef struct st_device
 
     std::shared_mutex* mutex_map_text_internal = nullptr;
 
+    std::map<UINT, pst_texture_cef> map_texture_cef;
+
 }*pst_device;
 
 /// <summary>
@@ -269,6 +291,8 @@ typedef struct st_window
     bool flag_device_to_window = false;
 
     bool flag_first_entry = true;
+
+    int counter_cef_create = 0;
 
 }*pst_window;
 
@@ -662,6 +686,58 @@ typedef struct st_text
 
 }*pst_text;
 
+typedef struct st_cef_device
+{
+    UINT index_cef_device = UINT_MAX;
+
+    RECT rect_target{ 0, 0, 0, 0 };
+    NormalizedRect rect_normalized{ 0.0f, 0.0f, 0.0f, 0.0f };
+
+    int index_srv_upload;
+    int index_srv_draw;
+
+    bool flag_texture_created;
+
+    int count_cef_device;
+
+}*pst_cef_device;
+
+typedef struct st_cef
+{
+    UINT index_cef;
+
+    void* instance;
+
+    std::string url;
+    
+    RECT rect_base{ 0, 0, 0, 0 };
+
+    std::map<UINT, pst_cef_device> map_cef_device;
+
+    HWND handle;
+
+    int index_map_input;
+    int index_map_output;
+
+    std::map<UINT, pst_cef_data_paint>* map_cef_data_paint = nullptr;
+    std::mutex* mutex_map_cef_data_paint = nullptr;
+
+    std::deque<int>* deque_index_used = nullptr;
+    std::mutex* mutex_deque_index_used = nullptr;
+
+    std::thread* thread_cef_unref = nullptr;
+    bool flag_thread_cef_unref = false;
+    std::mutex* mutex_deque_index_unref = nullptr;
+    std::deque<int>* deque_index_unref = nullptr;
+
+    bool flag_use_last_frame = false;
+
+    int count_used_frame_store = 3;
+
+    int index_upload_texture = -1;
+
+}*pst_cef;
+
 #pragma endregion
 
 // --------------------------------
@@ -679,6 +755,8 @@ bool _is_running = true;
 /// 실행 프로그램의 경로
 /// </summary>
 std::wstring _asset_path;
+
+bool _flag_cef_succeed = false;
 
 /// <summary>
 /// 스레드들의 루프 중에 발생할 짧은 대기시간
@@ -804,6 +882,18 @@ int _count_texture_store = 0;
 /// 하드웨어 디코딩 타입. 2: CUDA, 4: DXVA2, 7: D3D11VA, 12: D3D12VA
 /// </summary>
 int _hw_device_type = 12;
+
+/// <summary>
+/// Chromium Embedded Framework (CEF) 사용할지 정하는 플래그
+/// 미완성이니 개발 테스트 용도 말고는 사용하지 말것.
+/// </summary>
+bool _flag_use_cef = false;
+
+/// <summary>
+/// browser_subprocess_path 옵션에 사용할 위치.
+/// cef 소스의 tests/cefclient 를 빌드하여 만들 수 있는 cefclient.exe 파일의 위치를 사용함.
+/// </summary>
+std::string _cef_browser_subprocess_path;
 
 /// <summary>
 /// 컨트롤 모니터 사용 플래그
@@ -1142,6 +1232,11 @@ std::map<UINT, pst_scene> _map_scene;
 /// 다음 scene의 index
 /// </summary>
 UINT _next_scene_index = 0;
+
+std::map<UINT, pst_cef> _map_cef;
+
+std::deque<int> _deque_cef_delete;
+std::mutex _mutex_deque_cef_delete;
 
 // --------------------------------
 
@@ -1484,6 +1579,7 @@ void delete_factory();
 /// <param name="data_device"> 버텍스 버퍼를 생성할 디바이스 </param>
 /// <param name="index_command_list"> 대상 디바이스에서 생성한 커맨드 리스트 인덱스 </param>
 void create_vertex_buffer(pst_device data_device, int index_command_list);
+void create_vertex_buffer_cef(pst_device data_device, int index_command_list, int counter_scene, NormalizedRect rect_normalized);
 /// <summary>
 /// 버텍스 버퍼 릴리즈
 /// </summary>
@@ -1504,6 +1600,13 @@ void delete_index_buffers();
 /// <param name="data_device"> srv handle을 생성할 디바이스 </param>
 /// <param name="counter_texture"> srv 핸들의 번호를 계산할 텍스처 카운트 </param>
 void create_srv_handles(pst_device data_device, int counter_texture);
+/// <summary>
+/// 셰이더 리소스 뷰 핸들(텍스처) 생성
+/// </summary>
+/// <param name="data_device"> srv handle을 생성할 디바이스 </param>
+/// <param name="counter_texture"> 이미 생성되어있는 srv 개수 </param>
+/// <param name="counter_cef"> 이미 생성되어있는 cef의 srv 개수 </param>
+void create_srv_handles_cef_paint(pst_device data_device, int counter_texture, int counter_cef);
 /// <summary>
 /// 기본 이미지의 셰이더 리소스 뷰 핸들(텍스처) 생성
 /// </summary>
@@ -1756,6 +1859,10 @@ int delete_texture_default(pst_device data_device);
 /// <returns> 항상 0 return </returns>
 int upload_texture_default(pst_device data_device, int index_command_list);
 
+int create_nv12_texture(pst_device data_device, int width, int height, int index_cef);
+int delete_nv12_texture(pst_device data_device);
+int upload_texture_cef(pst_device data_device, pst_cef data_cef, int index_command_list_upload, int counter_texture);
+
 /// <summary>
 /// default image를 디코딩할 ffmpeg을 사용하는 instance 생성 함수
 /// </summary>
@@ -1998,6 +2105,18 @@ void set_text_blink_interval(int interval_blink_in_miliseconds);
 /// </summary>
 /// <param name="duration_blink_in_miliseconds"> 글자가 보여지지 않는 milisecond 시간 값 </param>
 void set_text_blink_duration(int duration_blink_in_miliseconds);
+
+void cef_initialize();
+void cef_shutdown();
+
+void create_cef(UINT index_cef, HWND handle, std::string url, RECT rect);
+void delete_cef(UINT index_cef);
+
+void delete_cefs();
+
+void delete_cef_internal(pst_cef data_cef);
+
+void thread_cef_unref(pst_cef data_cef);
 
 // --------------------------------
 
@@ -3463,6 +3582,92 @@ void create_vertex_buffer(pst_device data_device, int index_command_list)
     _mutex_map_vertex_buffer_view->unlock();
 }
 
+void create_vertex_buffer_cef(pst_device data_device, int index_command_list, int counter_next, NormalizedRect rect_normalized)
+{
+    _mutex_map_vertex_buffer->lock();
+    auto it_map_vertex_buffer = _map_vertex_buffer.find(data_device->device_index);
+    pst_vertex_buffer data_vertex_buffer = it_map_vertex_buffer->second;
+    _mutex_map_vertex_buffer->unlock();
+
+    _mutex_map_vertex_upload_buffer->lock();
+    auto it_map_vertex_upload_buffer = _map_vertex_upload_buffer.find(data_device->device_index);
+    pst_vertex_upload_buffer data_vertex_upload_buffer = it_map_vertex_upload_buffer->second;
+    _mutex_map_vertex_upload_buffer->unlock();
+
+    _mutex_map_vertex_buffer_view->lock();
+    auto it_map_vertex_buffer_view = _map_vertex_buffer_view.find(data_device->device_index);
+    pst_vertex_buffer_view data_vertex_buffer_view = it_map_vertex_buffer_view->second;
+    _mutex_map_vertex_buffer_view->unlock();
+
+    HRESULT hr = S_OK;
+
+
+    ID3D12Resource* vertex_buffer = nullptr;
+    ID3D12Resource* vertex_upload_buffer = nullptr;
+    D3D12_VERTEX_BUFFER_VIEW vertex_buffer_view{};
+
+    Vertex vertices[] =
+    {
+        { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
+        { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
+        { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
+        { { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } }
+    };
+
+    // position은 -1.0 - 1.0 사이의 값을 가지고 uv는 0.0 - 1.0 사이의 값을 가짐
+    vertices[0] = { { rect_normalized.left, rect_normalized.top, 0.0f }, { 0.0f, 0.0f } };  // 좌상단
+    vertices[1] = { { rect_normalized.right, rect_normalized.top, 0.0f }, { 1.0f, 0.0f } }; // 우상단
+    vertices[2] = { { rect_normalized.left, rect_normalized.bottom, 0.0f }, { 0.0f, 1.0f } };   // 좌하단
+    vertices[3] = { { rect_normalized.right, rect_normalized.bottom, 0.0f }, { 1.0f, 1.0f } };  // 우하단
+
+    const uint32_t vertex_buffer_size = sizeof(vertices);
+    CD3DX12_HEAP_PROPERTIES vertex_buffer_properties(D3D12_HEAP_TYPE_DEFAULT);
+    CD3DX12_HEAP_PROPERTIES vertex_upload_buffer_properties(D3D12_HEAP_TYPE_UPLOAD);
+    CD3DX12_RESOURCE_DESC vertex_buffer_desc = CD3DX12_RESOURCE_DESC::Buffer(vertex_buffer_size);
+
+    hr = data_device->device->CreateCommittedResource(
+        &vertex_buffer_properties,
+        D3D12_HEAP_FLAG_NONE,
+        &vertex_buffer_desc,
+        D3D12_RESOURCE_STATE_COMMON,
+        nullptr,
+        IID_PPV_ARGS(&vertex_buffer)
+    );
+    NAME_D3D12_OBJECT_INDEXED_2(vertex_buffer, data_device->device_index, counter_next, L"ID3D12Resource_vertex_buffer");
+
+    hr = data_device->device->CreateCommittedResource(
+        &vertex_upload_buffer_properties,
+        D3D12_HEAP_FLAG_NONE,
+        &vertex_buffer_desc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&vertex_upload_buffer)
+    );
+    NAME_D3D12_OBJECT_INDEXED_2(vertex_upload_buffer, data_device->device_index, counter_next, L"ID3D12Resource_vertex_upload_buffer");
+
+    D3D12_SUBRESOURCE_DATA vertex_data{};
+    vertex_data.pData = vertices;
+    vertex_data.RowPitch = sizeof(Vertex);
+    vertex_data.SlicePitch = sizeof(vertices);
+
+    auto it_command_list = _map_command_list.find(data_device->device_index);
+    pst_command_list data_command_list = it_command_list->second;
+
+    CD3DX12_RESOURCE_BARRIER transition_barrier = CD3DX12_RESOURCE_BARRIER::Transition(vertex_buffer, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_COPY_DEST);
+    data_command_list->vector_command_list.at(index_command_list)->ResourceBarrier(1, &transition_barrier);
+    UpdateSubresources(data_command_list->vector_command_list.at(index_command_list), vertex_buffer, vertex_upload_buffer, 0, 0, 1, &vertex_data);
+    transition_barrier = CD3DX12_RESOURCE_BARRIER::Transition(vertex_buffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    data_command_list->vector_command_list.at(index_command_list)->ResourceBarrier(1, &transition_barrier);
+
+    vertex_buffer_view.BufferLocation = vertex_buffer->GetGPUVirtualAddress();
+    vertex_buffer_view.StrideInBytes = sizeof(Vertex);
+    vertex_buffer_view.SizeInBytes = vertex_buffer_size;
+
+    data_vertex_buffer->vector_vertex_buffer.push_back(vertex_buffer);
+    data_vertex_upload_buffer->vector_vertex_upload_buffer.push_back(vertex_upload_buffer);
+    data_vertex_buffer_view->vector_vertex_buffer_view.push_back(vertex_buffer_view);
+}
+
 void delete_vertex_buffers()
 {
     _mutex_map_vertex_buffer->lock();
@@ -3771,6 +3976,93 @@ void create_srv_handles(pst_device data_device, int counter_texture)
     srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
 
     for (int i = 0; i < (_count_texture_store * counter_texture); i++)
+    {
+        D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_luminance = srv_handle_cpu;
+        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
+        D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_chrominance = srv_handle_cpu;
+        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
+
+        data_srv_handle_luminance->vector_handle_cpu.push_back(srv_handle_cpu_luminance);
+
+        data_srv_handle_chrominance->vector_handle_cpu.push_back(srv_handle_cpu_chrominance);
+
+
+        D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu_luminance = srv_handle_gpu;
+        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
+        data_srv_handle_luminance->vector_handle_gpu.push_back(srv_handle_gpu_luminance);
+
+        D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu_chrominance = srv_handle_gpu;
+        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
+        data_srv_handle_chrominance->vector_handle_gpu.push_back(srv_handle_gpu_chrominance);
+    }
+}
+
+void create_srv_handles_cef_paint(pst_device data_device, int counter_texture, int counter_cef)
+{
+    HRESULT hr = S_OK;
+
+    auto it_srv_heap = _map_srv_heap.find(data_device->device_index);
+    pst_srv_heap data_srv_heap = it_srv_heap->second;
+    D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu(data_srv_heap->srv_heap->GetCPUDescriptorHandleForHeapStart());
+    D3D12_GPU_DESCRIPTOR_HANDLE srv_handle_gpu(data_srv_heap->srv_heap->GetGPUDescriptorHandleForHeapStart());
+
+    const UINT srv_descriptor_size = data_device->device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+    _mutex_map_srv_handle_luminance->lock();
+    pst_srv_handle data_srv_handle_luminance = nullptr;
+    auto it_srv_handle_luminance = _map_srv_handle_luminance.find(data_device->device_index);
+    if (it_srv_handle_luminance != _map_srv_handle_luminance.end())
+    {
+        data_srv_handle_luminance = it_srv_handle_luminance->second;
+    }
+    else
+    {
+        data_srv_handle_luminance = new st_srv_handle();
+        _map_srv_handle_luminance.insert({ data_device->device_index, data_srv_handle_luminance });
+    }
+    _mutex_map_srv_handle_luminance->unlock();
+
+    _mutex_map_srv_handle_chrominance->lock();
+    pst_srv_handle data_srv_handle_chrominance = nullptr;
+    auto it_srv_handle_chrominance = _map_srv_handle_chrominance.find(data_device->device_index);
+    if (it_srv_handle_chrominance != _map_srv_handle_chrominance.end())
+    {
+        data_srv_handle_chrominance = it_srv_handle_chrominance->second;
+    }
+    else
+    {
+        data_srv_handle_chrominance = new st_srv_handle();
+        _map_srv_handle_chrominance.insert({ data_device->device_index, data_srv_handle_chrominance });
+    }
+    _mutex_map_srv_handle_chrominance->unlock();
+
+
+    // 첫번째 위치에 default texture를 할당했기 때문에 1칸씩 뒤로 밀고 시작함
+    srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
+    srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
+
+    srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
+    srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
+
+    for (int i = 0; i < (_count_texture_store * counter_texture); i++)
+    {
+        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
+        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
+
+        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
+        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
+    }
+    
+    for (int i = 0; i < (_count_texture_store * counter_cef); i++)
+    {
+        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
+        srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
+
+        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
+        srv_handle_gpu.ptr = SIZE_T(INT64(srv_handle_gpu.ptr) + srv_descriptor_size);
+    }
+
+    for (int i = 0; i < _count_texture_store; i++)
     {
         D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_luminance = srv_handle_cpu;
         srv_handle_cpu.ptr = SIZE_T(INT64(srv_handle_cpu.ptr) + srv_descriptor_size);
@@ -4407,6 +4699,13 @@ void config_setting()
     GetPrivateProfileString(L"WPlayer", L"hw_device_type", L"12", result_w, 255, str_ini_path_w.c_str());
     _hw_device_type = _ttoi(result_w);
 
+    GetPrivateProfileString(L"WPlayer", L"flag_use_cef", L"0", result_w, 255, str_ini_path_w.c_str());
+    result_i = _ttoi(result_w);
+    _flag_use_cef = result_i == 0 ? false : true;
+
+    GetPrivateProfileStringA("WPlayer", "cef_browser_subprocess_path", "", result_a, 255, str_ini_path_a.c_str());
+    _cef_browser_subprocess_path = result_a;
+
     GetPrivateProfileString(L"WPlayer", L"use_control_output", L"0", result_w, 255, str_ini_path_w.c_str());
     result_i = _ttoi(result_w);
     _use_control_output = result_i == 0 ? false : true;
@@ -4704,6 +5003,69 @@ void thread_packet_processing()
             data->duration_blink_in_miliseconds = packet->duration_blink_in_miliseconds;
 
             cppsocket_server_send_font_blink_duration(_tcp_server, data_pair.second, *data);
+
+            delete data;
+        }
+        break;
+
+        case e_command_type::cef_create:
+        {
+            packet_cef_create_from_client* packet = (packet_cef_create_from_client*)data_pair.first;
+
+            std::string url_str;
+            url_str.assign(packet->url, packet->url_size);
+
+            HWND handle = nullptr;
+            RECT rect{ packet->left, packet->top, packet->left + packet->width, packet->top + packet->height };
+
+            for (auto it_window = _map_window.begin(); it_window != _map_window.end(); it_window++)
+            {
+                pst_window data_window = it_window->second;
+
+                if (rect.left < data_window->rect.right
+                    && rect.top < data_window->rect.bottom
+                    && rect.right > data_window->rect.left
+                    && rect.bottom > data_window->rect.top)
+                {
+                    handle = data_window->handle;
+                    break;
+                }
+            }
+
+            if (_flag_use_cef)
+            {
+                create_cef(packet->index_cef, handle, url_str, rect);
+            }
+
+            cppsocket_struct_server_send_cef_create* data = new cppsocket_struct_server_send_cef_create();
+            data->result = (uint16_t)e_packet_result::ok;
+            data->index_cef = packet->index_cef;
+            data->left = packet->left;
+            data->top = packet->top;
+            data->width = packet->width;
+            data->height = packet->height;
+            data->url_size = packet->url_size;
+            memcpy(data->url, packet->url, packet->url_size);
+
+            cppsocket_server_send_cef_create(_tcp_server, data_pair.second, *data);
+
+            delete data;
+        }
+        break;
+        case e_command_type::cef_delete:
+        {
+            packet_cef_delete_from_client* packet = (packet_cef_delete_from_client*)data_pair.first;
+
+            if (_flag_use_cef)
+            {
+                delete_cef(packet->index_cef);
+            }
+
+            cppsocket_struct_server_send_cef_delete* data = new cppsocket_struct_server_send_cef_delete();
+            data->result = (uint16_t)e_packet_result::ok;
+            data->index_cef = packet->index_cef;
+
+            cppsocket_server_send_cef_delete(_tcp_server, data_pair.second, *data);
 
             delete data;
         }
@@ -5433,6 +5795,53 @@ void thread_device(pst_device data_device)
             counter++;
         }
 
+        // draw cef texture buffer data
+        if (_flag_use_cef)
+        {
+            for (auto it_cef = _map_cef.begin(); it_cef != _map_cef.end(); it_cef++)
+            {
+                pst_cef data_cef = it_cef->second;
+
+                for (auto it_cef_device = data_cef->map_cef_device.begin(); it_cef_device != data_cef->map_cef_device.end(); it_cef_device++)
+                {
+                    pst_cef_device data_cef_device = it_cef_device->second;
+
+                    if (data_cef_device->index_cef_device != data_device->device_index)
+                    {
+                        continue;
+                    }
+
+                    if (data_cef_device->flag_texture_created == false)
+                    {
+                        continue;
+                    }
+
+                    command_list->IASetVertexBuffers(0, 1, &data_vertex_buffer_view->vector_vertex_buffer_view.at(counter + data_cef_device->count_cef_device));
+
+                    command_list->RSSetViewports(1, &data_viewport->viewport);
+                    command_list->RSSetScissorRects(1, &data_viewport->scissor_rect);
+
+                    if (is_queue_empty(data_cef->index_map_input, data_cef->index_map_output) == false)
+                    {
+                        command_list->SetGraphicsRootDescriptorTable(0, data_srv_handle_luminance->vector_handle_gpu.at((_count_texture_store * (counter + data_cef_device->count_cef_device)) + data_cef_device->index_srv_draw + 1));
+                        command_list->SetGraphicsRootDescriptorTable(1, data_srv_handle_chrominance->vector_handle_gpu.at((_count_texture_store * (counter + data_cef_device->count_cef_device)) + data_cef_device->index_srv_draw + 1));
+
+                        data_cef_device->index_srv_draw++;
+                        if (data_cef_device->index_srv_draw >= _count_texture_store)
+                        {
+                            data_cef_device->index_srv_draw = 0;
+                        }
+
+                        data_cef->mutex_deque_index_used->lock();
+                        data_cef->deque_index_used->push_back(data_cef->index_upload_texture);
+                        data_cef->mutex_deque_index_used->unlock();
+                    }
+
+                    command_list->DrawIndexedInstanced(6, 1, 0, 0, 0);
+                }
+            }
+        }
+
         CD3DX12_RESOURCE_BARRIER barrier_after = CD3DX12_RESOURCE_BARRIER::Transition(data_rtv->vector_rtv.at(backbuffer_index), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
         command_list->ResourceBarrier(1, &barrier_after);
 
@@ -5882,6 +6291,61 @@ void thread_upload(pst_device data_device)
             upload_texture_default(data_device, index_command_list_upload);
         }
 
+        // upload cef texture buffer data
+        if (_flag_use_cef)
+        {
+            for (auto it_cef = _map_cef.begin(); it_cef != _map_cef.end(); it_cef++)
+            {
+                pst_cef data_cef = it_cef->second;
+            
+                for (auto it_cef_device = data_cef->map_cef_device.begin(); it_cef_device != data_cef->map_cef_device.end(); it_cef_device++)
+                {
+                    pst_cef_device data_cef_device = it_cef_device->second;
+
+                    if (data_cef_device->index_cef_device != data_device->device_index)
+                    {
+                        continue;
+                    }
+
+                    int counter_scene = vector_scene.size();
+
+                    if (is_queue_empty(data_cef->index_map_input, data_cef->index_map_output) == false)
+                    {
+                        if (data_cef_device->flag_texture_created == false)
+                        {
+                            create_vertex_buffer_cef(data_device, index_command_list_upload, counter_scene + data_cef_device->count_cef_device, data_cef_device->rect_normalized);
+
+                            auto it_cef_data_paint = data_cef->map_cef_data_paint->find(data_cef_device->index_srv_upload);
+                            pst_cef_data_paint data_cef_data_paint = it_cef_data_paint->second;
+
+                            create_nv12_texture(data_device, data_cef_data_paint->width, data_cef_data_paint->height, data_cef->index_cef);
+
+                            create_srv_handles_cef_paint(data_device, counter_scene, data_cef_device->count_cef_device);
+
+                            data_cef_device->flag_texture_created = true;
+                        }
+
+                        if (data_cef->flag_use_last_frame == false)
+                        {
+                            data_cef->index_upload_texture++;
+                            if (data_cef->index_upload_texture >= _count_texture_store)
+                            {
+                                data_cef->index_upload_texture = 0;
+                            }
+                        }
+
+                        upload_texture_cef(data_device, data_cef, index_command_list_upload, counter_scene + data_cef_device->count_cef_device);
+
+                        data_cef_device->index_srv_upload++;
+                        if (data_cef_device->index_srv_upload >= _count_texture_store)
+                        {
+                            data_cef_device->index_srv_upload = 0;
+                        }
+                    }
+                }
+            }
+        }
+
         if (data_device->flag_ready_to_device_use)
         {
             int counter_texture = 0;
@@ -5987,6 +6451,133 @@ void thread_window(pst_window data_window)
         else
         {
             swap_chain->Present(1, 0);
+        }
+
+        // get cef texture buffer data
+        if (_flag_use_cef)
+        {
+            _mutex_deque_cef_delete.lock();
+            for (auto it_index_cef = _deque_cef_delete.begin(); it_index_cef != _deque_cef_delete.end();)
+            {
+                int index_cef = *it_index_cef;
+
+                auto it_cef = _map_cef.find(index_cef);
+                if (it_cef != _map_cef.end())
+                {
+                    pst_cef data_cef = it_cef->second;
+
+                    delete_cef_internal(data_cef);
+
+                    _map_cef.erase(it_cef);
+                }
+
+                it_index_cef = _deque_cef_delete.erase(it_index_cef);
+            }
+            _mutex_deque_cef_delete.unlock();
+
+            for (auto it_cef = _map_cef.begin(); it_cef != _map_cef.end(); it_cef++)
+            {
+                pst_cef data_cef = it_cef->second;
+
+                if (data_cef->flag_use_last_frame == false)
+                {
+                    data_cef->mutex_deque_index_used->lock();
+
+                    // cef texture, use 상태 체크 후 delete 로 이동
+                    // deque의 숫자가 전부 동일하면 unref 하지 않음.
+                    // 숫자가 전부 동일하면 2개만 남기도록 함.
+                    if (data_cef->deque_index_used->size() > data_cef->count_used_frame_store)
+                    {
+                        int count_used_index = data_cef->deque_index_used->size();
+                        int check_same_index = data_cef->deque_index_used->front();
+                        int counter_same_index = 0;
+
+                        for (auto it = data_cef->deque_index_used->begin(); it != data_cef->deque_index_used->end(); it++)
+                        {
+                            if (check_same_index == *it)
+                            {
+                                count_used_index--;
+                                counter_same_index++;
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+
+                        //if (counter_same_index > data_cef->count_used_frame_store)
+                        if (counter_same_index > 1)
+                        {
+                            //for (size_t i = 0; i < counter_same_index - data_cef->count_used_frame_store; i++)
+                            for (size_t i = 0; i < counter_same_index - 1; i++)
+                            {
+                                data_cef->deque_index_used->pop_front();
+                            }
+                        }
+
+                        if (count_used_index != 0)
+                        {
+                            int index_used_frame = data_cef->deque_index_used->front();
+
+                            {
+                                std::lock_guard<std::mutex> lk(*data_cef->mutex_deque_index_unref);
+                                data_cef->deque_index_unref->push_back(index_used_frame);
+                            }
+
+                            data_cef->deque_index_used->pop_front();
+                        }
+                    }
+
+                    data_cef->mutex_deque_index_used->unlock();
+                }
+
+                data_cef->flag_use_last_frame = false;
+
+                int size = 0;
+                cpp_cef_wrapper_get_deque_size(data_cef->instance, size);
+
+                void* buffer = nullptr;
+                int width = 0;
+                int height = 0;
+
+                if (size != 0)
+                {
+                    if (is_queue_full(data_cef->index_map_input, data_cef->index_map_output, _count_texture_store) == false)
+                    {
+                        cpp_cef_wrapper_get_deque_data(data_cef->instance, buffer, width, height);
+                        if (buffer != nullptr && width != 0 && height != 0)
+                        {
+                            auto it_map_cef_data_paint = data_cef->map_cef_data_paint->find(data_cef->index_map_input);
+                            if (it_map_cef_data_paint != data_cef->map_cef_data_paint->end())
+                            {
+                                pst_cef_data_paint data = it_map_cef_data_paint->second;
+
+                                data->buffer = buffer;
+                                data->width = width;
+                                data->height = height;
+
+                                data_cef->index_map_input++;
+                                if (data_cef->index_map_input == _count_texture_store)
+                                {
+                                    data_cef->index_map_input = 0;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            data_cef->flag_use_last_frame = true;
+                        }
+                    }
+                    else
+                    {
+                        data_cef->flag_use_last_frame = true;
+                    }
+                }
+                else
+                {
+                    data_cef->flag_use_last_frame = true;
+                }
+            }
         }
 
         SetEvent(data_window->event_window_to_scene);
@@ -6584,6 +7175,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         initialize_swap_locks();
     }
 
+    if (_flag_use_cef)
+    {
+        cef_initialize();
+    }
+
     start_playback();
 
     MSG msg{};
@@ -6597,6 +7193,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
+        }
+    }
+
+    if (_flag_use_cef)
+    {
+        if (_flag_cef_succeed)
+        {
+            delete_cefs();
         }
     }
 
@@ -6747,6 +7351,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         _thread_packet_processing.join();
     }
 
+    if (_flag_use_cef)
+    {
+        if (_flag_cef_succeed)
+        {
+            cef_shutdown();
+        }
+    }
+
     delete_scenes();
 
     // NV12
@@ -6757,6 +7369,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         pst_device data_device = it_device->second;
 
         delete_texture_default(data_device);
+
+        delete_nv12_texture(data_device);
     }
     delete_vertex_buffers();
     delete_index_buffers();
@@ -7169,6 +7783,286 @@ int upload_texture_default(pst_device data_device, int index_command_list)
     desc_srv.Format = DXGI_FORMAT_R8G8_UNORM;
     desc_srv.Texture2D.PlaneSlice = 1;
     device->CreateShaderResourceView(data_device->texture_default, &desc_srv, srv_handle_cpu_chrominance);
+
+    return 0;
+}
+
+int create_nv12_texture(pst_device data_device, int width, int height, int index_cef)
+{
+    HRESULT hr = S_OK;
+
+    ID3D12Device* device = data_device->device;
+
+    pst_texture_cef data_texture_cef = new st_texture_cef();
+
+    D3D12_RESOURCE_DESC desc_texture{};
+    desc_texture.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    desc_texture.Alignment = 0;
+
+    desc_texture.Width = width;
+    desc_texture.Height = height;
+
+    desc_texture.Width = (desc_texture.Width + 1) & ~1;  // 너비를 짝수로 맞춤
+    desc_texture.Height = (desc_texture.Height + 1) & ~1; // 높이를 짝수로 맞춤
+
+    desc_texture.DepthOrArraySize = 1;
+    desc_texture.MipLevels = 1;
+    desc_texture.Format = DXGI_FORMAT_NV12;
+    desc_texture.SampleDesc.Count = 1;
+    desc_texture.SampleDesc.Quality = 0;
+    desc_texture.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    desc_texture.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    CD3DX12_HEAP_PROPERTIES texture_properties(D3D12_HEAP_TYPE_DEFAULT);
+
+    
+    for (UINT i = 0; i < _count_texture_store; i++)
+    {
+        ID3D12Resource* texture = nullptr;
+
+        hr = device->CreateCommittedResource(
+            &texture_properties,
+            D3D12_HEAP_FLAG_NONE,
+            &desc_texture,
+            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+            nullptr,
+            IID_PPV_ARGS(&texture)
+        );
+
+        data_texture_cef->map_texture.insert({ i, texture });
+    }
+
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout_luminance{};
+    UINT numRows_luminance = 0;
+    UINT64 rowSizeInBytes_luminance = 0;
+    UINT64 totalBytes_luminance = 0;
+
+    device->GetCopyableFootprints(&desc_texture, 0, 1, 0, &layout_luminance, &numRows_luminance, &rowSizeInBytes_luminance, &totalBytes_luminance);
+
+    D3D12_RESOURCE_DESC desc_upload{};
+    desc_upload.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    desc_upload.Alignment = 0;
+    desc_upload.Width = totalBytes_luminance;
+    desc_upload.Height = 1;
+    desc_upload.DepthOrArraySize = 1;
+    desc_upload.MipLevels = 1;
+    desc_upload.Format = DXGI_FORMAT_UNKNOWN;
+    desc_upload.SampleDesc.Count = 1;
+    desc_upload.SampleDesc.Quality = 0;
+    desc_upload.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    desc_upload.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+    CD3DX12_HEAP_PROPERTIES texture_default_upload_properties(D3D12_HEAP_TYPE_UPLOAD);
+
+    for (UINT i = 0; i < _count_texture_store; i++)
+    {
+        ID3D12Resource* upload_heap_luminance = nullptr;
+
+        hr = device->CreateCommittedResource(
+            &texture_default_upload_properties,
+            D3D12_HEAP_FLAG_NONE,
+            &desc_upload,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&upload_heap_luminance)
+        );
+
+        data_texture_cef->map_upload_heap_luminance.insert({ i, upload_heap_luminance });
+    }
+
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout_chrominance{};
+    UINT numRows_chrominance = 0;
+    UINT64 rowSizeInBytes_chrominance = 0;
+    UINT64 totalBytes_chrominance = 0;
+
+    device->GetCopyableFootprints(&desc_texture, 1, 1, 0, &layout_chrominance, &numRows_chrominance, &rowSizeInBytes_chrominance, &totalBytes_chrominance);
+
+    desc_upload.Width = totalBytes_chrominance;
+
+    for (UINT i = 0; i < _count_texture_store; i++)
+    {
+        ID3D12Resource* upload_heap_chrominance = nullptr;
+
+        hr = device->CreateCommittedResource(
+            &texture_default_upload_properties,
+            D3D12_HEAP_FLAG_NONE,
+            &desc_upload,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&upload_heap_chrominance)
+        );
+
+        data_texture_cef->map_upload_heap_chrominance.insert({ i, upload_heap_chrominance });
+    }
+
+    data_device->map_texture_cef.insert({ index_cef, data_texture_cef });
+
+    return 0;
+}
+
+int delete_nv12_texture(pst_device data_device)
+{
+    for (auto it_map_texture_cef = data_device->map_texture_cef.begin(); it_map_texture_cef != data_device->map_texture_cef.end();)
+    {
+        pst_texture_cef data_texture_cef = it_map_texture_cef->second;
+
+        for (auto it_map_texture = data_texture_cef->map_texture.begin(); it_map_texture != data_texture_cef->map_texture.end();)
+        {
+            ID3D12Resource* resource = it_map_texture->second;
+
+            if (resource)
+            {
+                resource->Release();
+                resource = nullptr;
+            }
+
+            it_map_texture = data_texture_cef->map_texture.erase(it_map_texture);
+        }
+
+        for (auto it_map_upload_heap_luminance = data_texture_cef->map_upload_heap_luminance.begin(); it_map_upload_heap_luminance != data_texture_cef->map_upload_heap_luminance.end();)
+        {
+            ID3D12Resource* resource = it_map_upload_heap_luminance->second;
+
+            if (resource)
+            {
+                resource->Release();
+                resource = nullptr;
+            }
+
+            it_map_upload_heap_luminance = data_texture_cef->map_upload_heap_luminance.erase(it_map_upload_heap_luminance);
+        }
+
+        for (auto it_map_upload_heap_chrominance = data_texture_cef->map_upload_heap_chrominance.begin(); it_map_upload_heap_chrominance != data_texture_cef->map_upload_heap_chrominance.end();)
+        {
+            ID3D12Resource* resource = it_map_upload_heap_chrominance->second;
+
+            if (resource)
+            {
+                resource->Release();
+                resource = nullptr;
+            }
+
+            it_map_upload_heap_chrominance = data_texture_cef->map_upload_heap_chrominance.erase(it_map_upload_heap_chrominance);
+        }
+
+        delete data_texture_cef;
+        data_texture_cef = nullptr;
+
+        it_map_texture_cef = data_device->map_texture_cef.erase(it_map_texture_cef);
+    }
+    
+    return 0;
+}
+
+int upload_texture_cef(pst_device data_device, pst_cef data_cef, int index_command_list_upload, int counter_texture)
+{
+    auto it_command_list = _map_command_list.find(data_device->device_index);
+    pst_command_list data_command_list = it_command_list->second;
+    ID3D12GraphicsCommandList* cmd_list = data_command_list->vector_command_list.at(index_command_list_upload);
+
+    ID3D12Device* device = data_device->device;
+
+    pst_cef_device data_cef_device = nullptr;
+    for (auto it_cef_device = data_cef->map_cef_device.begin(); it_cef_device != data_cef->map_cef_device.end(); it_cef_device++)
+    {
+        data_cef_device = it_cef_device->second;
+
+        if (data_cef_device->index_cef_device == data_device->device_index)
+        {
+            break;
+        }
+    }
+
+    pst_cef_data_paint data_paint = data_cef->map_cef_data_paint->find(data_cef->index_upload_texture)->second;
+
+    int index_texture = (_count_texture_store * counter_texture) + data_cef_device->index_srv_upload + 1;
+    
+    int rgba_size = data_paint->width * data_paint->height * 4;
+
+    int y_plane_size = data_paint->width * data_paint->height;
+    int uv_plane_size = (data_paint->width / 2) * (data_paint->height / 2) * 2;
+    int nv12_size = y_plane_size + uv_plane_size;
+
+    if (data_paint->nv12_buffer == nullptr)
+    {
+        data_paint->nv12_buffer = new uint8_t[nv12_size];
+    }
+
+    uint8_t* src_data[4] = { (uint8_t*)data_paint->buffer, nullptr, nullptr, nullptr };
+    int src_linesize[4] = { data_paint->width * 4, 0, 0, 0 };
+
+    uint8_t* dst_data[4] = { (uint8_t*)data_paint->nv12_buffer, (uint8_t*)data_paint->nv12_buffer + y_plane_size, nullptr, nullptr };
+    int dst_linesize[4] = { data_paint->width, data_paint->width, 0, 0 };
+
+    SwsContext* sws_ctx = sws_getContext(
+        data_paint->width, data_paint->height, AV_PIX_FMT_BGRA,
+        data_paint->width, data_paint->height, AV_PIX_FMT_NV12,
+        SWS_BICUBIC, nullptr, nullptr, nullptr
+    );
+
+    if (sws_ctx)
+    {
+        sws_scale(sws_ctx, src_data, src_linesize, 0, data_paint->height, dst_data, dst_linesize);
+        sws_freeContext(sws_ctx);
+    }
+
+    D3D12_SUBRESOURCE_DATA texture_data_luminance{};
+    texture_data_luminance.pData = dst_data[0];
+    texture_data_luminance.RowPitch = dst_linesize[0];
+    texture_data_luminance.SlicePitch = texture_data_luminance.RowPitch * data_paint->height;
+
+    D3D12_SUBRESOURCE_DATA texture_data_chrominance{};
+    texture_data_chrominance.pData = dst_data[1];
+    texture_data_chrominance.RowPitch = dst_linesize[1];
+    texture_data_chrominance.SlicePitch = texture_data_chrominance.RowPitch * data_paint->height / 2;
+
+    auto it_texture_cef = data_device->map_texture_cef.find(data_cef->index_cef);
+    pst_texture_cef data_texture_cef = it_texture_cef->second;
+    ID3D12Resource* resource = data_texture_cef->map_texture.at(data_cef_device->index_srv_upload);
+    ID3D12Resource* upload_heap_luminance = data_texture_cef->map_upload_heap_luminance.at(data_cef_device->index_srv_upload);
+    ID3D12Resource* upload_heap_chrominance = data_texture_cef->map_upload_heap_chrominance.at(data_cef_device->index_srv_upload);
+
+    CD3DX12_RESOURCE_BARRIER transition_barrier_nv12 = CD3DX12_RESOURCE_BARRIER::Transition(resource, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+    cmd_list->ResourceBarrier(1, &transition_barrier_nv12);
+
+    UpdateSubresources(cmd_list, resource, upload_heap_luminance, 0, 0, 1, &texture_data_luminance);
+    UpdateSubresources(cmd_list, resource, upload_heap_chrominance, 0, 1, 1, &texture_data_chrominance);
+
+    transition_barrier_nv12 = CD3DX12_RESOURCE_BARRIER::Transition(resource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    cmd_list->ResourceBarrier(1, &transition_barrier_nv12);
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc{};
+    srv_desc.Format = DXGI_FORMAT_R8_UNORM;
+    srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srv_desc.Texture2D.MostDetailedMip = 0;
+    srv_desc.Texture2D.MipLevels = 1;
+    srv_desc.Texture2D.PlaneSlice = 0;
+    srv_desc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+    _mutex_map_srv_handle_luminance->lock();
+    auto it_srv_handle_luminance = _map_srv_handle_luminance.find(data_device->device_index);
+    _mutex_map_srv_handle_luminance->unlock();
+
+    pst_srv_handle data_srv_handle_luminance = it_srv_handle_luminance->second;
+    D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_luminance = data_srv_handle_luminance->vector_handle_cpu.at(index_texture);
+
+    _mutex_map_srv_handle_chrominance->lock();
+    auto it_srv_handle_chrominance = _map_srv_handle_chrominance.find(data_device->device_index);
+    _mutex_map_srv_handle_chrominance->unlock();
+
+    pst_srv_handle data_srv_handle_chrominance = it_srv_handle_chrominance->second;
+    D3D12_CPU_DESCRIPTOR_HANDLE srv_handle_cpu_chrominance = data_srv_handle_chrominance->vector_handle_cpu.at(index_texture);
+
+    // Y 채널 할당
+    srv_desc.Format = DXGI_FORMAT_R8_UNORM;
+    srv_desc.Texture2D.PlaneSlice = 0;
+    data_device->device->CreateShaderResourceView(resource, &srv_desc, srv_handle_cpu_luminance);
+
+    // UV 채널 할당
+    srv_desc.Format = DXGI_FORMAT_R8G8_UNORM;
+    srv_desc.Texture2D.PlaneSlice = 1;
+    data_device->device->CreateShaderResourceView(resource, &srv_desc, srv_handle_cpu_chrominance);
 
     return 0;
 }
@@ -8557,5 +9451,226 @@ void set_text_blink_duration(int duration_blink_in_miliseconds)
         pst_text data_text = it_text->second;
 
         data_text->duration_blink_in_miliseconds = duration_blink_in_miliseconds;
+    }
+}
+
+void cef_initialize()
+{
+    int result = 0;
+    result = cpp_cef_wrapper_execute_process(hInst);
+    if (result >= 0)
+    {
+        return;
+    }
+
+    result = cpp_cef_wrapper_initialize(hInst, _cef_browser_subprocess_path.c_str(), _cef_browser_subprocess_path.size());
+    if (result != 0)
+    {
+        return;
+    }
+
+    _flag_cef_succeed = true;
+}
+
+void cef_shutdown()
+{
+    cpp_cef_wrapper_shutdown();
+}
+
+void create_cef(UINT index_cef, HWND handle, std::string url, RECT rect)
+{
+    pst_cef data_cef = new st_cef();
+
+    data_cef->index_cef = index_cef;
+    data_cef->handle = handle;
+    data_cef->url = url;
+    data_cef->rect_base = rect;
+
+    data_cef->index_map_input = 0;
+    data_cef->index_map_output = 0;
+    
+    data_cef->mutex_deque_index_unref = new std::mutex();
+    data_cef->deque_index_unref = new std::deque<int>();
+
+    data_cef->flag_thread_cef_unref = true;
+    data_cef->thread_cef_unref = new std::thread(thread_cef_unref, data_cef);
+
+    data_cef->instance = cpp_cef_wrapper_create(data_cef->handle, data_cef->url.c_str(), data_cef->url.size(), data_cef->rect_base);
+    
+    for (auto it_window = _map_window.begin(); it_window != _map_window.end(); it_window++)
+    {
+        pst_window data_window = it_window->second;
+
+        if (data_cef->rect_base.left < data_window->rect.right
+            && data_cef->rect_base.top < data_window->rect.bottom
+            && data_cef->rect_base.right > data_window->rect.left
+            && data_cef->rect_base.bottom > data_window->rect.top
+            )
+        {
+            pst_cef_device data_cef_device = new st_cef_device();
+            data_cef_device->index_cef_device = data_window->device_index;
+
+            data_cef_device->rect_target.left = data_cef->rect_base.left >= data_window->rect.left ? data_cef->rect_base.left : data_window->rect.left;
+            data_cef_device->rect_target.top = data_cef->rect_base.top >= data_window->rect.top ? data_cef->rect_base.top : data_window->rect.top;
+            data_cef_device->rect_target.right = data_cef->rect_base.right <= data_window->rect.right ? data_cef->rect_base.right : data_window->rect.right;
+            data_cef_device->rect_target.bottom = data_cef->rect_base.bottom <= data_window->rect.bottom ? data_cef->rect_base.bottom : data_window->rect.bottom;
+
+            normalize_rect(data_window->rect, data_cef_device->rect_target, data_cef_device->rect_normalized);
+
+            data_cef_device->index_srv_upload = 0;
+            data_cef_device->index_srv_draw = 0;
+            data_cef_device->flag_texture_created = false;
+            data_cef_device->count_cef_device = data_window->counter_cef_create;
+            data_window->counter_cef_create += 1;
+
+            data_cef->map_cef_device.insert({ data_cef_device->index_cef_device, data_cef_device });
+        }
+    }
+
+    data_cef->map_cef_data_paint = new std::map<UINT, pst_cef_data_paint>();
+    data_cef->mutex_map_cef_data_paint = new std::mutex();
+
+    for (UINT i = 0; i < _count_texture_store; i++)
+    {
+        data_cef->map_cef_data_paint->insert({ i, new st_cef_data_paint() });
+    }
+
+    data_cef->deque_index_used = new std::deque<int>();
+    data_cef->mutex_deque_index_used = new std::mutex();
+
+    _map_cef.insert({ data_cef->index_cef, data_cef });
+}
+
+void delete_cef(UINT index_cef)
+{
+    auto it_cef = _map_cef.find(index_cef);
+
+    if (it_cef != _map_cef.end())
+    {
+        _mutex_deque_cef_delete.lock();
+        _deque_cef_delete.push_back(it_cef->first);
+        _mutex_deque_cef_delete.unlock();
+    }
+}
+
+void delete_cefs()
+{
+    for (auto it_cef = _map_cef.begin(); it_cef != _map_cef.end(); it_cef++)
+    {
+        _mutex_deque_cef_delete.lock();
+        _deque_cef_delete.push_back(it_cef->first);
+        _mutex_deque_cef_delete.unlock();
+    }
+}
+
+void delete_cef_internal(pst_cef data_cef)
+{
+    for (auto it_cef_device = data_cef->map_cef_device.begin(); it_cef_device != data_cef->map_cef_device.end(); )
+    {
+        pst_cef_device data_cef_device = it_cef_device->second;
+
+        delete data_cef_device;
+        data_cef_device = nullptr;
+
+        it_cef_device = data_cef->map_cef_device.erase(it_cef_device);
+    }
+
+    cpp_cef_wrapper_close_browser(data_cef->instance);
+
+    cpp_cef_wrapper_delete(data_cef->instance);
+
+    data_cef->mutex_map_cef_data_paint->lock();
+    for (auto it_map_cef_data_paint = data_cef->map_cef_data_paint->begin(); it_map_cef_data_paint != data_cef->map_cef_data_paint->end();)
+    {
+        pst_cef_data_paint data_cef_data_paint = it_map_cef_data_paint->second;
+
+        cpp_cef_wrapper_delete_buffer(data_cef->instance, data_cef_data_paint->buffer);
+        if (data_cef_data_paint->nv12_buffer != nullptr)
+        {
+            delete[] data_cef_data_paint->nv12_buffer;
+            data_cef_data_paint->nv12_buffer = nullptr;
+        }
+
+        delete data_cef_data_paint;
+        data_cef_data_paint = nullptr;
+
+        it_map_cef_data_paint = data_cef->map_cef_data_paint->erase(it_map_cef_data_paint);
+    }
+    delete data_cef->map_cef_data_paint;
+    data_cef->map_cef_data_paint = nullptr;
+    data_cef->mutex_map_cef_data_paint->unlock();
+
+    if (data_cef->thread_cef_unref->joinable())
+    {
+        data_cef->flag_thread_cef_unref = false;
+        data_cef->thread_cef_unref->join();
+    }
+    delete data_cef->thread_cef_unref;
+    data_cef->thread_cef_unref = nullptr;
+
+    delete data_cef->mutex_map_cef_data_paint;
+    data_cef->mutex_map_cef_data_paint = nullptr;
+
+    data_cef->mutex_deque_index_used->lock();
+    data_cef->deque_index_used->clear();
+    delete data_cef->deque_index_used;
+    data_cef->deque_index_used = nullptr;
+    data_cef->mutex_deque_index_used->unlock();
+
+    delete data_cef->mutex_deque_index_used;
+    data_cef->mutex_deque_index_used = nullptr;
+
+    data_cef->mutex_deque_index_unref->lock();
+    data_cef->deque_index_unref->clear();
+    delete data_cef->deque_index_unref;
+    data_cef->deque_index_unref = nullptr;
+    data_cef->mutex_deque_index_unref->unlock();
+
+    delete data_cef->mutex_deque_index_unref;
+    data_cef->mutex_deque_index_unref = nullptr;
+
+    delete data_cef;
+    data_cef = nullptr;
+}
+
+void thread_cef_unref(pst_cef data_cef)
+{
+    while (data_cef->flag_thread_cef_unref)
+    {
+        bool flag_deque_index_unref_is_empty = false;
+        {
+            std::lock_guard<std::mutex> lk(*data_cef->mutex_deque_index_unref);
+            flag_deque_index_unref_is_empty = data_cef->deque_index_unref->empty();
+        }
+
+        if (flag_deque_index_unref_is_empty)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(_sleep_time_processing));
+            continue;
+        }
+
+        int index_unref = -1;
+        {
+            std::lock_guard<std::mutex> lk(*data_cef->mutex_deque_index_unref);
+            index_unref = data_cef->deque_index_unref->front();
+            data_cef->deque_index_unref->pop_front();
+        }
+
+        if (data_cef->map_cef_data_paint->find(index_unref)->second->buffer != nullptr)
+        {
+            cpp_cef_wrapper_delete_buffer(data_cef->instance, data_cef->map_cef_data_paint->find(index_unref)->second->buffer);
+            data_cef->map_cef_data_paint->find(index_unref)->second->buffer = nullptr;
+            delete[] data_cef->map_cef_data_paint->find(index_unref)->second->nv12_buffer;
+            data_cef->map_cef_data_paint->find(index_unref)->second->nv12_buffer = nullptr;
+        }
+
+        if (is_queue_empty(data_cef->index_map_input, data_cef->index_map_output) == false)
+        {
+            data_cef->index_map_output += 1;
+            if (!(data_cef->index_map_output < _count_texture_store))
+            {
+                data_cef->index_map_output = 0;
+            }
+        }
     }
 }
