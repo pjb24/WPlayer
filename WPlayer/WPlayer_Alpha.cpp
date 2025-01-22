@@ -6050,7 +6050,8 @@ void thread_scene(pst_scene data_scene)
         if (_flag_use_default_image == false)
         {
             // 사용이 종료된 frame을 unref 예정 queue에 등록
-            if (data_scene->flag_frame_unref == true && data_scene->flag_use_last_frame == false)
+            //if (data_scene->flag_frame_unref == true && data_scene->flag_use_last_frame == false)
+            if (data_scene->flag_use_last_frame == false)
             {
                 data_scene->mutex_deque_index_used->lock();
             
