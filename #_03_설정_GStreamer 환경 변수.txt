@@ -1,0 +1,37 @@
+GStreamer 환경 변수
+
+--------------------------------
+개발
+----------------
+HKCU - 사용자 변수 편집
+
+GST_PLUGIN_SYSTEM_PATH
+C:\gstreamer\1.0\msvc_x86_64\lib\gstreamer-1.0
+----------------
+HKLM - 시스템 변수 편집
+
+Path
+%GSTREAMER_SYSTEM_PATH%
+
+GSTREAMER_SYSTEM_PATH
+C:\gstreamer\1.0\msvc_x86_64\bin
+C:\gstreamer\1.0\msvc_x86_64\lib
+C:\gstreamer\1.0\msvc_x86_64\lib\gstreamer-1.0
+----------------
+--------------------------------
+런타임
+----------------
+HKCU - 사용자 변수 편집
+
+Path
+%GSTREAMER_USER_PATH%
+
+GSTREAMER_USER_PATH
+C:\gstreamer\1.0\msvc_x86_64\bin
+----------------
+HKLM - 시스템 변수 편집
+
+- 맞는지만 확인
+GSTREAMER_1_0_ROOT_MSVC_X86_64
+C:\gstreamer\1.0\msvc_x86_64\
+--------------------------------
