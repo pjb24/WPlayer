@@ -68,7 +68,8 @@
     <PostBuildEvent>
       <Command>xcopy /y /d $(SolutionDir)Lib\CEF\$(Configuration) $(OutDir)
 xcopy /y /d /s $(SolutionDir)Resources\CEF $(OutDir)
-xcopy /y /d /s $(OutDir)* $(SolutionDir)$(Configuration)</Command>
+xcopy /y /d /s $(OutDir)* $(SolutionDir)$(Configuration)
+xcopy /y /d $(SolutionDir)Lib\CEF_client $(SolutionDir)$(Configuration)</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -94,7 +95,8 @@ xcopy /y /d /s $(OutDir)* $(SolutionDir)$(Configuration)</Command>
     <PostBuildEvent>
       <Command>xcopy /y /d $(SolutionDir)Lib\CEF\$(Configuration) $(OutDir)
 xcopy /y /d /s $(SolutionDir)Resources\CEF $(OutDir)
-xcopy /y /d /s $(OutDir)* $(SolutionDir)$(Configuration)</Command>
+xcopy /y /d /s $(OutDir)* $(SolutionDir)$(Configuration)
+xcopy /y /d $(SolutionDir)Lib\CEF_client $(SolutionDir)$(Configuration)</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
